@@ -11,12 +11,12 @@ geospatial libraries. It should be possible to compile and run it on most modern
 Unix-like platforms relatively painlessly. In order to do so, make sure the
 following dependencies are present on your system:
 
-- Either GCC version 9+, or an older GCC plus the Boost C++ libraries (>= 1.46.0)
-- GDAL (>= 2.2.0)
-- PROJ
+- Either [GCC](https://www.gnu.org/software/gcc/) version 9+, or an older GCC plus the [Boost](https://www.boost.org/) C++ libraries (>= 1.46.0)
+- [GDAL](https://gdal.org/) (>= 2.2.0)
+- [PROJ](https://proj.org/)
 - GNU autotools (if building directly from the git repository)
-- (optional) NetCDF
-- (optional) Julia, for running tests
+- (optional) [NetCDF](https://www.unidata.ucar.edu/software/netcdf/)
+- (optional) [Julia](https://julialang.org/), for running tests
 
 ### Installation ###
 
