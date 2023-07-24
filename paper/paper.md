@@ -82,13 +82,13 @@ programs most closely related to ours are the open source codes `D-CLAW`
 [@Iverson:2014;@George:2014;@DCLAW:2023], `TITAN2D`
 [@Patra:2005;@Simakov:2019;@Patra:2020], `r.avaflow`
 [@Pudasaini:2019;@ravaflow:2023], `IMEX_SfloW2D`
-[@IMEX_SfloW2D:2023;@Vitturi:2023] and the debris flow components of the
-proprietary software packages `RAMMS` [@Christen:2010;@Meyrat:2022] and `Flo-2D`
-[@Flo2D:2023].  Each of these codes uses a slightly different description of the
-flow physics and underlying mathematical framework. In some cases, it can be
-difficult to discern from the available documentation exactly which model and
-assumptions are used in the latest software version and how the program operates
-`under the hood'.
+[@IMEX_SfloW2D:2023;@Vitturi:2023a;@Vitturi:2023b] and the debris flow
+components of the proprietary software packages `RAMMS`
+[@Christen:2010;@Meyrat:2022] and `Flo-2D` [@Flo2D:2023].  Each of these codes
+uses a slightly different description of the flow physics and underlying
+mathematical framework. In some cases, it can be difficult to discern from the
+available documentation exactly which model and assumptions are used in the
+latest software version and how the program operates `under the hood'.
 
 Like all the above software, `Kestrel` numerically approximates solutions to an
 underlying system of partial differential equations for the flow, whose
