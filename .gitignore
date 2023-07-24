@@ -1,0 +1,5 @@
+*.o
+*.mod
+*.swp
+*_vimrc_local.vim
+
