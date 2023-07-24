@@ -79,14 +79,15 @@ models.
 
 There are many existing codes available for simulating these systems. The
 programs most closely related to ours are the open source codes `D-CLAW`
-[@Iverson:2014,@George:2014,@DCLAW:2023], `TITAN2D` [@Patra:2005,@Titan2D:2023],
-`r.avaflow` [@ravaflow:2023], `IMEX_SfloW2D` [@IMEX_SfloW2D:2023,@Vitturi:2023]
-and the debris flow components of the proprietary software packages `RAMMS`
-[@Christen:2010,@Meyrat:2022] and `Flo-2D` [@Flo2D:2023].
-Each of these codes uses a slightly different description of the flow
-physics and underlying mathematical framework. In some cases, it can be difficult
-to discern from the available documentation exactly which model and assumptions
-are used in the latest software version and how the program operates
+[@Iverson:2014;@George:2014;@DCLAW:2023], `TITAN2D`
+[@Patra:2005;@Simakov:2019;@Patra:2020], `r.avaflow`
+[@Pudasaini:2019;@ravaflow:2023], `IMEX_SfloW2D`
+[@IMEX_SfloW2D:2023;@Vitturi:2023] and the debris flow components of the
+proprietary software packages `RAMMS` [@Christen:2010;@Meyrat:2022] and `Flo-2D`
+[@Flo2D:2023].  Each of these codes uses a slightly different description of the
+flow physics and underlying mathematical framework. In some cases, it can be
+difficult to discern from the available documentation exactly which model and
+assumptions are used in the latest software version and how the program operates
 `under the hood'.
 
 Like all the above software, `Kestrel` numerically approximates solutions to an
@@ -118,7 +119,7 @@ gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$, is a
 surface gradient operator, with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
 
 The technical details of these equations, their derivation and our numerical
-solution scheme are fully presented in [@langham:2023].  While most of the terms
+solution scheme are fully presented in @Langham:2023.  While most of the terms
 are fixed by the underlying depth-averaged flow physics (and shall not be
 discussed further), some parts of the right-hand sides are user-settable.
 The terms
@@ -153,27 +154,7 @@ technical advances and stress importance of morphodynamics, calibration and
 model uncertainty.]
 
 Results from `Kestrel` simulations were used in the the following publications:
-[@Jenkins:2023,@Langham:2023].
-
-# Citations
-
-A list of key references, including to other software addressing related needs.
-Note that the references should include full names of venues, e.g., journals and
-conferences, not abbreviations only understood in the context of a specific
-discipline.
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-
-Mention (if applicable) a representative set of past or ongoing research
-projects using the software and recent scholarly publications enabled by it.
-[@Langham:2023]
+[@Jenkins:2023;@Langham:2023].
 
 # Acknowledgements
 
