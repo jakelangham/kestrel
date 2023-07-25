@@ -1,4 +1,5 @@
 .. _quick_start:
+
 Quick start
 ===========
 
@@ -25,11 +26,13 @@ Installation
 We use GNU autools for our build system. If building directly from the git repository, you must first generate the relevant build scripts using the command
 
 .. code-block:: bash
+
   $ autoreconf -fi
 
 Then the code can be compiled with
 
 .. code-block:: bash
+
   $ ./configure && make
 
 If succesful, this places an executable in the src directory.
@@ -38,6 +41,7 @@ You may wish to provide additional flags to the configure script, depending on
 your local setup. For example, you can do
 
 .. code-block:: bash
+
   $ ./configure --with-netcdf4=yes/no/PATH
 
 to specify whether to build Kestrel with NetCDF support, where PATH is the
@@ -48,6 +52,7 @@ Likewise, if you do not have a newer (>= 9) version of GCC,
 you can instead use Boost to do filesystem calls by specifying
 
 .. code-block:: bash
+
   $ ./configure --with-boost[=ARG]
 
 where ARG optionally specifies the location of your Boost installation.
@@ -55,6 +60,7 @@ where ARG optionally specifies the location of your Boost installation.
 For testing, the path to a valid Julia executable can be specified with
 
 .. code-block:: bash
+
   $ ./configure JULIA=[PATH]
 
 This will place a symlink to Julia in the ./tests directory.
@@ -62,22 +68,24 @@ This will place a symlink to Julia in the ./tests directory.
 Some other options are listed in the help dialogue of the configure script
 
 .. code-block:: bash
-  $ `./configure --help`
 
-.. _quick_run
+  $ ./configure --help
+
+.. _quick_run:
   
 Running a simulation
 --------------------
 
 TODO
 
-.. _quick_view
+.. _quick_view:
+
 Viewing the output
 ------------------
 
 TODO
 
-.. _quick_test
+.. _quick_test:
   
 Test
 ----
@@ -86,13 +94,14 @@ The full test suite for Kestrel may be run by changing to the ./tests
 directory and issuing the command
 
 .. code-block:: bash
+
   $ ./julia runall.jl
 
 This runs a sequential battery of various tests and can take some time. Unless
 you are modifying the code, or are very keen to check that it's working as
 expected, you probably do not need to bother with this.
 
-.. _quick_contact
+.. _quick_contact:
   
 Contact
 -------
