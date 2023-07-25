@@ -88,7 +88,8 @@ components of the proprietary software packages `RAMMS`
 uses a slightly different description of the flow physics and underlying
 mathematical framework. In some cases, it can be difficult to discern from the
 available documentation exactly which model and assumptions are used in the
-latest software version and how the program operates `under the hood'.
+latest software version and how the program operates `under the hood' to produce
+its results. 
 
 Like all the above software, `Kestrel` numerically approximates solutions to an
 underlying system of partial differential equations for the flow, whose
@@ -111,7 +112,7 @@ In two spatial dimensions, the governing equations are
 \nabla_s\left(\frac{1}{2}\rho g \cos(\theta) H^2\right) = 
 -\rho g H \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
-\label{eq:governing eqs 2}
+\label{eq:governing eqs 4}
 \end{gather}
 where $\psi_b$, $g$ and $\nu$ are user-defined modelling parameters,
 $\theta(\mathbf{x},t)$ is the local slope angle between the bed normal and
@@ -121,22 +122,19 @@ surface gradient operator, with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
 The technical details of these equations, their derivation and our numerical
 solution scheme are fully presented in @Langham:2023.  While most of the terms
 are fixed by the underlying depth-averaged flow physics (and shall not be
-discussed further), some parts of the right-hand sides are user-settable.
-The terms
-$\mathcal{F}$, $\mathcal{E}$ and
-$\mathcal{D}$ denote the basal friction, erosion rate
-and deposition rate respectively. These are
-modelling closures, assumed to be functions of the flow fields $H$, $\mathbf{u}$
-and $\psi$. In each case, the user may choose from different options, depending
-on the problem at hand. For example, the friction $\mathcal{F}$ may be set
-either to a function appropriate for turbulent fluids, to various models of
-purely granular flows, or to a combined law that depends on the solids
-concentration.  This provides the flexibility to simulate many different kinds
-of flow.  Furthermore, it is worth noting that in many cases, the question of
-which closures most faithfully capture the flow physics is an open problem that
-cannot easily be addressed experimentally.  Using numerical simulations to
-investigate the effects of different modelling choices is one way to approach
-this.
+discussed further), some parts of the right-hand sides are user-settable.  The
+terms $\mathcal{F}$, $\mathcal{E}$ and $\mathcal{D}$ denote the basal friction,
+erosion rate and deposition rate respectively. These are modelling closures,
+assumed to be functions of the flow fields $H$, $\mathbf{u}$ and $\psi$. In each
+case, the user may choose from different options, depending on the problem at
+hand. For example, the friction $\mathcal{F}$ may be set either to a function
+appropriate for turbulent fluids, to various models of purely granular flows, or
+to a combined law that depends on the solids concentration.  This provides the
+flexibility to simulate many different kinds of flow.  Furthermore, it is worth
+noting that in many cases, the question of which closures most faithfully
+capture the flow physics is an open problem that cannot easily be addressed
+experimentally.  Using numerical simulations to investigate the effects of
+different modelling choices is one way to approach this.
 
 The remaining source terms $\mathcal{Q}_H$ and $\mathcal{Q}_{\psi}$ are
 time-dependent functions that provide one way for a modeller to control fluxes
@@ -149,12 +147,29 @@ arbitrary initial conditions given in the same format as its result files, or
 simple initial volumes of material (such as cubes and cylinders) can be
 specified via an input file.
 
-[Sum up and maybe compare with other software again. Mention some of the
-technical advances and stress importance of morphodynamics, calibration and
-model uncertainty.]
+In deriving Eqs.\ \eqref{eq:governing eqs 1}--\eqref{eq:governing eqs 4},
+some physical assumptions are made that simplify our model compared to similar
+codes, such as the neglect of interstitial pressure between sediment particles
+and the assumption that the sediment is composed of particles that are all
+roughly the same size.  Conversely, we include the effects of morphodynamics,
+which not all codes support. The reasoning for these choices is twofold: (1) to
+simplify the problem for modellers wishing to simulate flows, without
+compromising the most essential flow physics and (2) in order to focus on making
+some technical advances for morphodynamic models, which are particular to our
+code and detailed in @Langham:2023. These include improvements to standard
+numerical schemes, a careful treatment of the effects of the basal geometry and
+a regularisation that ensures the model is well-posed as an initial
+value problem.
 
-Results from `Kestrel` simulations were used in the the following publications:
-[@Jenkins:2023;@Langham:2023].
+Despite the relative simplicity of our approach, morphodynamic simulations
+involve many free parameters, which are not all directly measurable for real
+world scenarios. Proper calibration and an appreciation of the uncertainties
+present at each stage of the modelling process is essential to obtain reliable
+results from `Kestrel`.  Examples and guidance for getting started may be found
+in our documentation.  Results from `Kestrel` simulations have thus far been
+used in the the following scientific publications:
+[@Jenkins:2023;@Langham:2023].  `Kestrel` also forms the backend for the
+`LaharFlow` volcanic hazard model [@Laharflow:2023].
 
 # Acknowledgements
 
