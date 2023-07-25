@@ -27,7 +27,7 @@ bibliography: paper.bib
 
 # Summary
 
-`Kestrel` is a program for simulating the evolution of flows composed of a
+`Kestrel` is a program for simulating flows composed of a
 mixture of fluid and sediment. It includes the facility to model material
 exchange with the topography over which the flow propagates, by incorporating
 sediment entrainment and deposition. These physical processes, which mutually
@@ -40,7 +40,7 @@ future scenarios may be modelled. `Kestrel` has been primarily developed for
 Earth sciences research into natural hazards, including volcanic mudflows, flash
 floods and landslides. However, it may also be useful for modelling flows of
 interest to engineers, applied mathematicians, geophysicists and industry
-scientists, see for example: @Capart:1998, @Cao:2004, @Iverson:2015 and
+scientists, see e.g.\ @Capart:1998, @Cao:2004, @Iverson:2015 and
 @Langham:2021. The versatility of the code is a deliberate design choice. As
 discussed below, many of the key physical processes are implemented in a modular
 way, allowing the user to choose between different options, depending on the
