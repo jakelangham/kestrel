@@ -70,7 +70,7 @@ All fluid flows that propagate over the Earth's surface transport sediment to
 some degree. The presence of sediment at sufficiently high concentrations
 substantially complicates the physics of these flows, by modifying their
 density, rheology and their ability to entrain or deposit further volumes
-of sediment [Iverson:1997;Iverson2015]. In many regions of the world, local conditions can trigger
+of sediment [@Iverson:1997;@Iverson2015]. In many regions of the world, local conditions can trigger
 destructive flowing fluid--sediment mixtures that travel over distance of up to tens of
 kilometres [@Pierson:1990;@Scott:2005;@Jakob:2005]. Driven by the need to understand their fundamental physics and
 ultimately to create predictive tools that can mitigate hazards, the development
