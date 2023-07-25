@@ -110,15 +110,15 @@ In two spatial dimensions, the governing equations are
 \mathcal{Q}_H\mathcal{Q}_{\psi},\\
 \frac{\partial ~}{\partial t}(\rho H \mathbf{u}) + 
 \nabla\cdot(\rho H\mathbf{u}\otimes\mathbf{u}) + 
-\nabla_s\left(\frac{1}{2}\rho g \cos(\theta) H^2\right) = 
--\rho g H \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
+\frac{g}{2\cos\theta}\nabla_s\left(\rho H^2\cos^2\theta \right) = 
+-\rho H \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
 \end{gather}
 where $\psi_b$, $g$ and $\nu$ are user-defined modelling parameters,
 $\theta(\mathbf{x},t)$ is the local slope angle between the bed normal and
-gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$, is a
-surface gradient operator, with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
+gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$, 
+with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
 
 The technical details of these equations, their derivation and our numerical
 solution scheme are fully presented by @Langham:2023.  While most of the terms
