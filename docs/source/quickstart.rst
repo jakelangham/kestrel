@@ -84,28 +84,3 @@ Viewing the output
 ------------------
 
 TODO
-
-.. _quick_test:
-  
-Test
-----
-
-The full test suite for Kestrel may be run by changing to the ./tests
-directory and issuing the command
-
-.. code-block:: bash
-
-  $ ./julia runall.jl
-
-This runs a sequential battery of various tests and can take some time. Unless
-you are modifying the code, or are very keen to check that it's working as
-expected, you probably do not need to bother with this.
-
-.. _quick_contact:
-  
-Contact
--------
-
-Kestrel is developed and maintained by Mark J. Woodhouse
-(mark.woodhouse@bristol.ac.uk) and Jake Langham (J.Langham@bristol.ac.uk),
-University of Bristol.
