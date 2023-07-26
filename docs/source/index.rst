@@ -13,3 +13,8 @@ Contents
 .. toctree::
 
    quickstart
+   physical model
+   settings and parameters
+   output
+   general guidance
+   contributing

@@ -1,0 +1,6 @@
+.. _output:
+
+Output
+======
+
+TODO
