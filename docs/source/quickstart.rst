@@ -11,12 +11,12 @@ Kestrel is written in Fortran 2003, with some additional C++ calls to geospatial
 It should be possible to compile and run it on most modern Unix-like platforms relatively painlessly.
 In order to do so, make sure the following dependencies are present on your system:
 
-* Either [GCC](https://www.gnu.org/software/gcc/) version 9+, or an older GCC plus the [Boost](https://www.boost.org/) C++ libraries (>= 1.46.0)
-* [GDAL](https://gdal.org/) (>= 2.2.0)
-* [PROJ](https://proj.org/)
+* Either `GCC <https://www.gnu.org/software/gcc/>`_ version 9+, or an older GCC plus the `Boost <https://www.boost.org/>`_ C++ libraries (>= 1.46.0)
+* `GDAL <https://gdal.org/>`_ (>= 2.2.0)
+* `PROJ <https://proj.org/>`_
 * GNU autotools (if building directly from the git repository)
-* (optional) [NetCDF](https://www.unidata.ucar.edu/software/netcdf/)
-* (optional) [Julia](https://julialang.org/), for running tests
+* (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_
+* (optional) `Julia <https://julialang.org/>`_, for running tests
 
 .. _installation:
 
