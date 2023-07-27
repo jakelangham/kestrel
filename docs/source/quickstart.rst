@@ -76,12 +76,17 @@ Some other options are listed in the help dialogue of the configure script
 Running a simulation
 --------------------
 
-Kestrel simulations are require a domain, topography, sources of material, specification of model parameters (including choices of closures), output formats, and solver settings. These are passed to Kestrel in a Kestrel Input file.  Details of each of these requirements are provided in :ref:`_settings_and_parameters`.
+Kestrel simulations are require a domain, topography, sources of material,
+specification of model parameters (including choices of closures), output
+formats, and solver settings. These are passed to Kestrel in a Kestrel Input
+file.  Details of each of these requirements are provided in
+:ref:`settings_and_parameters`.
 
 Below is an example, annotated Kestrel Input file
-.... literalinclude:: ../../src/InputExample.txt
-..    :language: bash
-..    :linenos:
+
+.. literalinclude:: ../../examples/InputExample.txt
+   :language: bash
+   :linenos:
 
 The input file is passed to Kestrel as a command line argument:
 
