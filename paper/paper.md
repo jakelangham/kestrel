@@ -52,17 +52,23 @@ needs.
 geospatial data via external libraries.  While expertise in the scientific
 background is required to set up simulations and correctly interpret their
 results, the program is otherwise intended to be straightfoward to use for a
-broad range of scientists.  It has relatively few dependencies (`GDAL`, `PROJ` and
-optionally, `NetCDF`), making it easy to build on modern Unix-like platforms.
-After installation, simulations are prepared by writing an input file specifying
-suitable parameter choices and run on the command line.  Solution fields are
-saved at regular intervals, together with spatial maps of their maximums over
-the whole simulation. Output is via text file or `NetCDF` (preferred). 
-In the latter case, we provide an extension to the open-source `QGIS` software,
-which imports `Kestrel` solutions at their georeferenced coordinates and
-prepares each of the data fields for visualisation.
-This provides a particularly convenient workflow for geoscientists.
-An example of this output is given in [Figure 1].
+broad range of scientists.  It has relatively few dependencies (`GDAL`, `PROJ`
+and optionally, `NetCDF`), making it easy to build on modern Unix-like
+platforms.  After installation, simulations are prepared by writing an input
+file specifying suitable parameter choices and run on the command line.
+Solution fields are saved at regular intervals, together with spatial maps of
+their maximums over the whole simulation. Output is via text file or `NetCDF`
+(preferred).  In the latter case, we provide an extension to the open-source
+`QGIS` software, which imports `Kestrel` solutions at their georeferenced
+coordinates and prepares each of the data fields for visualisation.  This
+provides a particularly convenient workflow for geoscientists.  An example of
+this output is given in \autoref{fig:example}.
+
+![An example of georeferenced `Kestrel` output, postprocessed in `QGIS`.
+The panels show (left-to-right) flow depth, flow speed, solids fraction,
+and topographic elevation change of a small volume flow released onto steep
+topography, here using `SRTM` data.
+\label{fig:example}](example.png)
 
 # Statement of need
 
@@ -168,20 +174,22 @@ world scenarios. Proper calibration and an appreciation of the uncertainties
 present at each stage of the modelling process is essential to obtain reliable
 results from `Kestrel`.  Examples and guidance for getting started may be found
 in our documentation.  Results from `Kestrel` simulations have thus far been
-used in the the following scientific publications:
+used in the following scientific publications:
 [@Jenkins:2023;@Langham:2023]. `Kestrel` also forms the backend for the
 `LaharFlow` volcanic hazard model [@Laharflow:2023].
 
 # Acknowledgements
 
 The development of this software spanned research grants from the the Newton
-Fund (NE/S00274X/1), EPSRC Impact Acceleration Account (EP/X525674/1) and
-a NERC Knowledge Exchange Fellowship (NE/R003890/1).
-We thank our colleagues Andrew J. Hogg, Luke T. Jenkins and Jeremy C. Phillips,
-who worked on the foundational mathematical and geological ideas that underpin
-the code, as well as all current and past `Kestrel` users, especially our
-geological collaborators at IG-EPN (Ecuador), INGEMMET (Perú) and PHIVOLCS
-(Philippines).
+Fund (NE/S00274X/1), EPSRC Impact Acceleration Account (EP/X525674/1) and a NERC
+Knowledge Exchange Fellowship (NE/R003890/1).  We thank our colleagues Andrew J.
+Hogg, Luke T. Jenkins and Jeremy C. Phillips, who worked on the foundational
+mathematical and geological ideas that underpin the code. We also thank users
+who supported the development of `Kestrel`, especially Felipe Flores
+(SERNAGEOMIN, Chile), Francisco Vasconez (IG-EPN, Ecuador), Selwyn Cabaluna
+(PHIVOLCS, Phillipines) and other geological collaborators at SERNAGEOMIN,
+IG-EPN, PHIVOLCS, INGEMMET (Perú), as well as all current and past `Kestrel`
+users.
 
 # References
 
