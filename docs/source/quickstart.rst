@@ -76,12 +76,13 @@ Some other options are listed in the help dialogue of the configure script
 Running a simulation
 --------------------
 
-Kestrel simulations require a domain, topography, sources of material, specification of model parameters (including choices of closures), output formats, and solver settings. These are passed to Kestrel in a Kestrel Input file, with blocks corresponding to each of the settings.  Details of each of these requirements are provided in :ref:`_settings_and_parameters`.
+Kestrel simulations require a domain, topography, sources of material, specification of model parameters (including choices of closures), output formats, and solver settings. These are passed to Kestrel in a Kestrel Input file, with blocks corresponding to each of the settings.  Details of each of these requirements are provided in :ref:`settings_and_parameters`.
 
 Below is an example, annotated Kestrel Input file
+
 .. literalinclude:: InputExample_SRTM.txt
-    :language: bash
-    :linenos:
+   :language: bash
+   :linenos:
 
 The input file is passed to Kestrel as a command line argument:
 
@@ -95,6 +96,6 @@ The input file is passed to Kestrel as a command line argument:
 Viewing the output
 ------------------
 
-Kestrel can output simulation results as headed-column delimited text files (.txt) and/or NetCDF (.nc) files.  The choice is specified in the input file in the *Outputs* block (see :ref:`_settings_and_parameters`).
+Kestrel can output simulation results as headed-column delimited text files (.txt) and/or NetCDF (.nc) files.  The choice is specified in the input file in the *Outputs* block (see :ref:`settings_and_parameters`).
 
 NetCDF files are georeferenced when simulations are 
