@@ -37,10 +37,9 @@ module outputsettings_module
 
 ! default values
    character(len=7), parameter :: OutDir_d = "results"
-   character(len=2), parameter :: basePath_d = "./"
    character(len=11), parameter :: InfoFilename_d = "RunInfo.txt"
    character(len=10), parameter :: MaxHeightFilename_d = "MaxHeights"
-   character(len=10), parameter :: MaxSpeedFilename_d = "MaxSpeeds"
+   character(len=9), parameter :: MaxSpeedFilename_d = "MaxSpeeds"
    character(len=10), parameter :: MaxErosionFilename_d = "MaxErosion"
    character(len=10), parameter :: MaxDepositFilename_d = "MaxDeposit"
    character(len=14), parameter :: InundationTimeFilename_d = "InundationTime"
@@ -188,7 +187,7 @@ contains
                RunParams%compressOutput = .false.
              case default
                call WarningMessage("In the 'Output' block the value of 'Compression' is not recognised.")
-
+               RunParams%compressOutput = .false.
             end select
 
           case default
@@ -205,14 +204,14 @@ contains
       RunParams%basePath = basePath
 
       if (.not.set_OutDir) then
-         OutDir%s = trim(OutDir_d)
+         OutDir = varString(OutDir_d)
          call WarningMessage("In the 'Output' block 'Directory' is not given.  Using default directory " // OutDir_d)
       end if
       RunParams%OutDir = RunParams%basePath + OutDir
       RunParams%OutDir = CheckPath(RunParams%OutDir)
 
       if (.not.set_InfoFilename) then
-         InfoFilename%s = trim(InfoFilename_d)
+         InfoFilename = varString(InfoFilename_d)
       end if
       RunParams%InfoFilename = InfoFilename
 
@@ -226,38 +225,72 @@ contains
          call WarningMessage("In the 'Output' block in the input file 'Format' is not given.  Using txt output format.")
       end if
 
-      if ((RunParams%out_txt) .and. (.not.set_MaxHeightFilename)) then
-         MaxHeightFilename%s = trim(MaxHeightFilename_d)
+      if (.not. set_compressOutput) then
+         RunParams%CompressOutput = compressOutput_d
       end if
-      RunParams%MaxHeightFilename = MaxHeightFilename
 
-      if ((RunParams%out_txt) .and. (.not.set_MaxSpeedFilename)) then
-         MaxSpeedFilename%s = trim(MaxSpeedFilename_d)
+      ! Set defaults for conditionally optional settings for txt output if not set.
+      if (RunParams%out_txt) then
+         if (.not.set_MaxHeightFilename) then
+            MaxHeightFilename = varString(MaxHeightFilename_d)
+            set_MaxHeightFilename = .TRUE.
+         end if
+         RunParams%MaxHeightFilename = MaxHeightFilename
+         
+         if (.not.set_MaxSpeedFilename) then
+            MaxSpeedFilename = varString(MaxSpeedFilename_d)
+            set_MaxSpeedFilename = .TRUE.
+         end if
+         RunParams%MaxSpeedFilename = MaxSpeedFilename
+         
+         if (.not.set_MaxErosionFilename) then
+            MaxErosionFilename = varString(MaxErosionFilename_d)
+         end if
+         RunParams%MaxErosionFilename = MaxErosionFilename
+
+         if (.not.set_MaxDepositFilename) then
+            MaxDepositFilename = varString(MaxDepositFilename_d)
+         end if
+         RunParams%MaxDepositFilename = MaxDepositFilename
+
+         if (.not.set_InundationTimeFilename) then
+            InundationTimeFilename = varString(InundationTimeFilename_d)
+            set_InundationTimeFilename = .TRUE.
+         end if
+         RunParams%InundationTimeFilename = InundationTimeFilename
       end if
-      RunParams%MaxSpeedFilename = MaxSpeedFilename
 
-      if ((RunParams%out_txt) .and. (.not.set_MaxErosionFilename)) then
-         MaxErosionFilename%s = trim(MaxErosionFilename_d)
+      ! Set defaults for conditionally optional settings for nc output if not set.
+      if (RunParams%out_nc) then
+         if (.not.set_MaximumsFilename) then
+            MaximumsFilename = varString(MaximumsFilename_d)
+         end if
+         RunParams%MaximumsFilename = MaximumsFilename
       end if
-      RunParams%MaxErosionFilename = MaxErosionFilename
 
-      if ((RunParams%out_txt) .and. (.not.set_MaxDepositFilename)) then
-         MaxDepositFilename%s = trim(MaxDepositFilename_d)
-      end if
-      RunParams%MaxDepositFilename = MaxDepositFilename
+      ! Set defaults for conditionally optional settings for txt output if not set.
+      if (RunParams%out_kml) then
+         if (.not.set_kmlHeight) then
+            RunParams%kmlHeight = kmlHeight_d
+         end if
 
-      if ((RunParams%out_txt) .and. (.not.set_InundationTimeFilename)) then
-         InundationTimeFilename%s = trim(InundationTimeFilename_d)
-      end if
-      RunParams%InundationTimeFilename = InundationTimeFilename
+         if (.not.set_MaxHeightFilename) then
+            MaxHeightFilename = varString(MaxHeightFilename_d)
+            set_MaxHeightFilename = .TRUE.
+         end if
+         RunParams%MaxHeightFilename = MaxHeightFilename
+         
+         if (.not.set_MaxSpeedFilename) then
+            MaxSpeedFilename = varString(MaxSpeedFilename_d)
+            set_MaxSpeedFilename = .TRUE.
+         end if
+         RunParams%MaxSpeedFilename = MaxSpeedFilename
 
-      if ((RunParams%out_nc) .and. (.not.set_MaximumsFilename)) then
-         MaximumsFilename%s = trim(MaximumsFilename_d)
-      end if
-      RunParams%MaximumsFilename = MaximumsFilename
-
-      if ((RunParams%out_kml) .and. (.not.set_kmlHeight)) then
-         RunParams%kmlHeight = kmlHeight_d
+         if (.not.set_InundationTimeFilename) then
+            InundationTimeFilename = varString(InundationTimeFilename_d)
+            set_InundationTimeFilename = .TRUE.
+         end if
+         RunParams%InundationTimeFilename = InundationTimeFilename
       end if
 
       RunParams%DeltaT = (RunParams%tend - RunParams%tstart) / real(RunParams%Nout,kind=wp)
