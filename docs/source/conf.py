@@ -32,6 +32,12 @@ templates_path = ['_templates']
 html_theme = 'alabaster'
 html_logo = 'logo.png'
 
+# -- alabaster theme options
+html_theme_options = {
+    'fixed_sidebar': True,
+    'sidebar_collapse': True,
+}
+
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
 
@@ -49,9 +55,3 @@ latex_elements = {
         '''
 }
 
-# -- alabaster theme options
-
-html_theme_options = {
-    'fixed_sidebar': True,
-    'sidebar_collapse': True,
-}
