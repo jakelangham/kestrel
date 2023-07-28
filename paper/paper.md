@@ -65,7 +65,8 @@ provides a particularly convenient workflow for geoscientists.  An example of
 this output is given in \autoref{fig:example}.
 
 ![An example of `Kestrel` simulation output, postprocessed and georeferenced
-automatically in `QGIS`, using our bespoke plugin.  The panels show
+automatically in `QGIS`, using our bespoke plugin. (Labels and colour bars have
+been added separately in `QGIS`, for clarity.) The panels show
 (left-to-right) flow depth, flow speed, solids fraction, and topographic
 elevation change of a small volume flow released onto the slopes of a steep
 valley.
