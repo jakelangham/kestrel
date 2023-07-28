@@ -76,6 +76,10 @@ This runs a sequential battery of various tests and can take some time. Unless
 you are modifying the code, or are very keen to check that it's working as
 expected, you probably do not need to bother with this.
 
+## Documentation ##
+
+More detailed user documentation is available [here](https://kestrel-unibristol.readthedocs.io/en/latest/index.html).
+
 ## Contact ##
 
 Kestrel is developed and maintained by Mark J. Woodhouse
