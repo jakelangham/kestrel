@@ -118,7 +118,7 @@ In two spatial dimensions, the governing equations are
 \frac{\partial ~}{\partial t}(\rho H \mathbf{u}) + 
 \nabla\cdot(\rho H\mathbf{u}\otimes\mathbf{u}) + 
 \frac{g}{2\cos\theta}\nabla_s\left(\rho H^2\cos^2\theta \right) = 
--\rho H \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
+-\rho gH \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
 \end{gather}
