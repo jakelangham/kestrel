@@ -1,0 +1,58 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 40
+nYtiles = 40
+nXpertile = 50
+nYpertile = 50
+Xtilesize = 100
+Boundary Conditions = halt
+
+Cap:
+  capX = 25
+  capY = 25
+  capRadius = 10
+  capHeight = 1
+  capU = 10.0
+  capV = 10.0
+  capConc = 0.1
+  capShape = flat
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Erosion = On
+Erosion Rate = 5e-3
+Granular Erosion Rate = 0.1
+Erosion depth = 5
+Voellmy switch rate = 3.0
+Bed porosity = 0.35
+Voellmy switch value = 0.2
+maxPack = 0.65
+rhow = 1000
+rhos = 2000
+Erosion critical height = 1e-3
+Solid diameter = 1e-3
+Eddy viscosity = 1e-3
+
+Solver:
+T end = 5.0
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+Restart = off
+
+Output:
+N out = 5
+directory = tile_indep_dynamic_100m
+
+Topog:
+Type = xSlope
+Topog params = (-0.2)
+

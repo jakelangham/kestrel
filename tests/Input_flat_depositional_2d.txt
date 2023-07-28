@@ -1,0 +1,52 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 1
+nYtiles = 1
+nXpertile = 10
+nYpertile = 10
+Xtilesize = 100
+Boundary Conditions = periodic
+
+Cube:
+  cubeX = 0
+  cubeY = 0
+  cubeHeight = 1
+  cubeLength = 100
+  cubeWidth = 100
+  cubeU = 0
+  cubeV = 0
+  cubeConc = 0.5
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Voellmy Switch Rate = 3
+Voellmy Switch Value = 0.2
+Erosion = On
+Erosion Rate = 1e-3
+Granular Erosion Rate = 4
+Erosion Depth = 5
+Erosion Critical Height = 1e-2
+Solid Diameter = 1e-2
+Eddy Viscosity = 1e-2
+
+Solver:
+T end = 100.0
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Base Evolve = on
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = flat_depositional_2d/
+
+Topog:
+Type = flat
