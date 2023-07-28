@@ -34,3 +34,10 @@ html_logo = 'logo.png'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+# -- Options for latex
+latex_elements = {
+        'preamble': r'''\usepackage{amssymb}
+        \usepackage{bm}
+        '''
+}
