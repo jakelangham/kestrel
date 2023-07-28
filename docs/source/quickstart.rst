@@ -73,8 +73,8 @@ Some other options are listed in the help dialogue of the configure script
 
 .. _quick_run:
   
-Running a simulation
---------------------
+Running simulations
+-------------------
 
 Kestrel is run on the command line by specifying a text file containing the
 required settings and parameters for the simulations. We have provided a couple
@@ -168,18 +168,36 @@ Below is a much more involved, annotated Kestrel input file, which specifies a
 .. literalinclude:: InputExample_SRTM.txt
    :language: bash
 
+.. note::
+
+    Input files allow many other settings and parameters to be set than shown in InputExample_SRTM.txt.
+    For unspecified settings, default values are used.
+    See :ref:`settings_and_parameters` for more details.
+
+.. note:: 
+    This simulation requires SRTM topographic data, available from `NASA Earth Data <https://www.earthdata.nasa.gov/>`_ and `USGS Earth Explorer <https://earthexplorer.usgs.gov/>`_. This should be stored locally in an SRTM archive.
+
 The input file is passed to Kestrel as a command line argument:
 
 .. code-block:: bash
 
-  $ ./Kestrel InputExample.txt
+  $ ./Kestrel InputExample_SRTM.txt.txt
 
 
 .. _quick_view:
 
 Viewing the output
-------------------
+^^^^^^^^^^^^^^^^^^
 
 Kestrel can output simulation results as headed-column delimited text files (.txt) and/or NetCDF (.nc) files.  The choice is specified in the input file in the *Outputs* block (see :ref:`settings_and_parameters`).
 
-NetCDF files are georeferenced when simulations are 
+NetCDF files produced by Kestrel are georeferenced when simulations are performed on a topographic map, so can be opened directly in QGIS to view as a map.
+
+The NetCDF files contain physical and computational variables.  To assist with mapping the critical physical variables, Kestrel NetCDF files are compatible with the `Lahar Flow Map Tools <https://bitbucket.org/markwoodhouse/laharflow_maptools/>`_ QGIS plugin.
+
+An example of the output produced by Kestrel by the InputExample_SRTM.txt input file, post-processed in QGIS (using *Lahar Flow Map Tools*) is shown below.
+
+.. image:: OutputExample_SRTM.png
+   :width: 100%
+   :align: center
+
