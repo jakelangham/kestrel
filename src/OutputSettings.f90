@@ -225,12 +225,14 @@ contains
          call WarningMessage("In the 'Output' block in the input file 'Format' is not given.  Using txt output format.")
       end if
 
-      if (.not. set_compressOutput) then
-         RunParams%CompressOutput = compressOutput_d
-      end if
-
       ! Set defaults for conditionally optional settings for txt output if not set.
       if (RunParams%out_txt) then
+
+         if (.not. set_compressOutput) then
+            RunParams%CompressOutput = compressOutput_d
+            set_compressOutput = .TRUE.
+         end if
+
          if (.not.set_MaxHeightFilename) then
             MaxHeightFilename = varString(MaxHeightFilename_d)
             set_MaxHeightFilename = .TRUE.
