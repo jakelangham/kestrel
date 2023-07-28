@@ -118,4 +118,34 @@ the system.
 Model closures
 --------------
 
-TODO
+In the derivation of the above equations, the terms :math:`\mathcal{F}`,
+:math:`\mathcal{E}`, :math:`\mathcal{D}` and :math:`\mathcal{R}` are left as
+arbitrary functions of the flow variables, e.g. :math:`\mathcal{F} \equiv
+\mathcal{F}(H,\bar{\mathbf{u}},\bar{\psi},b)`. More generally, they could also
+be functions of space, time and other observatbles that Kestrel does not
+explicitly solve for, such as temperature, or pore pressure. However, this
+functionality is not currently supported.
+
+The meanings of these terms, in the context of simulations, are as follows:
+
+    - :math:`\mathcal{F}` is the basal friction, which dictates the rheology of
+      the flowing mixture;
+    - :math:`\mathcal{E}` and :math:`\mathcal{D}` are the rates of sediment
+      erosion and deposition respectively;
+    - :math:`\mathcal{R}` is a regularisation term, required to ensure that the
+      governing equations well-posed (see this `article
+      <https://arxiv.org/abs/2007.15989>`_). This is currently fixed to
+      :math:`\mathcal{R} \equiv \nabla\cdot(\nu
+      \bar{\rho}H\nabla\bar{\mathbf{u}})`, which parametrises turbulent eddy
+      diffusivity with user-settable constant viscosity :math:`\nu`.
+
+The available choices for these functions are documented in
+:ref:`settings_and_parameters`.
+
+The terms :math:`\mathcal{Q}_H` and :math:`\mathcal{Q}_{\bar{\psi}}` are
+conceptually different. These are time-dependent functions that provide one
+way of supplying flowing material into the simulation. (The other way is via
+initial conditions, see :ref:`quick_start` and :ref:`settings_and_parameters`.)
+We refer to these as 'flux sources'. Currently, Kestrel supports the
+specification of flux sources that are spatially constant within a user-defined
+circular area, with temporal dependence input via time series data.
