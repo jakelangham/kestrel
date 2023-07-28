@@ -34,3 +34,10 @@ html_logo = 'logo.png'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+# -- alabaster theme options
+
+html_theme_options = {
+    'fixed_sidebar': True,
+    'sidebar_collapse': True,
+}
