@@ -1,0 +1,43 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 1
+nYtiles = 1
+nXpertile = 40
+nYpertile = 40
+Xtilesize = 40
+Boundary Conditions = periodic
+
+Cube:
+  cubeX = 0.0
+  cubeY = 0.0
+  cubeHeight = 1.5
+  cubeLength = 40
+  cubeWidth = 40
+  cubeShape = level
+  cubeU = 0
+  cubeV = 0
+  cubeConc = 0.0
+
+Parameters:
+Drag = Chezy
+Chezy Co = 0.04
+Erosion = Off
+Eddy Viscosity = 0
+
+Solver:
+T end = 5.
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_at_rest_hydro_2d/
+
+Topog:
+Type = xySinSlope
+Topog params = (0.2)

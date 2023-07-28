@@ -1,0 +1,49 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 30
+nYtiles = 30
+nXpertile = 50
+nYpertile = 50
+Xtilesize = 50
+Boundary Conditions = halt
+
+Cap:
+  capX = 0
+  capY = 0
+  capRadius = 10
+  capHeight = 0.316
+  capU = 0.0
+  capConc = 0.5
+  capShape = flat
+
+Parameters:
+Drag = Pouliquen
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Erosion = Off
+Bed porosity = 0.35
+maxPack = 0.65
+
+Solver:
+T end = 4.0
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Base Evolve = off
+Height threshold = 1e-5
+Restart = off
+
+Output:
+N out = 5
+directory = cap_conc_2d/
+Topog filename = Topog.txt
+
+Topog:
+Type = xSlope
+Topog params = (-0.04)
+

@@ -1,0 +1,52 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 10
+nYtiles = 10
+nXpertile = 100
+nYpertile = 100
+Xtilesize = 100
+Boundary Conditions = halt
+
+Source:
+  sourceX = 0
+  sourceY = 0
+  sourceRadius = 10
+  sourceTime = (0,1000)
+  sourceFlux = (4.,4.)
+  sourceConc = (0.,0.)
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Voellmy Switch Rate = 3
+Voellmy Switch Value = 0.2
+Erosion = On
+Erosion Rate = 1e-3
+Granular Erosion Rate = 0.1
+Erosion Depth = 5
+Erosion Critical Height = 1e-2
+Solid Diameter = 1e-2
+Eddy Viscosity = 2e-1
+
+Solver:
+T end = 10
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+Restart = off
+
+Output:
+N out = 4
+directory = netcdf_restart2/
+Format = netcdf
+
+Topog:
+Type = xSlope
+Topog params = (-0.06)

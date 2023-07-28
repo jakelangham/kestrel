@@ -1,0 +1,53 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 1
+nYtiles = 1
+nXpertile = 40
+nYpertile = 40
+Xtilesize = 40
+Boundary Conditions = periodic
+
+Cube:
+  cubeX = 0.0
+  cubeY = 0.0
+  cubeHeight = 1.5
+  cubeLength = 40
+  cubeWidth = 40
+  cubeShape = level
+  cubeU = 0
+  cubeV = 0
+  cubeConc = 0.0
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Voellmy Switch Rate = 3
+Voellmy Switch Value = 0.2
+Erosion = On
+Erosion Rate = 5e-3
+Granular Erosion Rate = 4
+Erosion Depth = 5
+Erosion Critical Height = 1e-2
+Solid Diameter = 5e-3
+Eddy Viscosity = 1e-2
+
+Solver:
+T end = 5.
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_at_rest_morpho_2d/
+
+Topog:
+Type = xySinSlope
+Topog params = (0.2)

@@ -1,0 +1,40 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 1
+nYtiles = 1
+nXpertile = 40
+nYpertile = 1
+Xtilesize = 20
+Boundary Conditions = periodic
+
+Cap:
+  capX = 0.0
+  capHeight = 0.8
+  capRadius = 10.0
+  capShape = level
+  capU = 0
+  capConc = 0.0
+
+Parameters:
+Drag = Chezy
+Chezy Co = 0.04
+Erosion = Off
+Eddy Viscosity = 0
+
+Solver:
+T end = 1000.
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_at_rest_hydro/
+
+Topog:
+Type = xSinSlope
+Topog params = (0.2)

@@ -1,0 +1,51 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 1
+nYtiles = 1
+nXpertile = 20
+nYpertile = 1
+Xtilesize = 20
+Boundary Conditions = periodic
+
+Cap:
+  capX = 0.0
+  capHeight = 0.8
+  capRadius = 10.0
+  capShape = level
+  capU = 0
+  capConc = 0.0
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Voellmy Switch Rate = 3
+Voellmy Switch Value = 0.2
+Erosion = On
+Erosion Rate = 5e-3
+Granular Erosion Rate = 4
+Erosion Depth = 5
+Erosion Critical Height = 1e-2
+Solid Diameter = 5e-3
+Eddy Viscosity = 1e-2
+Geometric factors = on
+
+Solver:
+T end = 5
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_at_rest_morpho/
+
+Topog:
+Type = xSinSlope
+Topog params = (0.2)
