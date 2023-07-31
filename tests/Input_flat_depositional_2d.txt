@@ -38,7 +38,7 @@ Eddy Viscosity = 1e-2
 
 Solver:
 T end = 100.0
-cfl = 0.5
+cfl = 0.25
 max dt = 10
 Tile Buffer = 3
 Base Evolve = on
