@@ -29,7 +29,7 @@ Eddy Viscosity = 0
 
 Solver:
 T end = 5.
-cfl = 0.5
+cfl = 0.25
 max dt = 10
 Tile Buffer = 3
 Height threshold = 1e-6
