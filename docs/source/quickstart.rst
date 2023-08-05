@@ -157,7 +157,45 @@ You can find the output in `examples/1d_cap_constslope/`.
 Viewing the output
 ^^^^^^^^^^^^^^^^^^
 
-TODO
+After changing to the output directory, you should see the following text files:
+
+    * Numbered solution files of the form `000000.txt`, `000001.txt`, ...
+      containing the simulated fields at the indicated output step. The first of
+      these is the initial condition
+    * Numbered topography files of the form `000000.txt_topo`,
+      `000001.txt_topo`, ... containing topographic data at the indicated output
+      step.
+    * Maximums files `MaxHeights.txt`, `MaxSpeeds.txt`, `MaxDeposit.txt` and
+      `MaxErosion.txt` containing the maximum values attained at each spatial
+      point, over the simulated time period, for the height, speed and so forth.
+    * `InundationTime.txt`, which records the time of inundation for each point
+      in the domain.
+    * `Volume.txt`, which records the total volume and mass of material in the
+      flow and in the bed, and the portion of these quantities occupied by
+      solids (sediment particles) at each output step.
+
+Each of these files consists of comma-separated numeric columns, with a header
+line that briefly describes the content of each entry. This allows quick and
+easy plotting in your program of choice. For example, to view the solution depth
+at each output step, :math:`t = 100\mathrm{s}`, (as a function of :math:`x`) you
+can instruct `gnuplot <http://www.gnuplot.info/>`_ to plot lines according to
+2nd and 3rd fields of each file of the form `00000*.txt`::
+
+   gnuplot> plot for [i=0:4] sprintf("00000%d.txt", i) u 2:3 w l title sprintf("H(x) at t = %d s", i * 25)
+
+Depending slightly on your local setup, this should produce a figure like:
+
+.. image:: 1d_gnuplot.png
+   :align: center
+
+showing the collapse of the water column into a front that propagates down
+the slope in the positive :math:`x` direction.
+
+An additional file, `RunInfo.txt`, contains various details of the simulation,
+including all the settings needed to restart it. You can use it as a reference
+when viewing simulation data.
+
+For further details on the data produced by Kestrel, consult the :ref:`output` page.
 
 2D example
 ^^^^^^^^^^
