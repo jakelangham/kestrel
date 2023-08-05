@@ -89,45 +89,45 @@ turbulent water, propagating down an inerodible constant slope. Take a look at
 the file `examples/Input1d_cap_constslope.txt`. You should see some settings
 fields divided into conceptual blocks. Let's go through these in turn.
 
-First is the Domain block, which sets up the simulation area. 
+First is the ``Domain`` block, which sets up the simulation area. 
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
    :lines: 1-8
 
 The domain is a rectangular region centred at the coordinates specified by Lat
-and Lon. It is split divided into 6 tiles in the `x` direction. Each of these
+and Lon. It is split divided into 6 tiles in the :math:`x` direction. Each of these
 tiles is further subdivided into 200 finite volumes. Since this is a 1D
-simulation, the corresponding parameters in the `y` direction are set to 1. The
+simulation, the corresponding parameters in the :math:`y` direction are set to 1. The
 final variable sets the width in metres of each tile. This implies that the
 resolution of the numerical discretisation is :math:`\Delta x = 200 / 200 = 1`
 metres.
 
-Next, the Cap block sets the initial release of flowing material.
+Next, the ``Cap`` block sets the initial release of flowing material.
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
    :lines: 10-16
 
-The Topog block describes the initial topographic surface over which the flow
+The ``Topog`` block describes the initial topographic surface over which the flow
 propagates.
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
    :lines: 18-20
 
-In this case, a constant slope with gradient -0.04 (in `x`). `Topog params` is a list
-that can specify multiple parameters (if required) for more complicated
-topographies.
+In this case, a constant slope with gradient -0.04 (in :math:`x`). ``Topog
+params`` is a list that can specify multiple parameters (if required) for more
+complicated topographies.
 
-The parameters block declares settings that effect the model equations, such as
-certain constants, closure functions and other choices.
+The ``Parameters`` block declares settings that affect the model equations, such
+as certain constants, closure functions and other choices.
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
    :lines: 22-25
 
-Here, we specified that we want to use the commonplace Chezy (or turbulent
+Here, we specified that we want to use the commonplace Chézy (or turbulent
 fluid) drag law, give the drag coefficient, 0.04, and turn erosion off.
 
-Next are the Solver settings, which specify further arguments for the numerical
-method.
+Next are the ``Solver`` settings, which specify further arguments for the
+numerical method.
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
    :lines: 27-29
@@ -138,12 +138,12 @@ The last line provides the `CFL condition
 for the solver, which is used to adaptively limit the time step. This normally
 defaults to 0.25, but in 1D, a higher value can be used.
 
-Finally, the Output block requests 4 simulation outputs. These will be separated
-by equal time intervals of :math:`\Delta T = 100 / 4` seconds and placed in the
-specified directory.
+Finally, the ``Output`` block requests 4 simulation outputs. These will be
+separated by equal time intervals of :math:`\Delta T = 100 / 4` seconds and
+placed in the specified directory.
 
 .. literalinclude:: ../../examples/Input1d_cap_constslope.txt
-   :lines: 31-
+   :lines: 31-33
 
 We can run the simulation from within the `examples/` directory using the
 command
