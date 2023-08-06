@@ -18,25 +18,27 @@ started
    configuration scripts are not included in the git repository, so you'll need
    to do
 
-> `autoreconf -fi`
+   > `autoreconf -fi`
 
-followed by
+   followed by
 
-> `./configure && make`
+   > `./configure && make`
 
-which places the Kestrel executable in the src/ directory. You will need an
-up-to-date GCC (9+), the GDAL, PROJ and (optionally) NetCDF libraries.
+   which places the Kestrel executable in the src/ directory. You will need an
+   up-to-date [GCC](https://gcc.gnu.org/) (9+), the [GDAL](https://gdal.org/),
+   [PROJ](https://proj.org) and (optionally) the
+   [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) libraries.
 
-2. Simulations are conducted by specifying an input file on the command line,
+3. Simulations are conducted by specifying an input file on the command line,
    i.e.
 
-> `/path-to-kestrel [path-to-input-file]`
+   > `/path-to-kestrel [path-to-input-file]`
 
-There are some examples of correctly formatted input files included in this
-repository in the examples/ directory. These may be adapted to suit different
-needs.
+   There are some examples of correctly formatted input files included in this
+   repository in the examples/ directory. These may be adapted to suit different
+   needs.
 
-3. To conduct simulations on measured topographies, for example via digital
+4. To conduct simulations on measured topographies, for example via digital
    elevation models (DEMs), you will need provide this data and tell Kestrel
    where to look for the appropriate files. See either the example input files,
    or the 
