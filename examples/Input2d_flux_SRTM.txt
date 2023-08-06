@@ -1,4 +1,4 @@
-# InputExample_SRTM.txt
+# Input2d_flux_SRTM.txt
 # This is an example input file for Kestrel
 # illustrating the setup of a simulation.
 #
@@ -8,27 +8,25 @@
 #
 # Text following a '#' are comments.
 
-# The `Domain` block sets up the simulation location, size, resolution
-# and boundary conditions.
-# Note the resolution is given by Xtilesize/nXpertile (in metres).
+# The `Domain` block sets up the simulation location, size and resolution.  
+# Note that the resolution is given by Xtilesize/nXpertile (in metres).
 Domain:
 Lat = -11.28628 # Latitude of domain centre in decimal degrees
 Lon = -76.83801 # Longitude of domain centre in decimal degrees
-nXtiles = 500 # Number of tiles along the Easting
-nYtiles = 500 # Number of tiles along the Northing
+nXtiles = 300 # Number of tiles along the Easting
+nYtiles = 300 # Number of tiles along the Northing
 nXpertile = 10 # Number of cells per tile along the Easting direction
 nYpertile = 10 # Number of cells per tile along the Northing direction
 Xtilesize = 50 # Size of a tile in metres along the Easting direction
-boundary conditions = halt # conditions at the domain boundary
 
 # The `Source` block specifies a flux source (release of material over time).
 Source:
-  sourceLat = -11.22209 # Latitude of source centre in decimal degrees
-  sourceLon = -76.85102 # Longitude of source centre in decimal degrees
-  sourceRadius = 5 # Radius of the source in metres
-  sourceTime = (0,  60, 600) # Time series of release
-  sourceFlux = (0, 100,   0) # Volume flux of material in release at each time instance
-  sourceConc = (0,   0,   0) # Volume fraction of solids in release at each time instance
+sourceLat = -11.22209 # Latitude of source centre in decimal degrees
+sourceLon = -76.85102 # Longitude of source centre in decimal degrees
+sourceRadius = 5 # Radius of the source in metres
+sourceTime = (0,  60, 600) # Time series of release
+sourceFlux = (0, 100,   0) # Volume flux of material in release at each time instance
+sourceConc = (0,   0,   0) # Volume fraction of solids in release at each time instance
 
 # The `Solver` block sets some parameters for the numerical solver.
 # Only T end is required.
@@ -38,13 +36,13 @@ T end = 1800.0 # The end time of the simulation in seconds
 # The `Output` block specifies options related to outputs from Kestrel.
 Output:
 N out = 20 # The number of temporal snapshot output files
-directory = /Results/ # Directory to hold output files
+directory = 2d_flux_SRTM # Directory to hold output files
 format = nc # Output format, here NetCDF is selected
 
 # The `Topog` block specifies the topography to be used in the simulation.
 Topog:
 Type = SRTM # Use SRTM topography. Note this will be reprojected and resampled to required resolution
-SRTM directory = ./SRTM/ # Directory containing SRTM data. Note this should have the structure of an SRTM archive.
+SRTM directory = ./SRTM # Directory containing SRTM data. Note this should have the structure of an SRTM archive.
 
 # The `Parameters` block specifies model closures and set parameters.
 Parameters:
@@ -60,5 +58,4 @@ rhos = 2000 # Density of solids (kg/m^3)
 Erosion critical height = 0.01 # Minimum flow depth for erosion to occur (m)
 Solid diameter = 1e-3 # Solids diameter (m)
 Eddy Viscosity = 1e-2 # Turbulent eddy viscosity
-Morphodynamic damping = rat3 # Select rational function for morphodynamic damping
 Hindered settling = Spearman Manning # Select Spearman-Manning hindered settling closure
