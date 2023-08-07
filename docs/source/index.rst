@@ -22,5 +22,4 @@ Contents
    physical model
    settings and parameters
    output
-   general guidance
    contributing

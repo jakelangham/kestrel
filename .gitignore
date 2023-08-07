@@ -1,5 +1,40 @@
 *.o
 *.mod
 *.swp
+*.svg
 *_vimrc_local.vim
 
+# kestrel binaries
+src/kestrel
+bin/kestrel
+
+# autoconf scripts
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.log
+config.status
+config.sub
+configure
+depcomp
+install-sh
+missing
+
+# docs
+docs/build
+
+# exclude examples/test outputs
+examples/*
+!examples/*.txt
+tests/*
+!tests/*.txt
+!tests/*.sh
+!tests/*.jl
+
+# JOSS paper
+paper/paper.*
+!paper/paper.md
+!paper/paper.bib

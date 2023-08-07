@@ -150,10 +150,9 @@ contains
       write(stderr,*) '                                    '
       write(stderr,*) '************************************'
       write(stderr,*) '************************************'
-      write(stderr,*) 'ERROR :                             '
+      write(stderr,*) 'FATAL ERROR :                       '
       write(stderr,*) trim(Message1), val, trim(Message2)
-      write(stderr,*) 'Attempting to continue.             '
-      write(stderr,*) 'Results may be not as expected.     '
+      write(stderr,*) 'Quitting.'
       write(stderr,*) '************************************'
       write(stderr,*) '************************************'
       write(stderr,*) '                                    '

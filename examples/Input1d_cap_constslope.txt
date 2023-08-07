@@ -8,12 +8,12 @@ nYpertile = 1
 Xtilesize = 200
 
 Cap:
-  capX = -200
-  capRadius = 50
-  capHeight = 5
-  capU = 3.0
-  capConc = 0.0
-  capShape = flat
+capX = -200
+capRadius = 50
+capHeight = 5
+capU = 3.0
+capConc = 0.0
+capShape = flat
 
 Topog:
 Type = xSlope
@@ -31,4 +31,3 @@ cfl = 0.5
 Output:
 N out = 4
 directory = 1d_cap_constslope/
-
