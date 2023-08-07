@@ -41,14 +41,14 @@
 AC_DEFUN([AX_LIB_PROJ],
 [
     AC_ARG_WITH([proj],
-        AC_HELP_STRING([--with-proj=@<:@ARG@:>@],
+        AS_HELP_STRING([--with-proj=@<:@ARG@:>@],
             [use proj library from given prefix (ARG=path); check standard prefixes (ARG=yes); disable (ARG=no)]
         ),
         [
         if test "$withval" = "yes"; then
-            if test -f /usr/local/include/proj_api.h ; then
+            if test -f /usr/local/include/proj.h ; then
                 proj_prefix=/usr/local
-            elif test -f /usr/include/proj_api.h ; then
+            elif test -f /usr/include/proj.h ; then
                 proj_prefix=/usr
             else
                 proj_prefix=""
@@ -64,9 +64,9 @@ AC_DEFUN([AX_LIB_PROJ],
         ],
         [
         dnl Default behavior is implicit yes
-        if test -f /usr/local/include/proj_api.h ; then
+        if test -f /usr/local/include/proj.h ; then
             proj_prefix=/usr/local
-        elif test -f /usr/include/proj_api.h ; then
+        elif test -f /usr/include/proj.h ; then
             proj_prefix=/usr
         else
             proj_prefix=""
@@ -75,14 +75,14 @@ AC_DEFUN([AX_LIB_PROJ],
     )
 
     AC_ARG_WITH([proj-inc],
-        AC_HELP_STRING([--with-proj-inc=@<:@DIR@:>@],
+        AS_HELP_STRING([--with-proj-inc=@<:@DIR@:>@],
             [path to proj library headers]
         ),
         [proj_include_dir="$withval"],
         [proj_include_dir=""]
     )
     AC_ARG_WITH([proj-lib],
-        AC_HELP_STRING([--with-proj-lib=@<:@ARG@:>@],
+        AS_HELP_STRING([--with-proj-lib=@<:@ARG@:>@],
             [link options for proj library]
         ),
         [proj_lib_flags="$withval"],
@@ -129,7 +129,7 @@ AC_DEFUN([AX_LIB_PROJ],
         AC_COMPILE_IFELSE([
             AC_LANG_PROGRAM(
                 [[
-@%:@include <proj_api.h>
+@%:@include <proj.h>
                 ]],
                 [[]]
             )],
@@ -156,7 +156,7 @@ AC_DEFUN([AX_LIB_PROJ],
             AC_LINK_IFELSE([
                 AC_LANG_PROGRAM(
                     [[
-@%:@include <proj_api.h>
+@%:@include <proj.h>
                     ]],
                     [[
     /* TODO add a real test */
