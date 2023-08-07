@@ -427,7 +427,7 @@ contains
 
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
 
-      mu = PouliquenFriction(RunParams, g, Hn, sqrt(modu2))
+      mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
 
       if (modu2 > 0) then
          friction = mu * g * Hn
@@ -437,7 +437,7 @@ contains
    end function PouliquenDrag
 
    ! Pouliquen's intertial number dependent friction coefficient.
-   pure function PouliquenFriction(RunParams, gcostheta, Hn, modu) result(mu)
+   pure function PouliquenFrictionCoefficient(RunParams, gcostheta, Hn, modu) result(mu)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -460,7 +460,7 @@ contains
       else
          mu = mu1
       end if
-   end function PouliquenFriction
+   end function PouliquenFrictionCoefficient
 
    ! Manning drag has friction function F = g * n^2 / (Hn^{1/3}) where n is the
    ! Manning coefficient.
@@ -584,7 +584,7 @@ contains
       PouliquenStaticSlope = (PouliquenMinSlope + t1) / (1.0_wp - PouliquenMinSlope * t1)
       ! granular erosion, eps_g*(mu - mu_n)
       gcostheta = RunParams%g / GeometricCorrectionFactor(RunParams, uvect)
-      mu = PouliquenFriction(RunParams, gcostheta, Hn, sqrt(modu2))
+      mu = PouliquenFrictionCoefficient(RunParams, gcostheta, Hn, sqrt(modu2))
       muNeutral = PouliquenMinSlope + (PouliquenStaticSlope - PouliquenMinSlope) /  &
          (1.0_wp + (Hn / 25.0_wp / RunParams%SolidDiameter)**2.0_wp)
       if (mu > muNeutral) then
