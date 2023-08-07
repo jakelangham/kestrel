@@ -74,6 +74,7 @@ class RasterData
     public:
         RasterData(const char *filename); // Constructor from filename
         RasterData(const char *filename, int xsize, int ysize, int xoff, int yoff); // Constructor from filename, size and offset (for reading section of file)
+        bool containsNoData(void); // Check if Raster values contains a no data pixel.
 
         int read_success; ///< Flag for success read of the geotiff file: read_success = 1 if read is ok, otherwise 0.
 

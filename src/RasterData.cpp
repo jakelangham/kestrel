@@ -249,6 +249,22 @@ RasterData::RasterData(const char *filename, int xsize, int ysize, int xoff, int
 	return;
 }
 
+bool RasterData::containsNoData(void) {
+
+    bool found_nodata = false;
+
+    for (int i=0; i<x_size && found_nodata==false; i++) {
+        for (int j=0; j<y_size; j++) {
+            double val = values[i * y_size + j];
+            if (val == no_data) {
+                found_nodata = true;
+                break;
+            }
+        }
+    }
+    return found_nodata;
+}
+
 OGRSpatialReference GetSpatialReference(GDALDataset *poDataset)
 {
 	// Get projection reference
@@ -317,12 +333,22 @@ void GeoTiffArraySectionRead(const char *cpath, const char *ctifname, RasterData
 			// Read values in the array section with origin at (xoff, yoff) and with size (xsize, ysize)
 			CPLErr read_err = poBand->RasterIO(GF_Read, *xoff, *yoff, *xsize, *ysize, raster->values, *xsize, *ysize, GDT_Float64, 0, 0);
 
+            // Close dataset
+            GDALClose(poDataset);
+
+
 			if (read_err != CE_None) // Error reading
 			{
-				CPLError(read_err, CPLE_AppDefined, "Error reading file %s.", inFile);
-				raster->read_success = 0; // Report failed read -- note this exception is handled on the Fortran side.
+				raster->read_success = -1; // Report failed read -- note this exception is handled on the Fortran side.
+                return;
 			}
-			GDALClose(poDataset);
+            
+            if (raster->containsNoData()) // Error, section contains no data
+            {
+			    raster->read_success = -2; // Report failed read -- note this exception is handled on the Fortran side.
+                return;
+            }
+            raster->read_success = 1;
         }
         catch (...) {
             std::cerr << "Error: could not open raster " << sourceFilename << std::endl;
@@ -366,6 +392,7 @@ std::vector<std::string> GatherSRTMtiles(const char *path, const char *SRTMpath,
 
 	int latCount = 1; // Counter for latitude tiles
 	int tileCount = 0; // Counter for total number of tiles
+    std::string SRTMfile;
 	for (int latIndex = minLatFloor; latIndex < maxLatFloor + 1; latIndex++) // loop over latitude tiles
 	{
 		int longIndex = minLonFloor; // index for longitude
@@ -375,37 +402,48 @@ std::vector<std::string> GatherSRTMtiles(const char *path, const char *SRTMpath,
 			std::string latID = LatName(latIndex);		// ID of latitude e.g. N01
 			std::string lonID = LongName(longIndex);	// ID of longitude e.g. E123
 
-			// Construct SRTM filename
-			std::string SRTMfile_base = SRTMdir + latID + "/" + latID + lonID; // + ".hgt";
-            std::string SRTMfile;
-
-			// Look for file
-            std::cout << " Looking for ";
-            bool found_file = false;
-            for (int i=0; i<2; i++) {
-                if (i==1) {
-                    std::string latID = LatName(latIndex, false);
-				    std::string lonID = LongName(longIndex, false);
-                    SRTMfile_base = SRTMdir + latID + "/" + latID + lonID;
-                }
-                for (auto& ext : srtm_ext) {
-                    SRTMfile = SRTMfile_base + ext;
-                    std::cout << SRTMfile << " ... ";
-                    if (fs::exists(SRTMfile)) { 
-                        std::cout << "found it!" << std::endl;
-                        found_file = true;
-                        break;
-                    }
-                }
-                if (found_file) break;
+            // Look for zipped file
+            SRTMfile = SRTMdir + latID + lonID + ".SRTMGL1.hgt.zip";
+            bool found_zip = false;
+            std::cout << " Looking for " << SRTMfile << " ... ";
+            if (fs::exists(SRTMfile)) { 
+                std::cout << "found it!" << std::endl;
+                found_zip = true;
             }
-            if (! found_file)
-			{
 
-				std::cout << " did not find SRTM file" << std::endl;
-                std::cerr << " SRTM file not found" << std::endl;
-				exit(EXIT_FAILURE);
-			}
+            if (!found_zip)
+            {
+                // Construct SRTM filename
+                std::string SRTMfile_base = SRTMdir + latID + "/" + latID + lonID; // + ".hgt";
+                
+                // Look for file
+                // std::cout << " Looking for ";
+                bool found_file = false;
+                for (int i=0; i<2; i++) {
+                    if (i==1) {
+                        std::string latID = LatName(latIndex, false);
+                        std::string lonID = LongName(longIndex, false);
+                        SRTMfile_base = SRTMdir + latID + "/" + latID + lonID;
+                    }
+                    for (auto& ext : srtm_ext) {
+                        SRTMfile = SRTMfile_base + ext;
+                        std::cout << SRTMfile << " ... ";
+                        if (fs::exists(SRTMfile)) { 
+                            std::cout << "found it!" << std::endl;
+                            found_file = true;
+                            break;
+                        }
+                    }
+                    if (found_file) break;
+                }
+                if (! found_file)
+                {
+
+                    std::cout << " did not find SRTM file" << std::endl;
+                    std::cerr << " SRTM file not found" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
 
 			// If we got here, the SRTM file was found, so add to list of input files
 			InputFilenames.push_back(SRTMfile);

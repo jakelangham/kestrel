@@ -34,7 +34,7 @@ html_logo = 'logo.png'
 # -- alabaster theme options
 html_theme_options = {
     'fixed_sidebar': True,
-    'sidebar_collapse': True,
+    # 'sidebar_collapse': True,
 }
 
 # -- Options for EPUB output

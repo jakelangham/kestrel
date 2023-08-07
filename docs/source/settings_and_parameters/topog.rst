@@ -58,7 +58,7 @@ The following **conditionally required** parameter is needed when :code:`Type = 
         The directory containing the SRTM data.  This should be in the form of an SRTM archive, i.e. with a structure /N01/N01*.tif N02/N02*.tif ...
 
         .. note::
-            SRTM files can be either geotif or USGS hgt format.
+            SRTM files can be either geotif or USGS hgt format (included zipped hgt files with extension :code:`.SRTMGL1.hgt.zip`).
 
 There is one **conditionally required** setting needed when :code:`Type = Function` -- :code:`Topog function` giving the function to be used.  This is accompanied by a **conditionally optional** setting -- :code:`Topog params` -- that specifies parameters to use with the function.  The :code:`Topog params` variable takes the form :code:`Topog params = (a, b, c, ...)` with the values having particular meaning for each function form, as described below for the currently implemented functions with their meaning.
 

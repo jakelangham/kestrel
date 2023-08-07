@@ -26,6 +26,11 @@ missing
 # docs
 docs/build
 
+# Cmake
+CMakeLists.txt
+cmake/
+build/
+
 # exclude examples/test outputs
 examples/*
 !examples/*.txt

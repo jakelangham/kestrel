@@ -209,6 +209,10 @@ contains
 
       rasterF%RasterName = filename
       rasterF%ReadSuccess = raster%read_success
+
+      if (rasterF%ReadSuccess == -1) call FatalErrorMessage("Could not read raster file " // rasterF%RasterName%s)
+      if (rasterF%ReadSuccess == -2) call FatalErrorMessage("No-data value found in raster file " // rasterF%RasterName%s // ". Check the DEM, fill no-data, and restart simulation.")
+
       rasterF%RasterXSize = raster%x_size
       rasterF%RasterYSize = raster%y_size
       rasterF%RasterSize = raster%size

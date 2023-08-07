@@ -29,6 +29,7 @@
 ! in an order that is independent of the tiling layout.
 module redistribute_module
 
+   use, intrinsic :: iso_fortran_env, only : stdout=>output_unit
    use set_precision_module, only: wp
    use grid_module, only: GridType, TileType
    use runsettings_module, only: RunSet
@@ -144,7 +145,7 @@ contains
       else 
          p => list%head
          do while (associated(p))
-            print *, p%ttk, p%i, p%j, p%excess_dep
+            write(stdout,*) p%ttk, p%i, p%j, p%excess_dep
             p => p%next
          end do
       end if
