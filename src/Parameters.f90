@@ -351,7 +351,7 @@ contains
                   case default
                      call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
                         // "The block value for the variable 'Erosion' is not recognized." // new_line('A') &
-                        // "Currently accepted 'Erosion' values are 'On' and 'Off'.")
+                        // "Currently accepted 'Erosion' values are 'On, Off, Mixed, Simple, Fluid, Granular'.")
                end select
           
             case ('erosion rate')
