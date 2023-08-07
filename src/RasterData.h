@@ -22,6 +22,7 @@
 #ifndef RASTERDATA_H
 #define RASTERDATA_H
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <vector>
