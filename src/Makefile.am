@@ -19,8 +19,8 @@ kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 \
 
 kestrel_FCFLAGS = -Wall -ffree-line-length-0 -fno-range-check -cpp $(NETCDF4_FFLAGS) $(AM_FCFLAGS) $(DEFS)
 kestrel_CXXFLAGS = -Wall $(GDAL_CFLAGS) $(PROJ_CFLAGS) $(AM_CXXFLAGS)
-kestrel_LDFLAGS = $(NETCDF4_LDFLAGS)
-kestrel_LDADD = $(FCLIBS) $(GDAL_LDFLAGS) $(PROJ_LDFLAGS) $(NETCDF4_FLIBS) $(LIBS)
+kestrel_LDFLAGS = $(NETCDF4_LDFLAGS) $(PROJ_LDFLAGS)
+kestrel_LDADD = $(FCLIBS) $(GDAL_LDFLAGS) $(NETCDF4_FLIBS) $(LIBS)
 
 if WANT_BOOST
 kestrel_LDFLAGS += $(BOOST_LDFLAGS)
