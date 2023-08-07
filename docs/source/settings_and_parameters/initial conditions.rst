@@ -1,7 +1,20 @@
-.. _set_source:
+Initial and source conditions
+-----------------------------
+
+Cap
+^^^
+
+.. warning::
+    TODO
+
+Cube
+^^^^
+
+.. warning::
+   TODO
 
 Source
-------
+^^^^^^
 
 A *Source* block specifies conditions for a release of material onto the domain through a time series (referred to as a *flux source*).  A source block is identified using the block keyword :code:`Source:`.
 
@@ -69,5 +82,3 @@ The following are the additional **required** settings for a source block:
 
         Between the given time increments, the flux and concentration are linearly interpolated.
 
-
-TODO: Caps & Cubes
