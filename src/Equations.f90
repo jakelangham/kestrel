@@ -27,8 +27,7 @@ module equations_module
    use set_precision_module, only: wp
    use grid_module, only: GridType
    use runsettings_module, only: RunSet
-   use closures_module, only: Density, ErosionClosure, ErosionTransition, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor, &
-      HinderedSettling,  MorphoDamping
+   use closures_module
 
    implicit none
 
@@ -440,7 +439,7 @@ contains
       if (psi >= RunParams%maxPack) then
          alpha = 0.0_wp
       else if (psi > 0.0_wp) then
-         alpha = HinderedSettling(RunParams, psi)
+         alpha = DepositionClosure(RunParams, psi)
       else
          alpha = 0.0_wp
       end if

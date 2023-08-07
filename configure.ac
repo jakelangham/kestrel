@@ -31,9 +31,7 @@ AM_CONDITIONAL([WANT_BOOST], [test x$want_boost = xyes])
 
 AX_LIB_GDAL([2.2.0])
 
-AC_CHECK_LIB([proj],[proj_context_create],,[
-AC_MSG_ERROR([Unable to find libproj])
-])
+AX_LIB_PROJ()
 
 AX_LIB_NETCDF4([serial])
 

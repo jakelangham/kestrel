@@ -434,10 +434,10 @@ contains
       write (101, fmt="(a,G0)") 'Maximum packing fraction = ', RunParams%maxPack
       write (101, fmt="(a,G0)") 'Solid diameter = ', RunParams%SolidDiameter
       write (101, fmt="(a,G0)") 'Particle Reynolds number = ', RunParams%Rep
-      write (101, fmt="(a,G0)") 'Particle settling speed in clear water = ', RunParams%ws0
-      write (101, fmt="(a,G0)") 'Exponent in hindered settling term = ', RunParams%nsettling
       if (RunParams%MorphodynamicsOn) then
-         write (101, fmt="(a,G0)") 'Hindered settling function = ', RunParams%HinderedSettling%s
+         write (101, fmt="(a,G0)") 'Deposition closure = ', RunParams%DepositionChoice%s
+         write (101, fmt="(a,G0)") 'Particle settling speed in clear water = ', RunParams%ws0
+         write (101, fmt="(a,G0)") 'Exponent in hindered settling term = ', RunParams%nsettling
          write (101, fmt="(a,G0)") 'Morphodynamic damping function = ', RunParams%MorphoDamp%s
       end if
       write (101, *)
@@ -2163,8 +2163,6 @@ contains
       call put_nc_att(ncid, "solid diameter", RunParams%SolidDiameter)
       call put_nc_att(ncid, "eddy viscosity", RunParams%EddyViscosity)
       call put_nc_att(ncid, "particle Reynolds number", RunParams%Rep)
-      call put_nc_att(ncid, "clear water settlings speed", RunParams%ws0)
-      call put_nc_att(ncid, "hindered settling exponent", RunParams%nsettling)
       call put_nc_att(ncid, "drag choice", RunParams%DragChoice%s)
       select case (RunParams%DragChoice%s)
          case ("Chezy")
@@ -2191,7 +2189,7 @@ contains
       end select
       if (RunParams%MorphodynamicsOn) then
          call put_nc_att(ncid, "morphodynamics time stepping", "on")
-         call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice)
+         call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice%s)
          select case (RunParams%ErosionChoice%s)
             case ('Fluid')
                call put_nc_att(ncid, "fluid erosion rate", RunParams%EroRate)
@@ -2209,7 +2207,9 @@ contains
                call put_nc_att(ncid, "erosion critical height", RunParams%EroCriticalHeight)
                call put_nc_att(ncid, "erosion transition function", RunParams%ErosionTransition)
          end select
-         call put_nc_att(ncid, "hindered settling function", RunParams%HinderedSettling)
+         call put_nc_att(ncid, "deposition closure", RunParams%DepositionChoice%s)
+         call put_nc_att(ncid, "clear water settling speed", RunParams%ws0)
+         call put_nc_att(ncid, "hindered settling exponent", RunParams%nsettling)
          call put_nc_att(ncid, "morphodynamic damping function", RunParams%MorphoDamp)
       else
          call put_nc_att(ncid, "morphodynamics time stepping", "off")

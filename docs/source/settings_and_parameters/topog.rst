@@ -1,11 +1,12 @@
-
-
 .. _set_topog:
 
 Topog
 -----
 
-The *Topog* block specifies the topography to be used in Kestrel.  Topography can be given either as a Digital Elevation Model (DEM) or through a parameterized analytic function.  The Topog block is identified using the block keyword :code:`Topog:`.
+The *Topog* block specifies the topography to be used in Kestrel.  Topography
+can be given either as a Digital Elevation Model (DEM) or through a
+parameterized analytic function.  The Topog block is identified using the block
+keyword :code:`Topog:`.
 
 There is a single **required** parameter in the Topog block:
 
@@ -44,7 +45,9 @@ The following **conditionally optional** parameters can be used when :code:`Type
           - :code:`Yes` or :code:`On` -- embed the DEM within SRTM data.
             
             .. note::
-                If :code:`embed raster = on` then flows will transition from the DEM topography to SRTM at the edge of the DEM.  Offsets in these topographies can create problems. See :ref:`general_guidance` for further details.
+                If :code:`embed raster = on` then flows will transition from the
+                DEM topography to SRTM at the edge of the DEM.  Offsets in these
+                topographies can create problems.
 
           - :code:`No` or :code:`Off` -- do no embed the DEM.
 
@@ -155,7 +158,5 @@ There is one **conditionally required** setting needed when :code:`Type = Functi
         :code:`Topog params = (A, B)`
             - :code:`A` -- coefficient of :math:`x^{2}` for the parabola.
             - :code:`B` -- coefficient of :math:`y^{2}` for the parabola.
-
-
 
 .. |deg| unicode:: U+00B0 .. deg symbol

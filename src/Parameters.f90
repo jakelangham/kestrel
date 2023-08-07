@@ -38,8 +38,6 @@ module parameters_module
    private
    public :: Params_Set
 
-   character(len=16), parameter :: hindered_d = 'Spearman Manning'
-   procedure(HinderedSettling), pointer :: hindered_dfunc => SpearmanManningHinderedSettling
    character(len=4), parameter :: fswitch_d = 'tanh'
    procedure(fswitch), pointer :: fswitch_dfunc => tanhSwitch
    character(len=4), parameter :: morpho_damp_d = 'tanh'
@@ -56,6 +54,8 @@ module parameters_module
    real(kind=wp), parameter :: EroRateGranular_d = 4.0_wp
    real(kind=wp), parameter :: EroDepth_d = 1.0_wp
 
+   character(len=16), parameter :: DepositionClosure_d = 'Spearman Manning'
+   procedure(DepositionClosure), pointer :: DepositionClosure_dfunc => SpearmanManningHinderedSettling
    character(len=5), parameter :: ErosionClosure_d = 'Mixed'
    procedure(ErosionClosure), pointer :: ErosionClosure_dfunc => MixedErosion
    character(len=6), parameter :: EroTransition_d = 'smooth'
@@ -88,15 +88,12 @@ contains
       type(RunSet), intent(inout) :: RunParams
 
       type(varString) :: label
-      type(varString) :: DragChoice, ErosionChoice, geometric_factors
-      type(varString) :: hindered
-      type(varString) :: switcher
-      type(varString) :: eroTransition
+      type(varString) :: DragChoice, DepositionChoice, ErosionChoice
+      type(varString) :: geometric_factors, switcher, eroTransition
       type(varString) :: morpho_damp
 
       integer :: J, N
 
-      logical :: set_hinderedSettling
       logical :: set_fswitch
       logical :: set_g
       logical :: set_drag
@@ -107,6 +104,7 @@ contains
       logical :: set_pouliquenMaxSlope
       logical :: set_pouliquen_beta
       logical :: set_pouliquen_L
+      logical :: set_deposition
       logical :: set_erosion
       logical :: set_EroRate
       logical :: set_EroRateGranular
@@ -129,7 +127,6 @@ contains
 
       N = size(ParamValues)
 
-      set_hinderedSettling=.FALSE.
       set_fswitch=.FALSE.
       set_g=.FALSE.
       set_drag=.FALSE.
@@ -140,6 +137,7 @@ contains
       set_pouliquenMaxSlope=.FALSE.
       set_pouliquen_beta=.FALSE.
       set_pouliquen_L=.FALSE.
+      set_deposition=.FALSE.
       set_erosion=.FALSE.
       set_EroRate=.FALSE.
       set_EroRateGranular=.FALSE.
@@ -195,22 +193,22 @@ contains
                      fswitch => fswitch_dfunc
                end select
          
-            case ('hindered settling')
-               set_hinderedSettling=.true.
-               hindered = ParamValues(J)%to_lower()
-               select case (hindered%s)
+            case ('deposition')
+               set_deposition=.true.
+               DepositionChoice = ParamValues(J)%to_lower()
+               select case (DepositionChoice%s)
                   case ('none')
-                     RunParams%HinderedSettling = varString('None')
-                     HinderedSettling => NoHinderedSettling
+                     RunParams%DepositionChoice = varString('None')
+                     DepositionClosure => NoDeposition
                   case ('simple')
-                     RunParams%HinderedSettling = varString('Simple')
-                     HinderedSettling => SimpleHinderedSettling
+                     RunParams%DepositionChoice = varString('Simple')
+                     DepositionClosure => SimpleHinderedSettling
                   case ('spearman manning')
-                     RunParams%HinderedSettling = varString('Spearman Manning')
-                     HinderedSettling => SpearmanManningHinderedSettling
+                     RunParams%DepositionChoice = varString('Spearman Manning')
+                     DepositionClosure => SpearmanManningHinderedSettling
                   case default
-                     RunParams%HinderedSettling = varString(hindered_d)
-                     HinderedSettling => hindered_dfunc
+                     RunParams%DepositionChoice = varString(DepositionClosure_d)
+                     DepositionClosure => DepositionClosure_dfunc
                end select
 
             case ('morphodynamic damping')
@@ -443,11 +441,6 @@ contains
          ErosionTransition => EroTransition_dfunc
       end if
 
-      if (.not.set_hinderedSettling) then
-         RunParams%HinderedSettling = varString(hindered_d)
-         HinderedSettling => hindered_dfunc
-      end if
-
       if (.not.set_MorphoDamp) then
          RunParams%MorphoDamp = varString(morpho_damp_d)
          MorphoDamping => morpho_damp_dfunc
@@ -520,6 +513,11 @@ contains
       if ((RunParams%DragChoice%s=="Manning").and.(.not.set_manningco)) then
          RunParams%ManningCo = manningco_d
          call Warning_DragDefaultValue("Manning","Manning Co",RunParams%ManningCo)
+      end if
+
+      if (.not.set_deposition) then
+         RunParams%DepositionChoice = varString(DepositionClosure_d)
+         DepositionClosure => DepositionClosure_dfunc
       end if
 
       if (.not.set_erosion) then
