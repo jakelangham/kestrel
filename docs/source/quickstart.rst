@@ -251,15 +251,16 @@ A few other important lines to note are:
       <https://earthexplorer.usgs.gov/>`_ and it comes in a standard format,
       divided into patches that cover the Earth's surface.
       Kestrel will automatically look for the relevant file(s) in the `./SRTM/`
-      directory, as specified. In this case, it needs to find the SRTM file
-      `./SRTM/S12/S12W07` with either `.hgt` or `.tif` extension (filenames are
-      case insensitive).
+      directory, as specified. In this case, it needs to find either the zipped
+      SRTM file `.SRTM/S12W077.SRTMGL1.hgt.zip` or an unzipped file 
+      `./SRTM/S12/S12W077` with either `.hgt` or `.tif` extension (unzipped
+      filenames are case insensitive).
     * ``Erosion = Fluid`` turns erosion on (and specifies a particular closure
       law), so this is a morphodynamic simulation. This motivates the
       inclusion of various other options in the ``Parameters`` block. The
       implications of these are detailed in :ref:`settings_and_parameters`.
 
-As before, we run the simulation on the command line, passing the  input file as
+As before, we run the simulation on the command line, passing the input file as
 a command line argument. 
 
 .. code-block:: bash
@@ -288,9 +289,9 @@ There are many ways to view NetCDF data. The most convenient is probably to open
 them directly in a GIS program that supports this format. The solution files are
 georeferenced so that they automatically appear at the correct coordinates.
 
-For `QGIS <https://www.qgis.org>`_, the 
+For `QGIS <https://www.qgis.org>`_, the experimental 
 `Lahar Flow Map Tools
-<https://bitbucket.org/markwoodhouse/laharflow_maptools/>`_ plugin can be used,
+<https://plugins.qgis.org/plugins/laharflow_maptools/>`_ plugin can be used,
 which automates some of the work needed to get the data into a presentable
 format.
 
