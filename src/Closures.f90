@@ -44,8 +44,8 @@ module closures_module
    public :: IversonOuyangGeometricCorrectionFactor, NoGeometricCorrectionFactor
    public :: IversonOuyangGeometricCorrectionFactor_gradin, NoGeometricCorrectionFactor_gradin
 
-   public :: HinderedSettling
-   public :: NoHinderedSettling, SimpleHinderedSettling, SpearmanManningHinderedSettling
+   public :: DepositionClosure
+   public :: NoDeposition, SimpleHinderedSettling, SpearmanManningHinderedSettling
 
    public :: ErosionClosure
    public :: SimpleErosion, FluidErosion, GranularErosion, MixedErosion, NoErosion
@@ -83,15 +83,15 @@ module closures_module
        end function GeometricCorrectionFactor_gradin
    end interface
 
-   pointer :: HinderedSettling
+   pointer :: DepositionClosure
    interface
-       pure function HinderedSettling(RunParams, psi) result(hinder)
+       pure function DepositionClosure(RunParams, psi) result(deposition)
            import :: wp
            import :: RunSet
            type(RunSet), intent(in) :: RunParams
            real(kind=wp), intent(in) :: psi
-           real(kind=wp) :: hinder
-       end function HinderedSettling
+           real(kind=wp) :: deposition
+       end function DepositionClosure
    end interface
 
    pointer :: ErosionClosure
@@ -313,45 +313,45 @@ contains
 
    end function NoGeometricCorrectionFactor_gradin
 
-! -- Closures for the settling law. --
+! -- Closures for the deposition law. --
 
-   ! No hindered settlings, return 1
-   pure function NoHinderedSettling(RunParams, psi) result(hinder)
+   ! No deposition, return 0
+   pure function NoDeposition(RunParams, psi) result(deposition)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: hinder
+      real(kind=wp) :: deposition
 
-      hinder = 1.0_wp
-   end function NoHinderedSettling
+      deposition = 0.0_wp
+   end function NoDeposition
 
    ! Simple quadratic hindered settling function, with zeros at 
    ! psi = 0 and psi = maximum packing
-   pure function SimpleHinderedSettling(RunParams, psi) result(hinder)
+   pure function SimpleHinderedSettling(RunParams, psi) result(deposition)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: hinder
+      real(kind=wp) :: deposition
 
-      hinder = psi * (1.0_wp - psi / RunParams%maxPack)
+      deposition = psi * (1.0_wp - psi / RunParams%maxPack)
    end function SimpleHinderedSettling
 
    ! Hindered settling function from Spearman & Manning (2017)
    ! doi:10.1007/s10236-017-1034-7.
-   pure function SpearmanManningHinderedSettling(RunParams, psi) result(hinder)
+   pure function SpearmanManningHinderedSettling(RunParams, psi) result(deposition)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: hinder
+      real(kind=wp) :: deposition
 
       real(kind=wp) :: a, b
 
       a = 2.7_wp - 0.15_wp * RunParams%nsettling
       b = 0.62_wp * RunParams%nsettling - 1.46_wp
-      hinder = psi * (1.0_wp - psi)**a * (1.0_wp - psi / RunParams%maxPack)**b
+      deposition = psi * (1.0_wp - psi)**a * (1.0_wp - psi / RunParams%maxPack)**b
    end function SpearmanManningHinderedSettling
 
 ! -- Drag closures --

@@ -244,14 +244,14 @@ module runsettings_module
 
       ! Closure functions.
 
-      ! Choice of hindered settling closure.  Can be: None, Simple, Spearman Manning [default]
-      type(varString) :: HinderedSettling 
       ! Choice of switching function. Can be: tanh [default], rat3, cos, linear, equal, zero/0/off, one/1
       type(varString) :: fswitch 
       ! Choice of function for erosion transition. Can be: smooth [default], step, off
       type(varString) :: ErosionTransition 
       ! Choice of drag function. Can be: Chezy, Coulomb, Voellmy, Pouliquen, Variable [default], Manning
       type(varString) :: DragChoice 
+      ! Choice of deposition function.  Can be: None, Simple, Spearman Manning [default]
+      type(varString) :: DepositionChoice
       ! Choice of erosion function. Can be: Fluid, Granular, Mixed, Off
       type(varString) :: ErosionChoice 
       ! Choice of morphodynamic damping function.  Can be: tanh [default], rat3, none/off
