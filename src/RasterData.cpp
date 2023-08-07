@@ -346,10 +346,10 @@ std::vector<std::string> GatherSRTMtiles(const char *path, const char *SRTMpath,
     std::vector<double> NW = PT.utm_to_wgs84(*minE, *maxN);
     
     /* Get extent in latitude--longitude coordinates */
-    double minlat = std::min({SW[0], SE[0], NW[0], NE[0]});
-    double maxlat = std::max({SW[0], SE[0], NW[0], NE[0]});
-    double minlon = std::min({SW[1], NW[1], SE[1], NE[1]});
-    double maxlon = std::max({SW[1], NW[1], SE[1], NE[1]});
+    double minlat = std::min(std::min(SW[0], SE[0]), std::min(NW[0], NE[0]));
+    double maxlat = std::max(std::max(SW[0], SE[0]), std::max(NW[0], NE[0]));
+    double minlon = std::min(std::min(SW[1], NW[1]), std::min(SE[1], NE[1]));
+    double maxlon = std::max(std::max(SW[1], NW[1]), std::max(SE[1], NE[1]));
     
     /* Cast to integer for tile labels */
     int minLatFloor = static_cast<int>(floor(minlat));
@@ -479,7 +479,7 @@ void BuildDEMVRT_raster(const char *path,
 
         // Warp SRTM_vrt to the same CRS as input DEM
         std::ostringstream gdal_exec_str_SRTM_wrp;
-        gdal_exec_str_SRTM_wrp << "gdalwarp -overwrite -of VRT -et 0 -co TILED=YES -r cubic -ot Float64 "; // Start creation of warp string
+        gdal_exec_str_SRTM_wrp << "gdalwarp -overwrite -of VRT -et 0 -r cubic -ot Float64 "; // Start creation of warp string
         // set resolution
         std::ostringstream tr_str_SRTM_wrp; 
         tr_str_SRTM_wrp.precision(17); // hold resolution at sufficient precision
@@ -534,7 +534,7 @@ void BuildDEMVRT_raster(const char *path,
 	/// to the required CRS and resolution.
 	/// The ouput is DEM.vrt.
 	std::ostringstream gdal_exec_str;
-	gdal_exec_str << "gdalwarp -overwrite -of VRT -et 0 -co TILED=YES -r cubic -ot Float64 "; // use cubic interpolation and set output format to 64-bit float
+	gdal_exec_str << "gdalwarp -overwrite -of VRT -et 0 -r cubic -ot Float64 "; // use cubic interpolation and set output format to 64-bit float
 	// set resolution
 	std::ostringstream tr_str;
 	tr_str.precision(17); // Store at sufficient resolution
@@ -602,7 +602,7 @@ void BuildDEMVRT_srtm(const char *path,
 	/// to the required CRS and resolution.
 	/// The ouput is DEM.vrt.
 	std::ostringstream gdal_exec_str;
-	gdal_exec_str << "gdalwarp -overwrite -of VRT -et 0 -co COMPRESS=LZW -co TILED=YES -r cubic -ot Float64 ";
+	gdal_exec_str << "gdalwarp -overwrite -of VRT -et 0 -r cubic -ot Float64 ";
 	// set resolution
 	std::ostringstream tr_str;
 	tr_str.precision(17); // Store at sufficient resolution

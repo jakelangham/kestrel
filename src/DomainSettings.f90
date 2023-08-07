@@ -129,6 +129,7 @@ contains
              case ('sponge')
                ! call FatalErrorMessage("Boundary condition 'sponge' is not supported yet")
                set_boundaryConds=.TRUE.
+               RunParams%SpongeLayer=.TRUE.
                RunParams%bcs = bcs
              case ('reflect')
                call FatalErrorMessage("This boundary condition 'reflect' is not supported yet")

@@ -291,7 +291,7 @@ contains
       Lx = RunParams%Xtilesize * RunParams%nXtiles
       twopi_o_Lx = 2.0_wp * pi / Lx
       do ii=1,size(x)
-         b0(ii,:) = eps * sin(x(ii) * twopi_o_Lx) / twopi_o_Lx
+         b0(ii,:) = eps * sin(x(ii) * twopi_o_Lx)
       end do
       return
    end subroutine xsinslope

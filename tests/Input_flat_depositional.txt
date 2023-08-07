@@ -47,4 +47,5 @@ N out = 10
 directory = flat_depositional/
 
 Topog:
-Type = flat
+Type = Function
+Topog function = flat

@@ -39,5 +39,6 @@ N out = 10
 directory = lake_at_rest_hydro_2d/
 
 Topog:
-Type = xySinSlope
+Type = Function
+Topog function = xySinSlope
 Topog params = (0.2)

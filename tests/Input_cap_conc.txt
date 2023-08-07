@@ -41,5 +41,6 @@ directory = cap_conc/
 Topog filename = Topog.txt
 
 Topog:
-Type = xParab
+Type = Function
+Topog function = xParab
 Topog params = (0.01)

@@ -9,6 +9,8 @@ components that are most important for using the software. If you want to know
 more, the equations and the methods we use to solve them are detailed in this
 `paper <https://arxiv.org/abs/2306.16185>`_.
 
+.. _physical_model_assumptions:
+
 Base assumptions
 ----------------
 
@@ -43,6 +45,8 @@ of Kestrel for modelling particular systems.
 
 Further user-settable modelling choices are needed to complete the description,
 which carry their own sets of assumptions. These will be discussed shortly.
+
+.. _physical_model_equations:
 
 Governing equations
 -------------------
@@ -114,6 +118,8 @@ The terms on the left-hand sides are time derivatives and various fluxes
 common to any flow satisfying our base assumptions. On the right-hand sides,
 there are many terms (as yet undefined) that depend on the particular physics of
 the system.
+
+.. _physical_model_closures:
 
 Model closures
 --------------

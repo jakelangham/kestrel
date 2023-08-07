@@ -54,5 +54,6 @@ N out = 3
 directory = flux_morpho/
 
 Topog:
-Type = xSlope
+Type = Function
+Topog function = xSlope
 Topog params = (-0.2)

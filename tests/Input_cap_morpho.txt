@@ -48,5 +48,6 @@ directory = cap_morpho/
 Format = txt
 
 Topog:
-Type = xSlope
+Type = Function
+Topog function = xSlope
 Topog params = (-0.2)

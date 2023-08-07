@@ -47,5 +47,6 @@ N out = 10
 directory = lake_at_rest_morpho/
 
 Topog:
-Type = xSinSlope
+Type = Function
+Topog function = xSinSlope
 Topog params = (0.2)

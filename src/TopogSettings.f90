@@ -39,7 +39,6 @@ module topog_settings_module
    public :: Topog_Set
 
    ! default values
-   character(len=3), parameter :: Topog_d = "dem"
    logical(kind=c_bool), parameter :: EmbedRaster_d = .FALSE.
    logical, parameter :: RebuildDEM_d = .TRUE.
 
@@ -60,7 +59,8 @@ contains
       type(varString) :: label
       type(varString) :: DemPath
       type(varString) :: RasterFile
-      type(varString) :: Topog
+      type(varString) :: Type
+      type(varString) :: TopogFuncStr
       type(varString) :: SRTMPath
       type(varString) :: EmbedRaster
       type(varString) :: RebuildDEM
@@ -69,7 +69,8 @@ contains
 
       logical :: set_DemPath
       logical :: set_SRTMPath
-      logical :: set_Topog
+      logical :: set_Type
+      logical :: set_TopogFunc
       logical :: set_Topog_params
       logical :: set_RasterFile
       logical :: set_EmbedRaster
@@ -79,10 +80,11 @@ contains
 
       N = size(TopogValues)
 
+      set_Type=.FALSE.
       set_DemPath=.FALSE.
       set_SRTMPath=.FALSE.
       set_RasterFile=.FALSE.
-      set_Topog=.FALSE.
+      set_TopogFunc=.FALSE.
       set_Topog_params=.FALSE.
       set_EmbedRaster=.FALSE.
       set_RebuildDEM=.FALSE.
@@ -90,199 +92,241 @@ contains
       do J=1,N
          label = TopogLabels(J)%to_lower()
          select case (label%s)
-          case ('dem directory')
-            set_DemPath=.TRUE.
-            DemPath = TopogValues(J)
-          case ('srtm directory')
-            set_SRTMPath=.TRUE.
-            SRTMPath = TopogValues(J)
-          case ('raster file')
-            set_RasterFile=.TRUE.
-            RasterFile = TopogValues(J)
-          case ('type')
-            set_Topog=.TRUE.
-            Topog = TopogValues(J)%to_lower()
-          case ('topog params')
-            set_Topog_params=.TRUE.
-            call TopogValues(J)%read_set(RunParams%TopogFuncParams)
-          case ('embed raster')
-            set_EmbedRaster=.TRUE.
-            EmbedRaster = TopogValues(J)
-          case ('rebuild dem')
-            set_RebuildDEM=.TRUE.
-            RebuildDEM = TopogValues(J)
-          case default
-            call InputLabelUnrecognized(TopogLabels(J)%s)
+            case ('type')
+               set_Type=.TRUE.
+               Type = TopogValues(J)%to_lower()
+            case ('dem directory')
+               set_DemPath=.TRUE.
+               DemPath = TopogValues(J)
+            case ('srtm directory')
+               set_SRTMPath=.TRUE.
+               SRTMPath = TopogValues(J)
+            case ('raster file')
+               set_RasterFile=.TRUE.
+               RasterFile = TopogValues(J)
+            case ('topog function')
+               set_TopogFunc=.TRUE.
+               TopogFuncStr = TopogValues(J)%to_lower()
+            case ('topog params')
+               set_Topog_params=.TRUE.
+               call TopogValues(J)%read_set(RunParams%TopogFuncParams)
+            case ('embed raster')
+               set_EmbedRaster=.TRUE.
+               EmbedRaster = TopogValues(J)%to_lower()
+            case ('rebuild dem')
+               set_RebuildDEM=.TRUE.
+               RebuildDEM = TopogValues(J)%to_lower()
+            case default
+               call InputLabelUnrecognized(TopogLabels(J)%s)
          end select
       end do
 
-      if (.not.set_Topog) then
-         Topog%s = trim(Topog_d)
-         call WarningMessage("In the 'Topog' block 'Type' is not given.  Using default type " // Topog_d)
+      ! Check required variable Type is set
+      if (.not.set_Type) then
+         call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // "the required variable 'Type' is not given.")
       end if
-      RunParams%Topog = Topog
-      RunParams%Georeference = .FALSE.
-
-      if (.not.set_EmbedRaster) then
-         RunParams%EmbedRaster = EmbedRaster_d
-      else
-         select case (EmbedRaster%s)
-          case ('On','on','Yes','yes','Embed','1')
-            RunParams%EmbedRaster = .TRUE.
-          case ('Off','off','No','no','0')
-            RunParams%EmbedRaster = .FALSE.
-          case default
-            RunParams%EmbedRaster = EmbedRaster_d
-         end select
-      end if
-
-      select case (Topog%s)
+      select case (Type%s)
          case ('dem', 'raster')
-            if (.not. set_DemPath) then
-               call getcwd(cwd)
-               DemPath = varString(cwd, trim_str=.TRUE.)
-               call WarningMessage("In the 'Topog' block 'dem directory' is not given.  Using current directory")
-            end if
-            RunParams%DemPath = CheckPath(DemPath)
-
-            if (.not.set_RasterFile) then
-               call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                  // " 'Raster File' is required when 'Type' is 'Raster' or 'DEM'.")
-            end if
-            RunParams%RasterFile = RasterFile
-
-            if (RunParams%EmbedRaster) then
-               if (.not. set_SRTMPath) then
-                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                     trim(RunParams%InputFile%s) // new_line('A') &
-                     // " 'SRTM directory' is not given.")
-               end if
-               RunParams%SRTMPath = CheckPath(SRTMPath)
-            end if
-
-            RunParams%Georeference = .TRUE.
-         
+            RunParams%Topog = varString("raster")
          case ('srtm')
+            RunParams%Topog = varString("srtm")
+         case ('function')
+            RunParams%Topog = varString("function")
+         case default
+            call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // "the required variable 'Type = "//Type%s//"' is not recognized.")
+      end select
+
+      ! Check conditionally required/optional settings for Type = DEM/Raster
+      if (RunParams%Topog == "raster") then
+
+         ! Get required RasterFile
+         if (.not.set_RasterFile) then
+            call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " 'Raster File' is required when 'Type' is 'Raster' or 'DEM'.")
+         end if
+         RunParams%RasterFile = RasterFile
+      
+         ! Check optional, setting defaults if not given
+
+         ! Get DemPath as CWD if not set
+         if (.not. set_DemPath) then
+            call getcwd(cwd)
+            DemPath = varString(cwd, trim_str=.TRUE.)
+            call WarningMessage("In the 'Topog' block 'dem directory' is not given.  Using current directory")
+         end if   
+         RunParams%DemPath = CheckPath(DemPath)
+
+         ! Check EmbedRaster is set
+         if (.not.set_EmbedRaster) then
+            RunParams%EmbedRaster = EmbedRaster_d
+         else
+            select case (EmbedRaster%s)
+               case ('on','yes')
+                  RunParams%EmbedRaster = .TRUE.
+               case ('off','no')
+                  RunParams%EmbedRaster = .FALSE.
+               case default
+                  RunParams%EmbedRaster = EmbedRaster_d
+            end select
+         end if
+         
+         ! If Embed raster, then also need SRTM
+         if (RunParams%EmbedRaster) then
             if (.not. set_SRTMPath) then
                call FatalErrorMessage("In the 'Topog' block in the input file " // &
                   trim(RunParams%InputFile%s) // new_line('A') &
                   // " 'SRTM directory' is not given.")
             end if
             RunParams%SRTMPath = CheckPath(SRTMPath)
+         end if
 
-            RunParams%Georeference = .TRUE.
+         RunParams%Georeference = .TRUE.
+      end if
+         
+      ! Check conditionally required settings for Type = SRTM
+      if (RunParams%Topog == "srtm") then
+         
+         ! Require SRTM path
+         if (.not. set_SRTMPath) then
+            call FatalErrorMessage("In the 'Topog' block in the input file " // &
+               trim(RunParams%InputFile%s) // new_line('A') &
+               // " 'SRTM directory' is not given.")
+         end if
+         RunParams%SRTMPath = CheckPath(SRTMPath)
 
-         case ('x2slopes')
-            if (size(RunParams%TopogFuncParams) < 3) then
-                call FatalErrorMessage("In the 'Topog' block in the input file " // &
+         RunParams%Georeference = .TRUE.
+      end if
+
+      ! Check conditionally required/optional settings for Type = Function
+      if (RunParams%Topog == "function") then
+
+         ! Require TopogFunc
+         if (.not. set_TopogFunc) call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " missing variable 'Topog function' that is required when 'Type' is 'Function'.")
+
+         ! Check if the number of TopogFuncParams are appropriate for each TopogFunc
+         select case (TopogFuncStr%s)
+
+            case ('flat')
+               TopogFunc => flat
+
+            case ('xslope')
+               if (size(RunParams%TopogFuncParams) < 1) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
                   trim(RunParams%InputFile%s) // new_line('A') &
-                  // " three 'Topog params' are needed for 'Type = x2slopes'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => x2Slopes
+                  // " one 'Topog params' is needed for 'Type = xslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xslope
 
-         case ('usgs')
-            if (size(RunParams%TopogFuncParams) < 2) then
-                call FatalErrorMessage("In the 'Topog' block in the input file " // &
+            case ('yslope')
+               if (size(RunParams%TopogFuncParams) < 1) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
                   trim(RunParams%InputFile%s) // new_line('A') &
-                  // " two 'Topog params' are needed for 'Type = USGS'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => usgs
-         
-         case ('xbislope')
-            if (size(RunParams%TopogFuncParams) < 3) then
-                call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  // " one 'Topog params' is needed for 'Type = yslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => yslope
+            
+            case ('xyslope')
+               if (size(RunParams%TopogFuncParams) < 2) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
                   trim(RunParams%InputFile%s) // new_line('A') &
-                  // " three 'Topog params' are needed for 'Type = xbislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xbislope
-         
-         case ('flat')
-            TopogFunc => flat
+                  // " two 'Topog params' are needed for 'Type = xyslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xyslope
 
-         case ('xslope')
-            if (size(RunParams%TopogFuncParams) < 1) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " one 'Topog params' is needed for 'Type = xslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xslope
+            case ('x2slopes')
+               if (size(RunParams%TopogFuncParams) < 3) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                     trim(RunParams%InputFile%s) // new_line('A') &
+                     // " three 'Topog params' are needed for 'Type = x2slopes'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => x2Slopes
 
-         case ('yslope')
-            if (size(RunParams%TopogFuncParams) < 1) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " one 'Topog params' is needed for 'Type = yslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => yslope
+            case ('usgs')
+               if (size(RunParams%TopogFuncParams) < 2) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                     trim(RunParams%InputFile%s) // new_line('A') &
+                     // " two 'Topog params' are needed for 'Type = USGS'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => usgs
+            
+            case ('xbislope')
+               if (size(RunParams%TopogFuncParams) < 3) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                     trim(RunParams%InputFile%s) // new_line('A') &
+                     // " three 'Topog params' are needed for 'Type = xbislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xbislope            
 
-         case ('xyslope')
-            if (size(RunParams%TopogFuncParams) < 2) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " two 'Topog params' are needed for 'Type = xyslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xyslope
+            case ('xsinslope')
+               if (size(RunParams%TopogFuncParams) < 1) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " one 'Topog params' is needed for 'Type = xsinslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xsinslope
 
-         case ('xsinslope')
-            if (size(RunParams%TopogFuncParams) < 1) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " one 'Topog params' is needed for 'Type = xsinslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xsinslope
+            case ('xysinslope')
+               if (size(RunParams%TopogFuncParams) < 1) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " one 'Topog params' is needed for 'Type = xysinslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xysinslope
 
-         case ('xysinslope')
-            if (size(RunParams%TopogFuncParams) < 1) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " one 'Topog params' is needed for 'Type = xysinslope'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xysinslope
+            case ('xhump')
+               if (size(RunParams%TopogFuncParams) < 2) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " two 'Topog params' are needed for 'Type = xhump'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xhump
 
-         case ('xhump')
-            if (size(RunParams%TopogFuncParams) < 2) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " two 'Topog params' are needed for 'Type = xhump'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xhump
+            case ('xtanh')
+               if (size(RunParams%TopogFuncParams) < 3) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " three 'Topog params' are needed for 'Type = xtanh'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xtanh
+            
+            case ('xparab')
+               if (size(RunParams%TopogFuncParams) < 1) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " one 'Topog params' is needed for 'Type = xparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xparab
+            
+            case ('xyparab')
+               if (size(RunParams%TopogFuncParams) < 2) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " two 'Topog params' are needed for 'Type = xyparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xyparab
 
-         case ('xtanh')
-            if (size(RunParams%TopogFuncParams) < 3) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " three 'Topog params' are needed for 'Type = xtanh'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xtanh
-         
-         case ('xparab')
-            if (size(RunParams%TopogFuncParams) < 1) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " one 'Topog params' is needed for 'Type = xparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xparab
-         
-         case ('xyparab')
-            if (size(RunParams%TopogFuncParams) < 2) then
-               call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                 trim(RunParams%InputFile%s) // new_line('A') &
-                 // " two 'Topog params' are needed for 'Type = xyparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
-            end if
-            TopogFunc => xyparab
-         
-      end select
+            case default
+               call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " the 'Topog function = "// TopogFuncStr%s //"' is not recognized.")
+
+         end select
+         RunParams%Georeference = .FALSE.
+      end if
 
       if (.not.set_RebuildDEM) then
          RunParams%RebuildDEM = RebuildDEM_d
       else
-         select case (RebuildDEM%s)
-          case ('On','on','Yes','yes','True','true','TRUE','1')
-            RunParams%RebuildDEM = .TRUE.
-          case ('Off','off','No','no','False','false','FALSE','0')
-            RunParams%RebuildDEM = .FALSE.
-          case default
-            RunParams%RebuildDEM = RebuildDEM_d
+         label = RebuildDEM%to_lower()
+         select case (label%s)
+            case ('yes')
+               RunParams%RebuildDEM = .TRUE.
+            case ('no')
+               RunParams%RebuildDEM = .FALSE.
+            case default
+               RunParams%RebuildDEM = RebuildDEM_d
          end select
       end if
 
@@ -308,7 +352,7 @@ contains
          RunParams%utmEPSG = LatLonToUtmEpsg(RunParams%Lat, RunParams%Lon)
          RunParams%projTransformer = proj_transformer(RunParams%utmEPSG)
          RunParams%centerUTM = RunParams%projTransformer%wgs84_to_utm(RunParams%Lat, RunParams%Lon)
-       end if
+      end if
 
    end subroutine Topog_Set
 

@@ -116,45 +116,52 @@ contains
       do J=1,N
         label = OutputLabels(J)%to_lower()
          select case (label%s)
+
           case ('directory')
             set_OutDir=.TRUE.
             OutDir = OutputValues(J)
+
           case ('base path')
             set_basePath=.TRUE.
             basePath = OutputValues(J)
+
           case ('info filename')
             set_InfoFilename=.TRUE.
             InfoFilename = OutputValues(J)
+
           case ('inundation time filename')
             set_InundationTimeFilename=.TRUE.
             InundationTimeFilename = OutputValues(J)
+
           case ('max height filename')
             set_MaxHeightFilename=.TRUE.
             MaxHeightFilename = OutputValues(J)
+
           case ('max speed filename')
             set_MaxSpeedFilename=.TRUE.
             MaxSpeedFilename = OutputValues(J)
+
           case ('max erosion filename')
             set_MaxErosionFilename=.TRUE.
             MaxErosionFilename = OutputValues(J)
+
           case ('max deposit filename')
             set_MaxDepositFilename=.TRUE.
             MaxDepositFilename = OutputValues(J)
+
           case ('maximums filename')
             set_MaximumsFilename=.TRUE.
             MaximumsFilename = OutputValues(J)
+
           case ('n out')
             set_Nout=.TRUE.
             RunParams%Nout = OutputValues(J)%to_int()
             if (RunParams%Nout<1) call FatalErrorMessage("In the 'Output' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                // " The block variable 'N out' must be positive.")
+               
           case ('kml height')
             set_kmlHeight=.TRUE.
             RunParams%kmlHeight = OutputValues(J)%to_real()
-            if (RunParams%kmlHeight.le.RunParams%heightThreshold) then
-               call FatalErrorMessage("In the 'Output' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                  // " The block variable 'kml height' must be greater than ", RunParams%heightThreshold)
-            end if
 
           case ('format')
             set_outputFormat=.TRUE.
@@ -274,6 +281,11 @@ contains
       if (RunParams%out_kml) then
          if (.not.set_kmlHeight) then
             RunParams%kmlHeight = kmlHeight_d
+         end if
+         ! Check kmlHeight >= heightThreshold
+         if (RunParams%kmlHeight.le.RunParams%heightThreshold) then
+            call FatalErrorMessage("In the 'Output' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+               // " The block variable 'kml height' must be greater than ", RunParams%heightThreshold)
          end if
 
          if (.not.set_MaxHeightFilename) then

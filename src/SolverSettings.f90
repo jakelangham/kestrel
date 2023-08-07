@@ -41,12 +41,14 @@ module solver_settings_module
 ! default values
    character(len=7), parameter :: limiter_d = 'MinMod2'
    procedure(limiter), pointer :: limiter_dfunc => MinMod2
-   real(kind=wp) :: heightThreshold_d = 1e-6_wp
-   integer :: TileBuffer_d = 3
-   real(kind=wp) :: cfl_d = 0.25_wp
-   real(kind=wp) :: maxdt_d = HUGE(1.0_wp)
+   real(kind=wp), parameter :: heightThreshold_d = 1e-6_wp
+   integer, parameter :: TileBuffer_d = 1
+   real(kind=wp), parameter :: cfl_1d_d = 0.5_wp
+   real(kind=wp), parameter :: cfl_2d_d = 0.25_wp
+   real(kind=wp), parameter :: maxdt_d = HUGE(1.0_wp)
    real(kind=wp), parameter :: tstart_d = 0.0_wp
-   logical :: Restart_d = .FALSE.
+   real(kind=wp), parameter :: SpongeStrength_d = 0.2_wp
+   logical, parameter :: Restart_d = .FALSE.
 
 contains
 
@@ -92,6 +94,11 @@ contains
       do J=1,N
          label = SolverLabels(J)%to_lower()
          select case (label%s)
+
+            case ('t end')
+               set_tend=.TRUE.
+               RunParams%tend = SolverValues(J)%to_real()
+
             case ('limiter')
                set_limiter=.TRUE.
                limiter_label = SolverValues(J)%to_lower()
@@ -121,47 +128,26 @@ contains
             case ('height threshold')
                set_heightThreshold=.TRUE.
                RunParams%heightThreshold = SolverValues(J)%to_real()
-               if (RunParams%heightThreshold.le.0.0_wp) then
-                  call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                     // " The block variable 'Height threshold' must be positive.")
-               end if
-
-            case ('sponge strength')
-               set_SpongeStrength=.TRUE.
-               RunParams%SpongeLayer=.TRUE.
-               RunParams%SpongeStrength = SolverValues(J)%to_real()
-               if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                  // " The block variable 'Sponge Strength' must be positive.")
 
             case ('tile buffer')
                set_TileBuffer=.TRUE.
                RunParams%TileBuffer = SolverValues(J)%to_int()
-               if (RunParams%TileBuffer.le.1) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                  // " The block variable 'Tile Buffer' must be greater than 1.")
 
             case ('cfl')
                set_cfl=.TRUE.
                RunParams%cfl = SolverValues(J)%to_real()
-               if ((RunParams%cfl.le.0.0_wp).or.(RunParams%cfl>0.5_wp)) then
-                  call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                     // " The block variable 'cfl' must be in the range (0,0.5].")
-               end if
 
             case ('max dt')
                set_maxdt=.TRUE.
                RunParams%maxdt = SolverValues(J)%to_real()
-               if (RunParams%maxdt.le.0.0_wp) then
-                  call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-                     // " The block variable 'max dt' must be positive.")
-               end if
 
             case ('t start')
                set_tstart=.TRUE.
                RunParams%tstart = SolverValues(J)%to_real()
 
-            case ('t end')
-               set_tend=.TRUE.
-               RunParams%tend = SolverValues(J)%to_real()
+            case ('sponge strength')
+               set_SpongeStrength=.TRUE.
+               RunParams%SpongeStrength = SolverValues(J)%to_real()
 
             case ('restart')
                set_Restart=.TRUE.
@@ -175,7 +161,7 @@ contains
                      call WarningMessage("In the 'Solver' block the value of 'Restart' is not recognized. Using the default setting Restart = off.")
                      RunParams%Restart = Restart_d
                   end select
-            
+
             case ('initial condition')
                set_InitialCondition = .true.
                RunParams%InitialCondition = SolverValues(J)
@@ -186,6 +172,11 @@ contains
          end select
       end do
 
+      ! Check **Required** settings are set
+      if (.not.set_tend) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+         // " The block variable 't end' must be specified.")
+
+      ! Check if **Optional** settings are set; if not set to default.
       if (.not.set_limiter) then
          RunParams%limiter = varString(limiter_d)
          limiter => limiter_dfunc
@@ -193,25 +184,82 @@ contains
 
       if (.not.set_heightThreshold) RunParams%heightThreshold = heightThreshold_d
 
-      if (.not.set_SpongeStrength) RunParams%SpongeLayer = .FALSE.
-
       if (.not.set_TileBuffer) RunParams%TileBuffer = TileBuffer_d
 
-      if (.not.set_cfl) RunParams%cfl = cfl_d
+      if (.not.set_cfl) then
+         if (RunParams%isOneD) then
+            RunParams%cfl = cfl_1d_d
+         else
+            RunParams%cfl = cfl_2d_d
+         end if
+      end if
 
       if (.not.set_maxdt) RunParams%maxdt = maxdt_d
 
       if (.not.set_tstart) RunParams%tstart = tstart_d
 
-      if (.not.set_tend) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-         // " The block variable 't end' must be specified.")
+      if (.not.set_SpongeStrength) RunParams%SpongeStrength = SpongeStrength_d
 
-      if (.not. set_InitialCondition) RunParams%InitialCondition%s = " "
+      if (.not. set_InitialCondition) RunParams%InitialCondition = varString("")
 
       if (RunParams%tstart>RunParams%tend) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
          // " The block variable 't end' must be greater than the block variable 't start'.")
         
       if (.not. set_Restart) RunParams%Restart = Restart_d
+
+      ! Validate Solver settings
+
+      ! tend > tstart
+      if (RunParams%tend .le. RunParams%tstart) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'T end' must be greater than 'T start'.")
+      end if
+
+      ! 1 <= TileBuffer <= nXpertile-1 in 1d; 1 <= TileBuffer <= min(nXpertile, nYpertile)-1
+      if (RunParams%TileBuffer.lt.1) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " The block variable 'Tile Buffer' must be >= 1.")
+      if (RunParams%isOneD) then
+         if (RunParams%TileBuffer.ge.RunParams%nXpertile) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " The block variable 'Tile Buffer' must be < nXpertile.")
+      else
+         if (RunParams%TileBuffer.ge.min(RunParams%nXpertile, RunParams%nYpertile)) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " The block variable 'Tile Buffer' must be < min(nXpertile, nYpertile).")
+      end if
+
+      ! 0 < cfl <= cfl_max, clf_max = 0.5 in 1d, clf_max = 0.25 in 2d
+      if ((RunParams%cfl.le.0.0_wp)) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'cfl' must be positive.")
+      end if
+      if (RunParams%isOneD) then
+         if ((RunParams%cfl>0.5_wp)) then
+            call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+               // " The block variable 'cfl' must be <= 0.5 for stable 1D simulations.")
+         end if
+      else 
+         if ((RunParams%cfl>0.25_wp)) then
+            call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+               // " The block variable 'cfl' must be <= 0.25 for stable 2D simulations.")
+         end if
+      end if
+
+      ! heightThreshold > 0
+      if (RunParams%heightThreshold.le.0.0_wp) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'Height threshold' must be positive.")
+      end if
+
+      ! maxdt > 0
+      if (RunParams%maxdt.le.0.0_wp) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'max dt' must be positive.")
+      end if
+
+      ! SpongeStrength > 0
+      if (RunParams%SpongeLayer) then
+         if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+                  // " The block variable 'Sponge Strength' must be positive.")
+      end if
 
    end subroutine Solver_Set
 

@@ -173,13 +173,21 @@ else
       numtests += length(tests_identical)
       numpassed += run_identical()
    end
-   if "netcdf" in tests && with_netcdf
-      numtests += length(tests_netcdf)
-      numpassed += run_netcdf()
+   if "netcdf" in tests
+      if with_netcdf
+         numtests += length(tests_netcdf)
+         numpassed += run_netcdf()
+      else
+         printstyled("FAIL Kestrel is not build with NetCDF support\n"; color=:red, bold=true)
+      end
    end
 
-   ratio = 100 * numpassed / numtests
-   @printf "Results: %i/%i passed" numpassed numtests
-   @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
+   if numtests>1
+      ratio = 100 * numpassed / numtests
+      @printf "Results: %i/%i passed" numpassed numtests
+      @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
+   else
+      println("No tests selected.  Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+   end
 
 end

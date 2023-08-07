@@ -44,6 +44,7 @@ directory = cap_conc_2d/
 Topog filename = Topog.txt
 
 Topog:
-Type = xSlope
+Type = Function
+Topog function = xSlope
 Topog params = (-0.04)
 

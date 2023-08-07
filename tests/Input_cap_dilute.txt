@@ -39,5 +39,6 @@ directory = cap_dilute/
 Format = txt
 
 Topog:
-Type = xParab
+Type = Function
+Topog function = xParab
 Topog params = (0.01)
