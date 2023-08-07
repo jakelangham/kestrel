@@ -58,4 +58,4 @@ rhos = 2000 # Density of solids (kg/m^3)
 Erosion critical height = 0.01 # Minimum flow depth for erosion to occur (m)
 Solid diameter = 1e-3 # Solids diameter (m)
 Eddy Viscosity = 1e-2 # Turbulent eddy viscosity
-Hindered settling = Spearman Manning # Select Spearman-Manning hindered settling closure
+Deposition = Spearman Manning # Select Spearman-Manning hindered settling closure
