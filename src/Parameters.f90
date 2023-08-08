@@ -420,6 +420,7 @@ contains
             case ('eddy viscosity')
                set_EddyViscosity=.TRUE.
                RunParams%EddyViscosity = ParamValues(J)%to_real()
+               if (RunParams%EddyViscosity<0) call FatalError_NonNegative(RunParams%InputFile%s,"Eddy Viscosity")
           
             case ('settling speed')
                set_SettlingSpeed=.TRUE.
