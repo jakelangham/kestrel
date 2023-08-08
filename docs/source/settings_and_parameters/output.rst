@@ -1,5 +1,3 @@
-.. _set_output:
-
 Output
 ------
 
@@ -9,7 +7,8 @@ The only **required** setting in the output block is:
 
     :code:`N out = 10`
 
-        The number of output files to be produced.  These are evenly spaced over the duration of the simulation.
+        The number of output files to be produced.  These are evenly spaced over
+        the duration of the simulation.
 
 The **optional** settings of the output block are:
 

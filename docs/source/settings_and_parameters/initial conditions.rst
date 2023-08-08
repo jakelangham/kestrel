@@ -57,6 +57,7 @@ The following are the additional **required** settings for a source block:
     :code:`sourceRadius = 5`
 
         The radius of the circular flux source, in metres.
+
         .. note::
 
             The radius should be large enough to ensure that the source can be represented on the numerical grid.
