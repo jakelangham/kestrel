@@ -1,5 +1,3 @@
-.. _set_topog:
-
 Topog
 -----
 

@@ -1,5 +1,3 @@
-.. _set_init_conds:
-
 Initial and source conditions
 -----------------------------
 
@@ -84,6 +82,3 @@ The following are the additional **required** settings for a source block:
 
         Between the given time increments, the flux and concentration are linearly interpolated.
 
-
-.. warning::
-    TODO
