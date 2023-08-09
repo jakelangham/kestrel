@@ -505,8 +505,6 @@ contains
             RunParams%CapSources(K)%Shape = 'flat'
           case ('level')
             RunParams%CapSources(K)%Shape = 'level'
-          case ('sinusoid','sin')
-            RunParams%CapSources(K)%Shape = 'sin'
           case default
             call WarningMessage("In 'Initial Conditions' block 'CapShape' value not recognised.  " &
                 // " Using default CapShape = " // capShape_d)
