@@ -15,14 +15,14 @@ Cap
 A *Cap* block places a volume of flowing material with a circular base into the
 simulation at the initial time. The following declarations are **required**:
 
-The location of the cap can be specified by giving *either*
+The location of the volume can be specified by giving *either*
     
     - the latitude (:code:`capLat`) and longitude (:code:`capLon`) of its centre
 
 *or* 
 
-    - the offset of the cap centre from the centre of the domain (:code:`capX`,
-      :code:`capY`), in metres.
+    - the offset of the volume's centre from the centre of the domain
+      (:code:`capX`, :code:`capY`), in metres.
 
 These **required** specifiers give:
 
@@ -124,14 +124,14 @@ Cube
 A *Cube* block places a volume of flowing material with a rectangular base into
 the simulation at the initial time. The following declarations are **required**:
 
-The location of the cube can be specified by giving *either*
+The location of the volume can be specified by giving *either*
     
     - the latitude (:code:`cubeLat`) and longitude (:code:`cubeLon`) of its centre
 
 *or* 
 
-    - the offset of the cube centre from the centre of the domain (:code:`cubeX`,
-      :code:`cubeY`), in metres.
+    - the offset of the volume's centre from the centre of the domain
+      (:code:`cubeX`, :code:`cubeY`), in metres.
 
 These **required** specifiers give:
 
@@ -215,7 +215,7 @@ A *Source* block specifies conditions for a release of material onto the domain
 through a time series (referred to as a *flux source*).  A source block is
 identified using the block keyword :code:`Source:`.
 
-Multiple flux sources can be added through additional Source blocks.
+Multiple flux sources can be added through additional *Source* blocks.
 
 The flux source is modelled as a circular area through which material is added
 to the domain at a specified volumetric flux and with a specified solids
@@ -264,22 +264,31 @@ The following are the additional **required** settings for a source block:
 
     :code:`sourceTime = (  0, 360, 720)`
     
-        A list of times for which the volumetric flux and solids fraction are given. 
-        This takes the form :code:`sourceTime = (t0, t1, t2, ..., tN)` with ascending times and can contain as many increments as needed.
+        A list of times for which the volumetric flux and solids fraction are
+        given.  This takes the form :code:`sourceTime = (t0, t1, t2, ..., tN)`
+        with ascending times and can contain as many increments as needed.
 
     :code:`sourceFlux = (5.0, 7.0, 0.0)` 
     
-        A list of the volume flux (m\ :sup:`3`/s) at the times given in :code:`sourceTime`, and takes the form :code:`sourceFlux = (Q0, Q1, Q2, ..., QN)`.
+        A list of the volume flux (m\ :sup:`3`/s) at the times given in
+        :code:`sourceTime`, and takes the form :code:`sourceFlux = (Q0, Q1, Q2,
+        ..., QN)`.
 
     :code:`sourceConc = (0.0, 0.0, 0.0)`
     
-        A list of the solids concentration at the times given in :code:`sourceTime`, and takes the form :code:`sourceConc = (psi0, psi1, psi2, ..., psiN)`.
+        A list of the volumetric solids concentration values at the times given
+        in :code:`sourceTime`, and takes the form :code:`sourceConc = (psi0,
+        psi1, psi2, ..., psiN)`.
 
     .. note::
     
         Each of :code:`sourceTime`, :code:`sourceFlux` and :code:`sourceConc` must contain the same number of points.
         
-        For times t<t0 and t>tN, Q=0, psi=0.
+    .. note::
 
-        Between the given time increments, the flux and concentration are linearly interpolated.
+        Outside the given time series (i.e. for t < t0 or t > tN), Q = 0 and psi
+        = 0.
+
+        Between each pair of given time series points, the source flux and
+        concentration values are linearly interpolated.
 
