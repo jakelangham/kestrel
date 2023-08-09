@@ -532,10 +532,14 @@ contains
       inquire (file=filename%s, exist=FileExists)
       if ((.not.FileExists).or.(create_new)) then
          open (101, file=filename%s, status='replace')
-         write(101,fmt="(a12,a2,6(a24,a2))") '        time', ', ', &
-           '                  volume', ', ', '        total bed volume', ', ', &
-           '              total mass', ', ', '                bed mass', ', ', &
-           '       total solids mass', ', ', '         bed solids mass', ', '
+         write(101,fmt="(a12,6(a2,a24))") &
+            '        time', ', ', &
+            '                  volume', ', ', &
+            '        total_bed_volume', ', ', &
+            '              total_mass', ', ', &
+            '                bed_mass', ', ', &
+            '       total_solids_mass', ', ', &
+            '         bed_solids_mass'
       else
          open (101, file=filename%s, status="old", position="append")
       end if
@@ -590,7 +594,14 @@ contains
 
       ! Write out
       ! t, volume, total mass, total bed mass, total solid mass, total bed solid mass
-      write(101,fmt="(f12.2,a2,6(es24.15,a2))") t, ', ', vol, ', ', bed, ', ', mass, ', ', bed * rhob, ', ', solids * rhos, ', ', bed * rhos * (1.0_wp - RunParams%BedPorosity), ', '
+      write(101,fmt="(f12.2,6(a2, es24.15))") &
+         t, ', ', &
+         vol, ', ', &
+         bed, ', ', &
+         mass, ', ', &
+         bed * rhob, ', ', &
+         solids * rhos, ', ', &
+         bed * rhos * (1.0_wp - RunParams%BedPorosity)
 
       close (101)
 

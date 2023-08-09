@@ -119,17 +119,17 @@ function check_conservativity(dir)
    # ways to do this but they require libraries so less portable.
    #
    # Flow volumes (at start/end of simulation)
-   vol_t0 = parse(Float64, readchomp(`awk 'NR==2 {print $2}' $vfile`)[1:end-1])
-   vol_tn = parse(Float64, readchomp(`awk 'END {print $2}' $vfile`)[1:end-1])
+   vol_t0 = parse(Float64, replace.(readchomp(`awk 'NR==2 {print $2}' $vfile`), [','] => ""))
+   vol_tn = parse(Float64, replace.(readchomp(`awk 'END {print $2}' $vfile`), [','] => ""))
    # Bed volumes
-   b_t0 = parse(Float64, readchomp(`awk 'NR==2 {print $3}' $vfile`)[1:end-1])
-   b_tn = parse(Float64, readchomp(`awk 'END {print $3}' $vfile`)[1:end-1])
+   b_t0 = parse(Float64, replace.(readchomp(`awk 'NR==2 {print $3}' $vfile`), [','] => ""))
+   b_tn = parse(Float64, replace.(readchomp(`awk 'END {print $3}' $vfile`), [','] => ""))
    # Solids masses
-   solm_t0 = parse(Float64, readchomp(`awk 'NR==2 {print $6}' $vfile`)[1:end-1])
-   solm_tn = parse(Float64, readchomp(`awk 'END {print $6}' $vfile`)[1:end-1])
+   solm_t0 = parse(Float64, replace.(readchomp(`awk 'NR==2 {print $6}' $vfile`), [','] => ""))
+   solm_tn = parse(Float64, replace.(readchomp(`awk 'END {print $6}' $vfile`), [','] => ""))
    # Bed solids masses
-   bsm_t0 = parse(Float64, readchomp(`awk 'NR==2 {print $7}' $vfile`)[1:end-1])
-   bsm_tn = parse(Float64, readchomp(`awk 'END {print $7}' $vfile`)[1:end-1])
+   bsm_t0 = parse(Float64, replace.(readchomp(`awk 'NR==2 {print $7}' $vfile`), [','] => ""))
+   bsm_tn = parse(Float64, replace.(readchomp(`awk 'END {print $7}' $vfile`), [','] => ""))
 
    expected_vol = flux_vol + vol_t0 + b_t0
    final_vol = vol_tn + b_tn
