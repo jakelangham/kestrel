@@ -604,7 +604,7 @@ contains
          end if
          if (CubeString%U(K)%s.NE.'None') call setCubeRunParams(RunParams,CubeString,K,'U',set_cubeu)
          if (CubeString%V(K)%s.NE.'None') call setCubeRunParams(RunParams,CubeString,K,'V',set_cubev)
-         if (CubeString%psi(K)%s.NE.'None') call setCubeRunParams(RunParams,CubeString,K,'psi',set_cubepsi)
+         if (CubeString%psi(K)%s.NE.'None') call setCubeRunParams(RunParams,CubeString,K,'conc',set_cubepsi)
 
          if (CubeString%Shape(K)%s.NE.'None') then
             call setCubeRunParams(RunParams,CubeString,K,'Shape',set_cubeShape)
@@ -699,7 +699,7 @@ contains
        case ('VelY','V')
          RunParams%CubeSources(K)%V  = CubeString%V(K)%to_real()
          set_flag = .TRUE.
-       case ('psi')
+       case ('conc')
          RunParams%CubeSources(K)%psi  = CubeString%psi(K)%to_real()
          set_flag = .TRUE.
        case ('Shape')
