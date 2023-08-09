@@ -17,13 +17,13 @@ Base assumptions
 Kestrel is a code for simulating open flows of water and sediment - typically
 environmental flows on the Earth's surface. Like all physical models, it uses a
 simplified mathematical description of reality that tries to capture the most
-essential processes in the system.
+essential processes in the system:
 
     - The flow is 'shallow', in the sense that its typical depth :math:`H` is
       much smaller than its lateral extent :math:`L`, i.e. :math:`H/L \ll 1`.
     - All sediment particles are small (relative to :math:`H`) and
       identical. Their slope-parallel velocity field is the same as the fluid's.
-      Neither field possesses any shear.
+      Neither phase possesses any velocity shear.
     - A static erodible bed lies beneath the flow, which is homogeneously
       composed of saturated sediment occupying a constant volume fraction
       :math:`\psi_b`.
@@ -31,7 +31,7 @@ essential processes in the system.
       column perpendicular to the bed.
     - Beneath the erodible bed lies an inerodible bedrock. The initial thickness
       of the erodible layer, measured vertically, is a positive constant (which
-      may be zero, for simulating flows in inerodible susbtrates).
+      may be zero, for simulating flows on inerodible susbtrates).
     - The typical curvature of the bed is no greater (in an order-of-magnitude
       sense) than :math:`H/L` and the rate of change of bed elevation due to
       morphodynamics is no greater than the typical bed-normal velocity scale.
@@ -39,9 +39,9 @@ essential processes in the system.
 These assumptions lead to equations appropriate for modelling many, but not all
 geophysical mass flows. In some cases, the model may be useful even for flows that
 technically violate one or more of these assumptions, if the effect of relaxing
-the relevant conditions is smaller than that of other processes that are included.
-However, it's important to be mindful of these when assessing the applicability
-of Kestrel for modelling particular systems.
+the relevant conditions is smaller than that of other processes that are
+included.  Nevertheless, it's important to be mindful of these conditions when
+assessing the applicability of Kestrel for modelling particular systems.
 
 Further user-settable modelling choices are needed to complete the description,
 which carry their own sets of assumptions. These will be discussed shortly.
@@ -59,9 +59,9 @@ system:
    :align: center
 
 This shows a flow front atop the bed, which has vertical elevation :math:`b` and
-features an erodible layer of thickness :math:`\Delta b_{\max}`. Its thickness
+features an erodible layer of thickness :math:`\Delta b_{\max}`. Its depth
 :math:`H`, varies in space :math:`\mathbf{x} = (x,y)` and time :math:`t`. Note
-that it is measured along the direction perpendicular to the bed slope. Though
+that this is measured along the direction perpendicular to the bed slope. Though
 the flow velocity :math:`\mathbf{u}` is assumed not to vary along this
 direction, it is still a 3D vector. Due to the shallowness assumption, its
 orientation is always aligned with the slope (to leading order). This means it
