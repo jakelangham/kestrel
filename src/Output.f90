@@ -695,9 +695,9 @@ contains
             '           y_slope'          ! column 19 -- y-slope
       end if
       write (102, fmt="(a8, a2, a18, a2, a18)", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
-         '    base_elevation', ', ', & ! column 2 -- base topographic elevation
-         '  elevation_change'          ! column 3 -- change in topographic elevation
+         '    tile', ', ', &           ! column 1 -- tile number
+         '         B0_vertex', ', ', & ! column 2 -- base topographic elevation
+         '         Bt_vertex'          ! column 3 -- change in topographic elevation
 
       if (.not. RunParams%Georeference) then
          latlon%first = 0.0_wp
