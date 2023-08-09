@@ -284,11 +284,11 @@ end
 # Check that all (.txt) solutions in directory dir have positive flow depth
 # everywhere.
 function check_positivity(dir, dim)
-   Hncol = (dim == 2) ? 6 : 3
    for f in readdir(dir)
       if is_resultfile_txt(f)
-         awkcmd = `awk -F ',' '(FNR > 1) && (NF > 0) && ($'$Hncol' < -1e-14) \
-                   { print $'$Hncol' }' ./$dir/$f`
+         Hnf = Hn_data_field(dim)
+         awkcmd = `awk -F ',' '(FNR > 1) && (NF > 0) && ($'$Hnf' < -1e-14) \
+                   { print $'$Hnf' }' ./$dir/$f`
          if !isempty(read(awkcmd))
             println("Solution depth field is negative somewhere in file",
                     " ./$dir/$f")
@@ -464,13 +464,13 @@ function Hn_data_field(dim)
    return (dim == 1) ? 3 : 6
 end
 function u_data_field(dim)
-   return (dim == 1) ? 4 : 7
+   return (dim == 1) ? 5 : 8
 end
 function Hnψ_data_field(dim)
-   return (dim == 1) ? 7 : 11
+   return (dim == 1) ? 9 : 14
 end
 function bt_data_field(dim)
-   return (dim == 1) ? 9 : 13
+   return (dim == 1) ? 12 : 17
 end
 
 # Remove anything after first '%' for array of strings

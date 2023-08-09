@@ -158,14 +158,13 @@ contains
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
 
-      type(varString) :: MaxHeightFilename, MaxSpeedFilename
-      type(varString) :: MaxErosionFilename, MaxDepositFilename
+      type(varString) :: MaximumsFilename
       character(len=2) :: com
 
       logical :: FileExists
       integer :: iostatus ! Status of input/output
 
-      real(kind=wp) :: x, y, lat, lon, hp, Hn, spd, rhoHn
+      real(kind=wp) :: x, y, lat, lon, Hn, spd, u, v, rho, psi
 
       integer :: i, j, n
       integer :: kk, ttk
@@ -212,34 +211,31 @@ contains
          do j = 1, RunParams%nYpertile
             do i = 1, RunParams%nXpertile
                if (RunParams%isOneD) then
-                  read (52, fmt="(i8, a2, 9(ES22.10E3, a2))") ttk, com, &
+                  read (52, fmt="(i8, a2, 11(ES18.10E3, a2), ES18.10E3)") ttk, com, &
                      tileContainer(ttk)%x(i), com, &
-                     Hn, com, spd, com, rhoHn, com, &
+                     Hn, com, spd, com, u, com, rho, com, psi, com, &
                      tileContainer(ttk)%u(RunParams%Vars%rhoHnu, i, j), com, &
                      tileContainer(ttk)%u(RunParams%Vars%Hnpsi, i, j), com, &
+                     tileContainer(ttk)%u(RunParams%Vars%w, i, j), com, &
                      b0, com, &
                      tileContainer(ttk)%u(RunParams%Vars%bt, i, j), com, &
-                     tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j), com
+                     tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j)
                else
-                  read (52, fmt="(i8, a2, 14(ES20.8E3, a2))") ttk, com, &
+                  read (52, fmt="(i8, a2, 18(ES18.10E3, a2), ES18.10E3)") ttk, com, &
                      tileContainer(ttk)%x(i), com, &
                      tileContainer(ttk)%y(j), com, &
                      lat, com, &
                      lon, com, &
-                     Hn, com, spd, com, rhoHn, com, &
+                     Hn, com, spd, com, u, com, v, com, rho, com, psi, com, &
                      tileContainer(ttk)%u(RunParams%Vars%rhoHnu, i, j), com, &
                      tileContainer(ttk)%u(RunParams%Vars%rhoHnv, i, j), com, &
                      tileContainer(ttk)%u(RunParams%Vars%Hnpsi, i, j), com, &
+                     tileContainer(ttk)%u(RunParams%Vars%w, i, j), com, &
                      b0, com, &
                      tileContainer(ttk)%u(RunParams%Vars%bt, i, j), com, &
                      tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j), com, &
-                     tileContainer(ttk)%u(RunParams%Vars%dbdy, i, j), com
+                     tileContainer(ttk)%u(RunParams%Vars%dbdy, i, j)
                end if
-
-               hp = Hn / GeometricCorrectionFactor(RunParams, tileContainer(ttk)%u(:, i, j))
-               tileContainer(ttk)%u(RunParams%Vars%w, i, j) = hp + &
-                     tileContainer(ttk)%u(RunParams%Vars%b0, i, j) + &
-                     tileContainer(ttk)%u(RunParams%Vars%bt, i, j)
 
                ! Check if point lies in a flux source and if it is, add it
                if (RunParams%nSources >= 1) then ! flux sources
@@ -276,9 +272,9 @@ contains
       do n = 1, nTiles
          do j = 1, nYvertices
             do i = 1, RunParams%nXpertile + 1
-               read (153, fmt="(i8, a2, 2(ES22.10E3, a2))") ttk, com, &
+               read (153, fmt="(i8, a2, ES18.10E3, a2, ES18.10E3)") ttk, com, &
                   b0, com, &
-                  tileContainer(ttk)%bt(i, j), com
+                  tileContainer(ttk)%bt(i, j)
             end do ! i = 1, nXpertile
             if (.not. RunParams%isOneD .and. j /= RunParams%nYpertile + 1) read (153, *)
          end do
@@ -291,18 +287,15 @@ contains
          call ActivateTile(RunParams, grid, ttk, restart=.true.)
       end do
 
-      ! Read in height and speed data. (Only need to do this if restarting.)
+      ! Read in aggregate data. (Only need to do this if restarting.)
       if (RunParams%Restart) then
-         MaxHeightFilename = RunParams%OutDir + RunParams%MaxHeightFilename + '.txt'
-         MaxSpeedFilename = RunParams%OutDir + RunParams%MaxSpeedFilename + '.txt'
-         MaxErosionFilename = RunParams%OutDir + RunParams%MaxErosionFilename + '.txt'
-         MaxDepositFilename = RunParams%OutDir + RunParams%MaxDepositFilename + '.txt'
-
-         inquire (file=MaxHeightFilename%s, exist=FileExists)
+         MaximumsFilename = RunParams%OutDir + RunParams%MaximumsFilename + '.txt'
+         
+         inquire (file=MaximumsFilename%s, exist=FileExists)
          if (.not. FileExists) then
-            call FatalErrorMessage('Unable to locate MaxHeights file '//MaxHeightFilename%s//'.')
+            call FatalErrorMessage('Unable to locate '//MaximumsFilename%s//'.')
          else
-            open (53, file=MaxHeightFilename%s, status='OLD', action='read')
+            open (53, file=MaximumsFilename%s, status='OLD', action='read')
          end if
 
          ! Load max heights
@@ -310,85 +303,25 @@ contains
          do n = 1, nTiles
             do j = 1, RunParams%nYpertile
                do i = 1, RunParams%nXpertile
-                  read (53, fmt="(i8, a2, 6(ES18.8, a2))") ttk, com, &
+                  read (53, fmt="(i8, a2, 14(ES18.10E3, a2), ES18.10E3)") ttk, com, &
                      x, com, y, com, lat, com, lon, com, &
                      tileContainer(ttk)%Hnmax(i, j, 1), com, &
-                     tileContainer(ttk)%Hnmax(i, j, 2), com
+                     tileContainer(ttk)%Hnmax(i, j, 2), com, &
+                     tileContainer(ttk)%umax(i, j, 1), com, &
+                     tileContainer(ttk)%umax(i, j, 2), com, &
+                     tileContainer(ttk)%emax(i, j, 1), com, &
+                     tileContainer(ttk)%emax(i, j, 2), com, &
+                     tileContainer(ttk)%dmax(i, j, 1), com, &
+                     tileContainer(ttk)%dmax(i, j, 2), com, &
+                     tileContainer(ttk)%psimax(i, j, 1), com, &
+                     tileContainer(ttk)%psimax(i, j, 2), com, &
+                     tileContainer(ttk)%tfirst(i, j)
                end do
                read (53, *)
             end do
             read (53, *)
          end do
          close (53)
-
-         inquire (file=MaxSpeedFilename%s, exist=FileExists)
-         if (.not. FileExists) then
-            call FatalErrorMessage('Unable to locate MaxSpeeds file '//MaxSpeedFilename%s//'.')
-         else
-            open (54, file=MaxSpeedFilename%s, status='OLD', action='read')
-         end if
-
-         ! Load max speeds
-         read (54, *) ! Skip header line
-         do n = 1, nTiles
-            do j = 1, RunParams%nYpertile
-               do i = 1, RunParams%nXpertile
-                  read (54, fmt="(i8, a2, 6(ES18.8, a2))") ttk, com, &
-                     x, com, y, com, lat, com, lon, com, &
-                     tileContainer(ttk)%umax(i, j, 1), com, &
-                     tileContainer(ttk)%umax(i, j, 2), com
-               end do
-               read (54, *)
-            end do
-            read (54, *)
-         end do
-         close (54)
-
-         inquire (file=MaxErosionFilename%s, exist=FileExists)
-         if (.not. FileExists) then
-            call FatalErrorMessage('Unable to locate MaxErosion file '//MaxErosionFilename%s//'.')
-         else
-            open (54, file=MaxErosionFilename%s, status='OLD', action='read')
-         end if
-
-         ! Load max erosion
-         read (54, *) ! Skip header line
-         do n = 1, nTiles
-            do j = 1, RunParams%nYpertile
-               do i = 1, RunParams%nXpertile
-                  read (54, fmt="(i8, a2, 6(ES18.8, a2))") ttk, com, &
-                     x, com, y, com, lat, com, lon, com, &
-                     tileContainer(ttk)%emax(i, j, 1), com, &
-                     tileContainer(ttk)%emax(i, j, 2), com
-               end do
-               read (54, *)
-            end do
-            read (54, *)
-         end do
-         close (54)
-
-         inquire (file=MaxDepositFilename%s, exist=FileExists)
-         if (.not. FileExists) then
-            call FatalErrorMessage('Unable to locate MaxDeposit file '//MaxDepositFilename%s//'.')
-         else
-            open (54, file=MaxDepositFilename%s, status='OLD', action='read')
-         end if
-
-         ! Load max deposit
-         read (54, *) ! Skip header line
-         do n = 1, nTiles
-            do j = 1, RunParams%nYpertile
-               do i = 1, RunParams%nXpertile
-                  read (54, fmt="(i8, a2, 6(ES18.8, a2))") ttk, com, &
-                     x, com, y, com, lat, com, lon, com, &
-                     tileContainer(ttk)%dmax(i, j, 1), com, &
-                     tileContainer(ttk)%dmax(i, j, 2), com
-               end do
-               read (54, *)
-            end do
-            read (54, *)
-         end do
-         close (54)
       end if ! End 'if RunParams%Restart' block
 
    end subroutine LoadInitialCondition_txt
@@ -520,16 +453,16 @@ contains
 
          ! Only get max data if restarting
          if (RunParams%Restart) then
-            call get_nc_var(maxncid, 'maximum_depth', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%Hnmax(:, :, 1))
-            call get_nc_var(maxncid, 'time_of_max_depth', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%Hnmax(:, :, 2))
-            call get_nc_var(maxncid, 'maximum_speed', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%umax(:, :, 1))
-            call get_nc_var(maxncid, 'time_of_max_speed', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%umax(:, :, 2))
-            call get_nc_var(maxncid, 'maximum_erosion', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%emax(:, :, 1))
-            call get_nc_var(maxncid, 'time_of_max_erosion', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%emax(:, :, 2))
-            call get_nc_var(maxncid, 'maximum_deposit', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%dmax(:, :, 1))
-            call get_nc_var(maxncid, 'time_of_max_deposit', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%dmax(:, :, 2))
-            call get_nc_var(maxncid, 'maximum_solids_fraction', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%psimax(:, :, 1))
-            call get_nc_var(maxncid, 'time_of_max_solids_fraction', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%psimax(:, :, 2))
+            call get_nc_var(maxncid, 'max_depth', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%Hnmax(:, :, 1))
+            call get_nc_var(maxncid, 't_max_depth', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%Hnmax(:, :, 2))
+            call get_nc_var(maxncid, 'max_speed', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%umax(:, :, 1))
+            call get_nc_var(maxncid, 't_max_speed', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%umax(:, :, 2))
+            call get_nc_var(maxncid, 'max_erosion', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%emax(:, :, 1))
+            call get_nc_var(maxncid, 't_max_erosion', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%emax(:, :, 2))
+            call get_nc_var(maxncid, 'max_deposit', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%dmax(:, :, 1))
+            call get_nc_var(maxncid, 't_max_deposit', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%dmax(:, :, 2))
+            call get_nc_var(maxncid, 'max_solids_frac', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%psimax(:, :, 1))
+            call get_nc_var(maxncid, 't_max_solids_frac', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%psimax(:, :, 2))
             call get_nc_var(maxncid, 'inundation_time', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%tfirst(:, :))
          end if
 

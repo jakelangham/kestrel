@@ -182,7 +182,7 @@ else
       end
    end
 
-   if numtests>1
+   if numtests>=1
       ratio = 100 * numpassed / numtests
       @printf "Results: %i/%i passed" numpassed numtests
       @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'

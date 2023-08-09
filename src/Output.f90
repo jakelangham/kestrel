@@ -195,26 +195,17 @@ contains
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(in) :: grid
 
-      type(varString) :: MaxHeightFilenameTXT, MaxHeightFilenameKML
-      type(varString) :: MaxSpeedFilenameTXT, MaxSpeedFilenameKML
-      type(varString) :: MaxErosionFilenameTXT
-      type(varString) :: MaxDepositFilenameTXT
-      type(varString) :: InundationTimeFilenameTXT, InundationTimeFilenameKML
+      type(varString) :: MaximumFilenameTXT
+      type(varString) :: MaxHeightFilenameKML
+      type(varString) :: MaxSpeedFilenameKML
+      type(varString) :: InundationTimeFilenameKML
 #if HAVE_NETCDF4
       type(varString) :: MaximumFilenameNetCDF
 #endif
       
       if (RunParams%out_txt) then
-         MaxHeightFilenameTXT = RunParams%OutDir + RunParams%MaxHeightFilename + '.txt'
-         MaxSpeedFilenameTXT = RunParams%OutDir + RunParams%MaxSpeedFilename + '.txt'
-         MaxErosionFilenameTXT = RunParams%OutDir + RunParams%MaxErosionFilename + '.txt'
-         MaxDepositFilenameTXT = RunParams%OutDir + RunParams%MaxDepositFilename + '.txt'
-         InundationTimeFilenameTXT = RunParams%OutDir + RunParams%InundationTimeFilename + '.txt'
-         call OutputMaxHeights(RunParams, MaxHeightFilenameTXT%s, grid)
-         call OutputMaxSpeeds(RunParams, MaxSpeedFilenameTXT%s, grid)
-         call OutputMaxErosion(RunParams, MaxErosionFilenameTXT%s, grid)
-         call OutputMaxDeposit(RunParams, MaxDepositFilenameTXT%s, grid)
-         call OutputInundationTime(RunParams, InundationTimeFilenameTXT%s, grid)
+         MaximumFilenameTXT = RunParams%OutDir + RunParams%MaximumsFilename + '.txt'
+         call OutputMaximums_txt(RunParams, MaximumFilenameTXT%s, grid)
       end if
 
       if (RunParams%out_kml) then
@@ -640,8 +631,7 @@ contains
       type(varString) :: filename_full
       type(varString) :: topo_filename_full
 
-      real(kind=wp) :: Hn, spd, rhoHn, Hnpsi
-      real(kind=wp) :: rhoHnu, rhoHnv, rhos, rhow, rho
+      real(kind=wp) :: Hn, spd
       type(pair) :: latlon
 
       type(varString) :: compress_cmd
@@ -650,9 +640,6 @@ contains
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
-
-      rhos = RunParams%rhos
-      rhow = RunParams%rhow
 
       filename_full = CheckPath(RunParams%OutDir) + filename
       topo_filename_full = CheckPath(RunParams%OutDir) + filename + '_topo'
@@ -671,47 +658,46 @@ contains
       end if
 
       if (RunParams%isOneD) then
-         write (101, fmt="(a8,a2,9(a20,a2))", advance='yes') &
+         write (101, fmt="(a8,a2,11(a18,a2),a18)", advance='yes') &
             '    tile', ', ', & ! column 1 -- tile number
-            '          x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-            '          flow_depth', ', ', & ! column 3 -- flow depth
-            '          flow_speed', ', ', & ! column 4 -- flow speed
-            '  mass_per_unit_area', ', ', & ! column 5 -- mass per unit area
-            '              x_flux', ', ', & ! column 6 -- x mass flux
-            '     depth_of_solids', ', ', & ! column 7 -- depth fraction of solids, Hnpsi
-            '      base_elevation', ', ', & ! column 8 -- base topographic elevation
-            '    elevation_change', ', ', & ! column 9 -- change in topographic elevation
-            '        base_x_slope', ', '    ! column 10 -- change in x-slope
-         write (102, fmt="(a8,a2,2(a20,a2))", advance='yes') &
-            '    tile', ', ', & ! column 1 -- tile number
-            '      base_elevation', ', ', & ! column 2 -- base topographic elevation
-            '    elevation_change', ', '    ! column 3 -- change in topographic elevation
+            '                 x', ', ', & ! column 2 -- x coordinate from origin at domain centre
+            '        flow_depth', ', ', & ! column 3 -- flow depth
+            '        flow_speed', ', ', & ! column 4 -- flow speed
+            '        x_velocity', ', ', & ! column 5 -- x velocity, u
+            '           density', ', ', & ! column 6 -- density, rho
+            '   solids_fraction', ', ', & ! column 7 -- solids fraction, psi
+            '            x_flux', ', ', & ! column 8 -- x flux, rhoHnu
+            '     solids_volume', ', ', & ! column 9 -- solids volume per unit area, Hnpsi
+            '                 w', ', ', & ! column 10 -- w
+            '    base_elevation', ', ', & ! column 11 -- base topographic elevation, b0
+            '  elevation_change', ', ', & ! column 12 -- change in topographic elevation, bt
+            '           x_slope'          ! column 13 -- x-slope, db/dx
       else
-         write (101, fmt="(a8,a2,14(a20,a2))", advance='yes') &
-            '    tile', ', ', &             ! column 1 -- tile number
-            '          x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-            '          y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
-            '            latitude', ', ', & ! column 4 -- latitude
-            '           longitude', ', ', & ! column 5 -- longitude
-            '          flow_depth', ', ', & ! column 6 -- flow depth
-            '          flow_speed', ', ', & ! column 7 -- flow speed
-            '  mass_per_unit_area', ', ', & ! column 8 -- mass per unit area
-            '              x_flux', ', ', & ! column 9 -- x mass flux
-            '              y_flux', ', ', & ! column 10 -- y mass flux
-            '     depth_of_solids', ', ', & ! column 11 -- depth fraction of solids, Hnpsi
-            '      base_elevation', ', ', & ! column 12 -- base topographic elevation
-            '    elevation_change', ', ', & ! column 13 -- change in topographic elevation
-            '        base_x_slope', ', ', & ! column 14 -- base x-slope
-            '        base_y_slope', ', '    ! column 15 -- base y-slope
-         write (102, fmt="(a8,a2,6(a20,a2))", advance='yes') &
-            '    tile', ', ', &             ! column 1 -- tile number
-            '      base_elevation', ', ', & ! column 2 -- base topographic elevation
-            '        base_x_slope', ', ', & ! column 3 -- base x-slope
-            '        base_y_slope', ', ', & ! column 4 -- base y-slope
-            '    elevation_change', ', ', & ! column 5 -- change in topographic elevation
-            '   change_in_x_slope', ', ', & ! column 6 -- change in x slope
-            '   change_in_y_slope', ', '    ! column 7 -- change in y slope
+         write (101, fmt="(a8,a2,18(a18,a2),a18)", advance='yes') &
+            '    tile', ', ', &           ! column 1 -- tile number
+            '                 x', ', ', & ! column 2 -- x coordinate from origin at domain centre
+            '                 y', ', ', & ! column 3 -- y coordinate from origin at domain centre
+            '          latitude', ', ', & ! column 4 -- latitude
+            '         longitude', ', ', & ! column 5 -- longitude
+            '        flow_depth', ', ', & ! column 6 -- flow depth
+            '        flow_speed', ', ', & ! column 7 -- flow speed
+            '        x_velocity', ', ', & ! column 8 -- x velocity, u
+            '        y_velocity', ', ', & ! column 9 -- y velocity, v
+            '           density', ', ', & ! column 10 -- density, rho
+            '   solids_fraction', ', ', & ! column 11 -- solids fraction, psi
+            '            x_flux', ', ', & ! column 12 -- x flux, rhoHnu
+            '            y_flux', ', ', & ! column 13 -- y flux, rhoHnv
+            '     solids_volume', ', ', & ! column 14 -- solids volume per unit area, Hnpsi
+            '                 w', ', ', & ! column 15 -- w
+            '    base_elevation', ', ', & ! column 16 -- base topographic elevation, b0
+            '  elevation_change', ', ', & ! column 17 -- change in topographic elevation, bt
+            '           x_slope', ', ', & ! column 18 -- x-slope, db/dx
+            '           y_slope'          ! column 19 -- y-slope
       end if
+      write (102, fmt="(a8, a2, a18, a2, a18)", advance='yes') &
+         '    tile', ', ', & ! column 1 -- tile number
+         '    base_elevation', ', ', & ! column 2 -- base topographic elevation
+         '  elevation_change'          ! column 3 -- change in topographic elevation
 
       if (.not. RunParams%Georeference) then
          latlon%first = 0.0_wp
@@ -723,12 +709,7 @@ contains
          do j = 1, RunParams%nYpertile
             do i = 1, RunParams%nXpertile
                Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, i, j)
-               Hnpsi = tileContainer(ttk)%u(RunParams%Vars%Hnpsi, i, j)
-               rhoHnu = tileContainer(ttk)%u(RunParams%Vars%rhoHnu, i, j)
-               rhoHnv = tileContainer(ttk)%u(RunParams%Vars%rhoHnv, i, j)
-               rho = tileContainer(ttk)%u(RunParams%Vars%rho, i, j)
-               rhoHn = rho*Hn
-
+               
                if (Hn > RunParams%heightThreshold) then
                   spd = sqrt(FlowSquaredSpeedSlopeAligned(Runparams, tileContainer(ttk)%u(:, i, j)))
                else
@@ -736,35 +717,42 @@ contains
                end if
 
                if (RunParams%isOneD) then
-                  write (101, fmt="(i8, a2, 9(ES22.10E3, a2))", advance='yes') &
+                  write (101, fmt="(i8, a2, 11(ES18.10E3, a2), ES18.10E3)", advance='yes') &
                      ttk, ', ', &
                      tileContainer(ttk)%x(i), ', ', &
-                     Hn, ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%Hn, i, j), ', ', &
                      spd, ', ', &
-                     rhoHn, ', ', &
-                     rhoHnu, ', ', &
-                     Hnpsi, ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%u, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%rho, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%psi, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%rhoHnu, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%Hnpsi, i ,j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%w, i, j), ', ', &
                      tileContainer(ttk)%u(RunParams%Vars%b0, i, j), ', ', &
                      tileContainer(ttk)%u(RunParams%Vars%bt, i, j), ', ', &
-                     tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j), ', '
+                     tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j)
                else
                   if (RunParams%Georeference) latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
-                  write (101, fmt="(i8, a2, 14(ES22.10E3, a2))", advance='yes') &
+                  write (101, fmt="(i8, a2, 18(ES18.10E3, a2), ES18.10E3)", advance='yes') &
                      ttk, ', ', &
                      tileContainer(ttk)%x(i), ', ', &
                      tileContainer(ttk)%y(j), ', ', &
                      latlon%first, ', ', &
                      latlon%second, ', ', &
-                     Hn, ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%Hn, i, j), ', ', &
                      spd, ', ', &
-                     rhoHn, ', ', &
-                     rhoHnu, ', ', &
-                     rhoHnv, ', ', &
-                     Hnpsi, ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%u, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%v, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%rho, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%psi, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%rhoHnu, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%rhoHnv, i, j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%Hnpsi, i ,j), ', ', &
+                     tileContainer(ttk)%u(RunParams%Vars%w, i, j), ', ', &
                      tileContainer(ttk)%u(RunParams%Vars%b0, i, j), ', ', &
                      tileContainer(ttk)%u(RunParams%Vars%bt, i, j), ', ', &
                      tileContainer(ttk)%u(RunParams%Vars%dbdx, i, j), ', ', &
-                     tileContainer(ttk)%u(RunParams%Vars%dbdy, i, j), ', '
+                     tileContainer(ttk)%u(RunParams%Vars%dbdy, i, j)
                end if
             end do
             write (101, *)
@@ -780,10 +768,10 @@ contains
          ttk = ActiveTiles%List(tt)
          do j = 1, nYvertices
             do i = 1, RunParams%nXpertile + 1
-               write (102, fmt="(i8, a2, 2(ES22.10E3, a2))", advance='yes') &
+               write (102, fmt="(i8, a2, ES18.10E3, a2, ES18.10E3)", advance='yes') &
                   ttk, ', ', &
                   tileContainer(ttk)%b0(i, j), ', ', &
-                  tileContainer(ttk)%bt(i, j), ', '
+                  tileContainer(ttk)%bt(i, j)
             end do
             write (102, *)
          end do
@@ -947,17 +935,19 @@ contains
 
       allocate (spd(nXpertile, nYpertile))
 
-      call define_nc_var_real(ncid, "w", dimids, w_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='w', &
-                              standard_name='w', &
-                              units='m', &
-                              coordinates='x y', &
-                              grid_mapping='crs')
+      
 
       call define_nc_var_real(ncid, "flow_depth", dimids, Hn_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='flow depth', &
                               standard_name='flow_depth', &
                               units='m', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+    
+      call define_nc_var_real(ncid, "flow_speed", dimids, spd_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='flow speed', &
+                              standard_name='flow_speed', &
+                              units='m/s', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
@@ -971,13 +961,6 @@ contains
       call define_nc_var_real(ncid, "y_velocity", dimids, v_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='flow velocity in the Northing direction', &
                               standard_name='y_velocity', &
-                              units='m/s', &
-                              coordinates='x y', &
-                              grid_mapping='crs')
-
-      call define_nc_var_real(ncid, "flow_speed", dimids, spd_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='flow speed', &
-                              standard_name='flow_speed', &
                               units='m/s', &
                               coordinates='x y', &
                               grid_mapping='crs')
@@ -1011,8 +994,15 @@ contains
                               grid_mapping='crs')
 
       call define_nc_var_real(ncid, "Hnpsi", dimids, Hnpsi_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='Hnpsi', &
+                              long_name='volume of solids per unit area', &
                               standard_name='Hnpsi', &
+                              units='m', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+
+      call define_nc_var_real(ncid, "w", dimids, w_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='w', &
+                              standard_name='w', &
                               units='m', &
                               coordinates='x y', &
                               grid_mapping='crs')
@@ -1127,7 +1117,7 @@ contains
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-   subroutine OutputMaxHeights(RunParams, filename, grid)
+   subroutine OutputMaximums_txt(RunParams, filename, grid)
 
       implicit none
 
@@ -1157,14 +1147,23 @@ contains
          open (102, file=filename, status='new')
       end if
 
-      write (102, fmt="(a8,a2,6(a18,a2))", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
+      write (102, fmt="(a8,a2,14(a18,a2), a18)", advance='yes') &
+         '    tile', ', ', &           ! column 1 -- tile number
          '        x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
          '        y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
          '          latitude', ', ', & ! column 4 -- latitude
          '         longitude', ', ', & ! column 5 -- longitude
-         '     maximum_depth', ', ', & ! column 6 -- maximum flow depth
-         '   time_of_maximum'          ! column 7 -- time of maximum flow depth
+         '         max_depth', ', ', & ! column 6 -- maximum flow depth
+         '       t_max_depth', ', ', & ! column 7 -- time of maximum flow depth
+         '         max_speed', ', ', & ! column 8 -- maximum flow speed
+         '       t_max_speed', ', ', & ! column 9 -- time of maximum flow speed
+         '       max_erosion', ', ', & ! column 10 -- maximum eroded depth
+         '     t_max_erosion', ', ', & ! column 11 -- time of maximum eroded depth
+         '       max_deposit', ', ', & ! column 12 -- maximum deposited depth
+         '     t_max_deposit', ', ', & ! column 13 -- time of maximum deposited depth
+         '   max_solids_frac', ', ', & ! column 14 -- maximum solids fraction
+         ' t_max_solids_frac', ', ', & ! column 15 -- time of maximum maximum solids fraction
+         '   inundation_time'          ! column 16 -- time of first inundation
 
       if (.not. RunParams%Georeference) then
          latlon%first = 0.0_wp
@@ -1178,14 +1177,23 @@ contains
                if (RunParams%Georeference) then
                   latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
                end if
-               write (102, fmt="(i8, a2, 6(es18.8, a2))", advance='yes') &
+               write (102, fmt="(i8,a2,14(ES18.10E3, a2), ES18.10E3)", advance='yes') &
                   ttk, ', ', &
                   tileContainer(ttk)%x(i), ', ', &
                   tileContainer(ttk)%y(j), ', ', &
                   latlon%first, ', ', &
                   latlon%second, ', ', &
                   tileContainer(ttk)%Hnmax(i, j, 1), ', ', &
-                  tileContainer(ttk)%Hnmax(i, j, 2)
+                  tileContainer(ttk)%Hnmax(i, j, 2), ', ', &
+                  tileContainer(ttk)%umax(i, j, 1), ', ', &
+                  tileContainer(ttk)%umax(i, j, 2), ', ', &
+                  tileContainer(ttk)%emax(i, j, 1), ', ', &
+                  tileContainer(ttk)%emax(i, j, 2), ', ', &
+                  tileContainer(ttk)%dmax(i, j, 1), ', ', &
+                  tileContainer(ttk)%dmax(i, j, 2), ', ', &
+                  tileContainer(ttk)%psimax(i, j, 1), ', ', &
+                  tileContainer(ttk)%psimax(i, j, 2), ', ', &
+                  tileContainer(ttk)%tfirst(i, j)
             end do
             write (102, *)
          end do
@@ -1194,7 +1202,7 @@ contains
 
       close (102)
 
-   end subroutine OutputMaxHeights
+   end subroutine OutputMaximums_txt
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #if HAVE_NETCDF4
@@ -1214,7 +1222,6 @@ contains
       integer :: y_dim_id
 
       integer :: x_id, y_id
-      integer :: tiles_id
       integer :: crs_id
       integer :: Hn_id, tHn_id
       integer :: spd_id, tspd_id
@@ -1281,15 +1288,14 @@ contains
 
       call netcdf_put_params(ncid,RunParams)
 
+      call put_nc_att(ncid, 'tiles', grid%ActiveTiles%List)
+
       nc_status = nf90_def_dim(ncid, "x", nX, x_dim_id)
       if (nc_status /= NF90_NOERR) call handle_err(nc_status, 'nf90_def_dim x_dim_id')
 
       nc_status = nf90_def_dim(ncid, "y", nY, y_dim_id)
       if (nc_status /= NF90_NOERR) call handle_err(nc_status, 'nf90_def_dim y_dim_id')
       
-      call define_nc_var_int(ncid, 'tiles', tiles_id, &
-                              long_name='list of active tile ids')
-
       call define_nc_var_real(ncid, "x", [x_dim_id], x_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='x-coordinate', &
                               standard_name='projection_x_coordinate', &
@@ -1304,73 +1310,73 @@ contains
 
       call set_nc_crs(ncid, RunParams%UTM_zone_number, hemisphere, RunParams%utmEPSG, crs_id, include_wkt=.FALSE.)
 
-      call define_nc_var_real(ncid, "maximum_depth", [x_dim_id, y_dim_id], Hn_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "max_depth", [x_dim_id, y_dim_id], Hn_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='maximum flow depth', &
                               units='m', &
-                              standard_name='maximum_depth', &
+                              standard_name='max_depth', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "time_of_max_depth", [x_dim_id, y_dim_id], tHn_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "t_max_depth", [x_dim_id, y_dim_id], tHn_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='time of maximum flow depth', &
                               units='s', &
-                              standard_name='time_of_max_speed', &
+                              standard_name='t_max_speed', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "maximum_speed", [x_dim_id, y_dim_id], spd_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "max_speed", [x_dim_id, y_dim_id], spd_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='maximum flow speed', &
                               units='m/s', &
-                              standard_name='maximum_speed', &
+                              standard_name='max_speed', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "time_of_max_speed", [x_dim_id, y_dim_id], tspd_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "t_max_speed", [x_dim_id, y_dim_id], tspd_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='time of maximum flow speed', &
                               units='s', &
-                              standard_name='time_of_max_speed', &
+                              standard_name='t_max_speed', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "maximum_erosion", [x_dim_id, y_dim_id], e_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='maximum erosion', &
+      call define_nc_var_real(ncid, "max_erosion", [x_dim_id, y_dim_id], e_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='maximum depth of erosion', &
                               units='m', &
-                              standard_name='maximum_erosion', &
+                              standard_name='max_erosion', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "time_of_max_erosion", [x_dim_id, y_dim_id], te_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='time of maximum erosion', &
+      call define_nc_var_real(ncid, "t_max_erosion", [x_dim_id, y_dim_id], te_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='time of maximum depth of erosion', &
                               units='s', &
-                              standard_name='time_of_max_erosion', &
+                              standard_name='t_max_erosion', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "maximum_deposit", [x_dim_id, y_dim_id], d_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='maximum deposit', &
+      call define_nc_var_real(ncid, "max_deposit", [x_dim_id, y_dim_id], d_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='maximum depth of deposit', &
                               units='m', &
-                              standard_name='maximum_deposit', &
+                              standard_name='max_deposit', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "time_of_max_deposit", [x_dim_id, y_dim_id], td_id, fill_value=-9999.9_wp, deflate=1, &
-                              long_name='time of maximum deposit', &
+      call define_nc_var_real(ncid, "t_max_deposit", [x_dim_id, y_dim_id], td_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='time of maximum depth of deposit', &
                               units='s', &
-                              standard_name='time_of_max_deposit', &
+                              standard_name='t_max_deposit', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "maximum_solids_fraction", [x_dim_id, y_dim_id], psi_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "max_solids_frac", [x_dim_id, y_dim_id], psi_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='maximum solids fraction', &
                               units='1', &
-                              standard_name='maximum_solids_fraction', &
+                              standard_name='max_solids_frac', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
-      call define_nc_var_real(ncid, "time_of_max_solids_fraction", [x_dim_id, y_dim_id], tpsi_id, fill_value=-9999.9_wp, deflate=1, &
+      call define_nc_var_real(ncid, "t_max_solids_frac", [x_dim_id, y_dim_id], tpsi_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='time of maximum solids fraction', &
                               units='s', &
-                              standard_name='time_of_max_solids_fraction', &
+                              standard_name='t_max_solids_frac', &
                               coordinates='x y', &
                               grid_mapping='crs')
 
@@ -1389,8 +1395,6 @@ contains
 
       call put_nc_var(ncid, x_id, [(grid%xmin + RunParams%deltaX*i + RunParams%centerUTM%first, i=0, nX - 1)], start=[1], count=[nX])
       call put_nc_var(ncid, y_id, [(grid%ymin + RunParams%deltaY*i + RunParams%centerUTM%second, i=0, nY - 1)], start=[1], count=[nY])
-
-      call put_nc_var(ncid, tiles_id, grid%ActiveTiles%List, start=[1], count=[grid%ActiveTiles%Size])
 
       do tt = 1, nTiles
 
@@ -1427,279 +1431,6 @@ contains
 
    end subroutine OutputMaximums_NetCDF
 #endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine OutputMaxSpeeds(RunParams, filename, grid)
-
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      character(len=*), intent(in) :: filename
-      type(GridType), target, intent(in) :: grid
-
-      type(TileType), dimension(:), pointer :: tileContainer
-      type(TileList), pointer :: ActiveTiles
-
-      type(pair) :: latlon
-
-      logical :: FileExists
-      integer :: i, j
-      integer :: nTiles, tt, ttk
-
-      nTiles = RunParams%nTiles
-
-      ! These pointers and variables simplify notation.
-      tileContainer => grid%tileContainer
-      ActiveTiles => grid%ActiveTiles
-
-      inquire (file=filename, exist=FileExists)
-      if (FileExists) then
-         open (102, file=filename, status='replace')
-      else
-         open (102, file=filename, status='new')
-      end if
-
-      write (102, fmt="(a8,a2,6(a18,a2))", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
-         '        x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-         '        y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
-         '          latitude', ', ', & ! column 4 -- latitude
-         '         longitude', ', ', & ! column 5 -- longitude
-         '     maximum_speed', ', ', & ! column 6 -- maximum flow depth
-         '   time_of_maximum'          ! column 7 -- time of maximum flow depth
-
-      if (.not. RunParams%Georeference) then
-         latlon%first = 0.0_wp
-         latlon%second = 0.0_wp
-      end if
-
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
-               if (RunParams%Georeference) latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
-               write (102, fmt="(i8, a2, 6(es18.8, a2))", advance='yes') &
-                  ttk, ', ', &
-                  tileContainer(ttk)%x(i), ', ', &
-                  tileContainer(ttk)%y(j), ', ', &
-                  latlon%first, ', ', &
-                  latlon%second, ', ', &
-                  tileContainer(ttk)%umax(i, j, 1), ', ', &
-                  tileContainer(ttk)%umax(i, j, 2)
-            end do
-            write (102, *)
-         end do
-         write (102, *)
-      end do
-
-      close (102)
-
-   end subroutine OutputMaxSpeeds
-
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine OutputMaxErosion(RunParams, filename, grid)
-
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      character(len=*), intent(in) :: filename
-      type(GridType), target, intent(in) :: grid
-
-      type(TileType), dimension(:), pointer :: tileContainer
-      type(TileList), pointer :: ActiveTiles
-
-      type(pair) :: latlon
-
-      logical :: FileExists
-      integer :: i, j
-      integer :: nTiles, tt, ttk
-
-      nTiles = RunParams%nTiles
-
-      ! These pointers and variables simplify notation.
-      tileContainer => grid%tileContainer
-      ActiveTiles => grid%ActiveTiles
-
-      inquire (file=filename, exist=FileExists)
-      if (FileExists) then
-         open (102, file=filename, status='replace')
-      else
-         open (102, file=filename, status='new')
-      end if
-
-      write (102, fmt="(a8,a2,6(a18,a2))", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
-         '        x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-         '        y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
-         '          latitude', ', ', & ! column 4 -- latitude
-         '         longitude', ', ', & ! column 5 -- longitude
-         '   maximum_erosion', ', ', & ! column 6 -- maximum erosion
-         '   time_of_maximum'          ! column 7 -- time of maximum erosion
-
-      if (.not. RunParams%Georeference) then
-         latlon%first = 0.0_wp
-         latlon%second = 0.0_wp
-      end if
-
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
-               if (RunParams%Georeference) latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
-               write (102, fmt="(i8, a2, 6(es18.8, a2))", advance='yes') &
-                  ttk, ', ', &
-                  tileContainer(ttk)%x(i), ', ', &
-                  tileContainer(ttk)%y(j), ', ', &
-                  latlon%first, ', ', &
-                  latlon%second, ', ', &
-                  tileContainer(ttk)%emax(i, j, 1), ', ', &
-                  tileContainer(ttk)%emax(i, j, 2)
-            end do
-            write (102, *)
-         end do
-         write (102, *)
-      end do
-
-      close (102)
-
-   end subroutine OutputMaxErosion
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine OutputMaxDeposit(RunParams, filename, grid)
-
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      character(len=*), intent(in) :: filename
-      type(GridType), target, intent(in) :: grid
-
-      type(TileType), dimension(:), pointer :: tileContainer
-      type(TileList), pointer :: ActiveTiles
-
-      type(pair) :: latlon
-
-      logical :: FileExists
-      integer :: i, j
-      integer :: nTiles, tt, ttk
-
-      nTiles = RunParams%nTiles
-
-      ! These pointers and variables simplify notation.
-      tileContainer => grid%tileContainer
-      ActiveTiles => grid%ActiveTiles
-
-      inquire (file=filename, exist=FileExists)
-      if (FileExists) then
-         open (102, file=filename, status='replace')
-      else
-         open (102, file=filename, status='new')
-      end if
-
-      write (102, fmt="(a8,a2,6(a18,a2))", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
-         '        x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-         '        y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
-         '          latitude', ', ', & ! column 4 -- latitude
-         '         longitude', ', ', & ! column 5 -- longitude
-         '   maximum_deposit', ', ', & ! column 6 -- maximum deposit
-         '   time_of_maximum'          ! column 7 -- time of maximum deposit
-
-      if (.not. RunParams%Georeference) then
-         latlon%first = 0.0_wp
-         latlon%second = 0.0_wp
-      end if
-
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
-               if (RunParams%Georeference) latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
-               write (102, fmt="(i8, a2, 6(es18.8, a2))", advance='yes') &
-                  ttk, ', ', &
-                  tileContainer(ttk)%x(i), ', ', &
-                  tileContainer(ttk)%y(j), ', ', &
-                  latlon%first, ', ', &
-                  latlon%second, ', ', &
-                  tileContainer(ttk)%dmax(i, j, 1), ', ', &
-                  tileContainer(ttk)%dmax(i, j, 2)
-            end do
-            write (102, *)
-         end do
-         write (102, *)
-      end do
-
-      close (102)
-
-   end subroutine OutputMaxDeposit
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine OutputInundationTime(RunParams, filename, grid)
-
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      character(len=*), intent(in) :: filename
-      type(GridType), target, intent(in) :: grid
-
-      type(TileType), dimension(:), pointer :: tileContainer
-      type(TileList), pointer :: ActiveTiles
-
-      type(pair) :: latlon
-
-      logical :: FileExists
-      integer :: i, j
-      integer :: nTiles, tt, ttk
-
-      nTiles = RunParams%nTiles
-
-      ! These pointers and variables simplify notation.
-      tileContainer => grid%tileContainer
-      ActiveTiles => grid%ActiveTiles
-
-      inquire (file=filename, exist=FileExists)
-      if (FileExists) then
-         open (102, file=filename, status='replace')
-      else
-         open (102, file=filename, status='new')
-      end if
-
-      write (102, fmt="(a8,a2,5(a18,a2))", advance='yes') &
-         '    tile', ', ', & ! column 1 -- tile number
-         '        x_distance', ', ', & ! column 2 -- x coordinate from origin at domain centre
-         '        y_distance', ', ', & ! column 3 -- y coordinate from origin at domain centre
-         '          latitude', ', ', & ! column 4 -- latitude
-         '         longitude', ', ', & ! column 5 -- longitude
-         '   inundation_time'          ! column 6 -- time of first inundation
-
-      if (.not. RunParams%Georeference) then
-         latlon%first = 0.0_wp
-         latlon%second = 0.0_wp
-      end if
-
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
-               if (RunParams%Georeference) latlon = RunParams%projTransformer%utm_to_wgs84(tileContainer(ttk)%x(i), tileContainer(ttk)%y(j))
-               write (102, fmt="(i8, a2, 6(es18.8, a2))", advance='yes') &
-                  ttk, ', ', &
-                  tileContainer(ttk)%x(i), ', ', &
-                  tileContainer(ttk)%y(j), ', ', &
-                  latlon%first, ', ', &
-                  latlon%second, ', ', &
-                  tileContainer(ttk)%tfirst(i, j)
-            end do
-            write (102, *)
-         end do
-         write (102, *)
-      end do
-
-      close (102)
-
-   end subroutine OutputInundationTime
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
