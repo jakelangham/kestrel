@@ -1,30 +1,39 @@
 Output
 ------
 
-The *Output* block sets up output from Kestrel.  The output block is identified using the block keyword :code:`Output:`.
+The *Output* block sets up output from Kestrel. It is identified using the block
+keyword :code:`Output:`.
 
-The only **required** setting in the output block is:
+The only **required** setting in the *Output* block is:
 
     :code:`N out = 10`
 
-        The number of output files to be produced.  These are evenly spaced over
-        the duration of the simulation.
+        The number of output files to be produced. These record simulation data
+        at equally spaced time intervals over the duration of the simulation.
+
+        .. note::
+
+            The initial condition is also recorded and does not count towards
+            this total.
 
 The **optional** settings of the output block are:
 
     :code:`base path = ./`
 
-        A path to a base directory to hold the output directory.  Default is current working directory.  This is created is it does not exist and permissions allow.
+        A path to a base directory to hold the output directory.  Default is
+        current working directory.  This is created if it does not exist,
+        providing that permissions allow.
 
     :code:`directory = results/`
 
-        A directory to store the results.  This is created is it does not exist and permissions allow.
+        A directory to store the results.  This is created if it does not exist
+        and permissions allow.
 
     :code:`format = txt`
 
         Format of the output files.  Options are:
 
-            :code:`txt` -- column-headed, comma-delimited text files.
+            :code:`txt` (default) -- column-headed, comma-delimited text files.
 
             :code:`nc` or :code:`netcdf` -- NetCDF files.  Requires compilation with NetCDF4 (see :ref:`installation`)
 
