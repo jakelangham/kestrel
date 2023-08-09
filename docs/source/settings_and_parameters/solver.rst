@@ -1,5 +1,3 @@
-.. _set_solver:
-
 Solver
 ------
 
@@ -27,7 +25,7 @@ The **optional** settings of the solver block are:
 
                 for real numbers :math:`a` and :math:`b` and :math:`\mathrm{sgn}(a)` denotes the signum function.
             
-            :code:`MinMod2`
+            :code:`MinMod2` (default)
 
                 The generalized minmod limiter, defined as
 
@@ -41,7 +39,13 @@ The **optional** settings of the solver block are:
             
             :code:`van albada` or :code:`albada`
 
-                Then van Albada limiter is a smooth function that tends to a central difference approximation in smooth regions, and across discontinuities the slope is biased to smallest value of the two one-sided slopes. In general van Albada limiter has a parameter, but here we use a version with parameter set to zero (see `Lu & Tadmor (2023) <https://doi.org/10.48550/arXiv.2304.00437>`_)
+                The van Albada limiter is a smooth function that tends to a
+                central difference approximation in smooth regions, and across
+                discontinuities the slope is biased to smallest value of the two
+                one-sided slopes. In general, the van Albada limiter has a
+                parameter, but here we use a version with parameter set to zero
+                (see `Lu & Tadmor (2023)
+                <https://doi.org/10.48550/arXiv.2304.00437>`_)
 
                     .. math::
                         \mathrm{vanAlbada}(a,b) = \frac{a^2 b + a b^2}{a^2 + b^2}.
@@ -53,7 +57,7 @@ The **optional** settings of the solver block are:
                     .. math::
                         \mathrm{WENO}(a,b) = \frac{w(a)a + w(b)b}{w(a) + w(b)} \text{ with weighting } w(x) = (x^2+\epsilon)^{-2}
 
-                Here we impose :math:`\epsilon = 10^{-6}`.
+                Kestrel imposes :math:`\epsilon = 10^{-6}`.
             
             :code:`None`
 
@@ -79,9 +83,11 @@ The **optional** settings of the solver block are:
 
     :code:`max dt = HUGE(1.0)`
 
-        The maximum time step.  Note the default value ensure that the maximum time step is the either the time step determined by the CFL condition, or the output time step.
+        The maximum time step. Note that the default value ensures that the
+        maximum time step is the either the time step determined by the CFL
+        condition, or the output time step.
     
-    :code:`T start = 0`
+        :code:`T start = 0`
 
         The start time of the simulation, in seconds.
     
@@ -89,23 +95,41 @@ The **optional** settings of the solver block are:
 
         Should the simulation restart from a previous result? Options are:
 
-            :code:`on` -- restart from a previous simulation.  This requires an existing Kestrel results directory containing the RunInfo.txt file.
+            :code:`on` -- restart from a previous simulation.  This requires an
+            existing Kestrel results directory containing the RunInfo.txt file,
+            which is used to determine suitable simulation parameters and to
+            locate the last output file to be used as the initial condition.
 
             :code:`off` -- start a new simulation.
-    
-The following **conditionally optional** variables are used if :code:`Restart = on`:
 
+            .. note::
+
+                This feature is useful if a simulation is interrupted for some
+                reason. By selecting ``on`` and re-running, the simulation will
+                pick up from where it left off.
+    
     :code:`Initial condition`
 
-        The path to a previous Kestrel results file that will be used as the initial condition for the restarted simulation.
+        Specifies the path to a Kestrel result file to be used as an initial
+        condition. On start-up Kestrel loads the solution fields from this file
+        and simulates forward from this point.
 
-        If not given (the default) then the restarted simulation uses the RunInfo.txt file to determine the last output result file that is used to set the initial condition.
-    
-The following **conditionally optional** variables are used if :code:`Boundary conditions = sponge` in the Domain block:
+        If ``Restart = on``, then `RunInfo.txt` is used to determine the
+        simulation parameters. Otherwise, (by default) they are read in from the
+        usual input file given on the command line.
+
+The following **conditionally optional** variables are used only if
+:code:`Boundary conditions = sponge` in the *Domain* block:
 
     :code:`Sponge strength = 0.2`
 
-        When using a sponge layer boundary condition, the solution is quantities are gradually damped on the tiles bordering the domain boundary.  The damping rate is set by the :code:`Sponge strength` settings.
+        When using a sponge layer boundary condition, the solution's quantities
+        are gradually damped on the tiles bordering the domain boundary.  The
+        damping rate is set by the :code:`Sponge strength` settings.
 
         .. note::
-            Care must be taken in setting :code:`Sponge strength`.  If the damping is too weak, flow quantities may be non-zero at the domain edge, causing errors.  If the damping is too strong, flow quantities in the interior can be influenced by those in the sponge layer tiles.  The flow in the sponge layer tiles should be discarded.
+            Care must be taken in setting :code:`Sponge strength`.  If the
+            damping is too weak, flow quantities may be non-zero at the domain
+            edge, causing errors.  If the damping is too strong, flow quantities
+            in the interior can be influenced by those in the sponge layer
+            tiles.  The flow in the sponge layer tiles should be discarded.
