@@ -667,7 +667,7 @@ contains
             '           density', ', ', & ! column 6 -- density, rho
             '   solids_fraction', ', ', & ! column 7 -- solids fraction, psi
             '            x_flux', ', ', & ! column 8 -- x flux, rhoHnu
-            '     solids_volume', ', ', & ! column 9 -- solids volume per unit area, Hnpsi
+            '             Hnpsi', ', ', & ! column 9 -- solids volume per unit area, Hnpsi
             '                 w', ', ', & ! column 10 -- w
             '    base_elevation', ', ', & ! column 11 -- base topographic elevation, b0
             '  elevation_change', ', ', & ! column 12 -- change in topographic elevation, bt
@@ -687,7 +687,7 @@ contains
             '   solids_fraction', ', ', & ! column 11 -- solids fraction, psi
             '            x_flux', ', ', & ! column 12 -- x flux, rhoHnu
             '            y_flux', ', ', & ! column 13 -- y flux, rhoHnv
-            '     solids_volume', ', ', & ! column 14 -- solids volume per unit area, Hnpsi
+            '             Hnpsi', ', ', & ! column 14 -- solids volume per unit area, Hnpsi
             '                 w', ', ', & ! column 15 -- w
             '    base_elevation', ', ', & ! column 16 -- base topographic elevation, b0
             '  elevation_change', ', ', & ! column 17 -- change in topographic elevation, bt
