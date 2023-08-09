@@ -170,10 +170,9 @@ After changing to the output directory, you should see the following text files:
     * Numbered topography files of the form `000000.txt_topo`,
       `000001.txt_topo`, ... containing topographic data at the indicated output
       step.
-    * Maximums files `MaxHeights.txt`, `MaxSpeeds.txt`, `MaxDeposit.txt` and
-      `MaxErosion.txt` containing the maximum values attained at each spatial
+    * A file `Maximums.txt` containing the maximum values attained at each spatial
       point, over the simulated time period, for the height, speed and so forth.
-    * `InundationTime.txt`, which records the time of inundation for each point
+      This file also records the time of inundation for each point
       in the domain.
     * `Volume.txt`, which records the total volume and mass of material in the
       flow and in the bed, and the portion of these quantities occupied by
