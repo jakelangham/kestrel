@@ -195,7 +195,7 @@ There are two **required** settings in the *Parameters* block:
             may be used to set the constant coefficient :math:`\varepsilon_g`,
             which is required to be strictly positive.
 
-        :code:`mixed` or :code:`on`
+        :code:`mixed` or :code:`on` (default)
 
             Sets the following erosion law that switches between fluid-like and
             granular-like erosion rates, depending on the solids fraction:
@@ -310,9 +310,9 @@ below:
 
     :code:`erosion critical height = 0.01`
 
-        Sets a critical flow depth :math:`H_c` in metres, below
-        which erosion is not permitted. This ensures that rapid thin flows do
-        not erode the bed. It is recommended that this is at least equal to the
+        Sets a critical flow depth :math:`H_c` in metres, below which erosion is
+        not permitted. This ensures that rapid thin flows do not unphysically
+        erode the bed. It is recommended that this is at least equal to the
         characteristic solid diameter :math:`d`. It is required to be strictly
         positive.
 
