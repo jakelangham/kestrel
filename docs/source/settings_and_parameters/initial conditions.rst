@@ -188,7 +188,7 @@ release:
         Sets the initial velocity :math:`\bar{v}` of the release in the
         :math:`y`-direction (m/s).
 
-    :code:`cubePsi = 0`
+    :code:`cubeConc = 0`
 
         Sets the volumetric fraction :math:`\bar{\psi}` of solids present in the
         release.
