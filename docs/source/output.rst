@@ -10,8 +10,8 @@ of numerical results files:
 
     * *snapshot* files that contain data produced by Kestrel at a single
       point in time. The files have sequential numeric names, e.g.
-      :code:`000001.nc`, :code:`000002.nc`, .... The snapshot file
-      :code:`000000.nc` contains any initial conditions of the flow.
+      *000001.nc*, *000002.nc*, .... The snapshot file
+      *000000.nc* contains any initial conditions of the flow.
 
     * *aggregated* files that contain data that summarize the flow up to
       the point at which they are written.  The aggregated results file
@@ -25,12 +25,12 @@ earlier files, and aggregated results files increase in size as simulations
 progress.
 
 The results files can be provided in two main formats: as plain text in 
-column-headed comma-separated values (with a :code:`.txt` extension),
-or as NetCDF files (with a :code:`.nc` extension).  Here we first describe
+column-headed comma-separated values (with a *.txt* extension),
+or as NetCDF files (with a *.nc* extension).  Here we first describe
 the output files in these two formats.  Additionally, Kestrel produces:
 
-    * a :code:`RunInfo.txt` file that summarizes the settings used in the model;
-    * a :code:`Volume.txt` file that summarizes the time series of volumes of material;
+    * a *RunInfo.txt* file that summarizes the settings used in the model;
+    * a *Volume.txt* file that summarizes the time series of volumes of material;
     * files related to the topographic data are created.
 
 .. _output_netcdf:
@@ -72,7 +72,7 @@ There are four NetCDF dimensions defined:
 
 For georeferenced simulations, the NetCDF files contain a variable
 
-    :code:`crs()`
+    :code:`crs`
         A NetCDF variable to store the following attributes defining the coordinate reference system:
             - :code:`grid_mapping_name` taking the value :code:`transverse_mercator`.
             - :code:`false_easting` taking the value :code:`500000`.
@@ -80,7 +80,13 @@ For georeferenced simulations, the NetCDF files contain a variable
             - :code:`latitude_of_projection_origin` taking the value :code:`0`.
             - :code:`longitude_of_central_meridian` with value dependent on the central longitude of the domain.
             - :code:`scale_factor_at_central_meridian` taking the value :code:`0.9996`.
-    
+
+.. warning::
+    The aggregated results NetCDF file is overwritten during the simulation. This will fail is the NetCDF file is open
+    during an attempt to write.  This will result in an error and termination of the simulation.
+
+    It is recommended to copy the file before opening to perform analysis and processing while a Kestrel simulation is in progress.
+
 .. _output_txt:
 
 Text files
@@ -96,7 +102,7 @@ recorded when one-dimensional simulations are performed.
 Computed solution fields are stored in scientific form (:code:`ES18.10E3`).
 
 When restarting simulations, topographic data is required at cell vertices as well as at cell centres.  These data are
-stored in separate files with extension :code:`.txt_topo`.
+stored in separate files with extension *.txt_topo*.
 
 The first column of text data files is named :code:`tile` and refers an internal integer identifier of domain tiles
 within Kestrel, and is required for restarting simulations from an existing result file.
@@ -148,10 +154,10 @@ The *snapshot* files contain the following solution fields:
         The flow slope-aligned speed, :math:`\left|\mathbf{u}\right|` [m/s]
 
     :code:`x_velocity`
-        The :math:`x`-component of the flow velocity (m/s), :math:`\bar{u}` [m/s].
+        The :math:`x`-component of the flow velocity, :math:`\bar{u}` [m/s].
     
     :code:`y_velocity`
-        The :math:`y`-component of the flow velocity (m/s), :math:`\bar{v}` [m/s]
+        The :math:`y`-component of the flow velocity, :math:`\bar{v}` [m/s]
     
     :code:`density`
         The density of the mixture, :math:`\bar{\rho}` [kg/m\ :sup:`3`\ ]
@@ -231,5 +237,85 @@ The *aggregated* result files contain the following solution fields:
     :code:`inundation_time`
         The time at which flow material first reaches each cell of the domain [s].
 
+.. _output_volume:
+
+Flow Volumes
+------------
+
+The file :code:`Volume.txt` contains time series recording the evolution of flow volumes and masses
+during the simulation.  These are summary values, integrated over the full simulation domain.
+
+The data are stored as column-headed, comma-separated values with the first row 
+recording the time, and subsequent columns recording quantities calculated from computed fields.
+The calculated values are written at high precision (sixteen figures) as they can be used to
+verify accurate computation of conserved quantities.
+
+The following columns are stored:
+
+    :code:`volume`
+        The total volume of material in the flow domain.
+
+        This volume includes material added in initial conditions,
+        material added by flux sources, and material entrained into
+        flows by erosion, and is given by
+
+        .. math::
+            V_{total} = \int_{A} H\gamma\ \mathrm{d}A.
+
+
+
+    :code:`total_bed_volume`
+        The total volume of material derived from the bed.
+
+        This volume is the difference of material eroded from the bed
+        from that deposited to the bed, and is given by
+
+        .. math::
+            V_{bed} = \int_{A} \left(b(\mathbf{x},t) - b(\mathbf{x},0)\right)\ \mathrm{d}A
+        
+        where :math:`A` is the area of the flow.
+
+    :code:`total_mass`
+        The total mass of material in the flow domain.
+
+        This mass includes material added in initial conditions,
+        material added by flux sources, and material entrained into
+        flows by erosion, and is given by
+
+        .. math::
+            M_{total} = \int_{A} \bar{\rho}H\gamma\ \mathrm{d}A.
+        
+    :code:`bed_mass`
+        The total mass of material derived from the bed.
+
+        This mass is the difference of material eroded from the bed
+        from that deposited to the bed, and is given by
+
+        .. math::
+            M_{bed} = \rho_{b}V_{bed}
+
+        where :math:`\rho_{b}` is the density of bed material.
+
+    :code:`total_solids_mass`
+        The total mass of solids in the flow domain.
+
+        This mass includes solids added in initial conditions,
+        solids added by flux sources, and solids entrained into
+        flows by erosion, and is given by
+
+        .. math::
+            M_{solids} = \int_{A} \rho_{s}H\bar{\psi}\gamma\ \mathrm{d}A.
+
+    :code:`bed solids mass`
+        The total mass of solids derived from the bed.
+
+        This mass is the difference of solid mass added by erosion from the bed
+        from the solid mass deposited to the bed, and is given by
+
+        .. math::
+            M_{bed solids} = \rho_{s}V_{bed}p
+        
+        where :math:`p` is the bed porosity.
+
 .. warning::
-    TODO Volume.txt and RunInfo.txt
+    TODO RunInfo.txt
