@@ -6,45 +6,45 @@ Output
 Kestrel simulation results are contained in a number of output files.
 The main numerical results of the simulation are cell-averaged values 
 of quantities at locations within the flow domain.  There are two types
-of numerical results files:
+of numerical result files:
 
-    * *snapshot* files that contain data produced by Kestrel at a single
-      point in time. The files have sequential numeric names, e.g.
-      *000001.nc*, *000002.nc*, .... The snapshot file
-      *000000.nc* contains any initial conditions of the flow.
-
-    * *aggregated* files that contain data that summarize the flow up to
-      the point at which they are written.  The aggregated results file
-      update during the simulation.  Aggregated results are stored in a single
-      file with the filename set using the optional input
-      :code:`maximums filename` with default value :code:`Maximums`.
+    * *snapshot* files that contain data produced by Kestrel at a single point
+      in time. The files have sequential numeric names, e.g.  *000001.nc*,
+      *000002.nc*, .... The snapshot file *000000.nc* contains the initial
+      conditions of the flow.
+    * *aggregated* files that contain data that summarize the flow up to the
+      point at which they are written. These files are updated throughout the
+      simulation.  Aggregated results are stored in a single file with the
+      filename set using the optional input :code:`maximums filename` with
+      default value :code:`Maximums`.
 
 The numerical results are only stored in *active* regions of the domain,
 and therefore, the data volume in later snapshot files is larger than in
 earlier files, and aggregated results files increase in size as simulations
 progress.
 
-The results files can be provided in two main formats: as plain text in 
+Solution data files can be provided in two main formats: as plain text in
 column-headed comma-separated values (with a *.txt* extension),
 or as NetCDF files (with a *.nc* extension).  Here we first describe
 the output files in these two formats.  Additionally, Kestrel produces:
 
     * a *RunInfo.txt* file that summarizes the settings used in the model;
     * a *Volume.txt* file that summarizes the time series of volumes of material;
-    * files related to the topographic data are created.
+    * (when using ``.txt`` output) files that record topographic data at cell
+      vertices.
 
 .. _output_netcdf:
 
-NetCDF files
-------------
+NetCDF format
+-------------
 
-NetCDF files are typically smaller in size and contain data at higher
-numerical precision than Kestrel's text file outputs, and are
-georeferenced when simulations use topographic data.  Therefore, NetCDF are our
-preferred format, but require a compatible NetCDF library for installation
+NetCDF files are typically smaller in size and record contain data at higher
+numerical precision than Kestrel's text file outputs, and are georeferenced when
+simulations use topographic data.  Therefore, NetCDF files are the preferred
+data format. However, they require a compatible NetCDF library for installation
 (see :ref:`installation`) and post-processing tools that are able to read NetCDF
-files.  Many GIS software packages are capable of reading NetCDF, and packages are
-available in Julia, MatLab, Python, and other languages.
+files.  Many GIS software packages are capable of reading NetCDF, and packages
+are available in Julia, MatLab, Python, and other languages.
 
 Computed solution fields are stored as Float64 variables.
 
@@ -56,6 +56,7 @@ For georeferenced simulations, the global attribute :code:`crs_epsg` gives the E
 for the UTM coordinate reference system.
 
 There are four NetCDF dimensions defined:
+
     * :code:`x` - the Easting dimension, for cell centres;
     * :code:`y` - the Northing dimension for cell centres;
     * :code:`x_vertex` - the Easting dimension for cell vertices (only for *snapshot* files);
@@ -73,7 +74,9 @@ There are four NetCDF dimensions defined:
 For georeferenced simulations, the NetCDF files contain a variable
 
     :code:`crs`
+
         A NetCDF variable to store the following attributes defining the coordinate reference system:
+
             - :code:`grid_mapping_name` taking the value :code:`transverse_mercator`.
             - :code:`false_easting` taking the value :code:`500000`.
             - :code:`false_northing` taking the value :code:`0` for domain centres in the Northern hemisphere and :code:`10000000` for domain centres in the Southern hemisphere.
@@ -89,23 +92,27 @@ For georeferenced simulations, the NetCDF files contain a variable
 
 .. _output_txt:
 
-Text files
-----------
+Text format
+-----------
 
-The text format output files produced by Kestrel contain column-headed, comma-separated numerical data.
-The text files contain the same data fields as NetCDF files, but at a reduced numerical precision.
-Additionally, to aid post-processing of these files, when simulations are georeferenced there are
-additional columns providing the cell-centre latitude and longitude in the WGS84 coordinate reference system.
-Furthermore, to reduce file size, fields that are appropriate only for two-dimensional simulations are not
-recorded when one-dimensional simulations are performed.
+The text format output files produced by Kestrel contain column-headed,
+comma-separated numerical data.  The text files contain the same data fields as
+NetCDF files, but at a reduced numerical precision. In order to aid
+post-processing of these files, when simulations are georeferenced there are
+additional columns providing the cell-centre latitude and longitude in the WGS84
+coordinate reference system.  Furthermore, to reduce file size, fields that are
+appropriate only for two-dimensional simulations are not recorded when
+one-dimensional simulations are performed.
 
 Computed solution fields are stored in scientific form (:code:`ES18.10E3`).
 
-When restarting simulations, topographic data is required at cell vertices as well as at cell centres.  These data are
-stored in separate files with extension *.txt_topo*.
+For restarting simulations, topographic data is required at cell vertices as
+well as at cell centres.  These data are stored in separate files with extension
+*.txt_topo*.
 
-The first column of text data files is named :code:`tile` and refers an internal integer identifier of domain tiles
-within Kestrel, and is required for restarting simulations from an existing result file.
+The first column of text data files is named :code:`tile` and refers an internal
+integer identifier of domain tiles within Kestrel, which is required for
+restarting simulations from an existing result file.
 
 .. _output_fields:
 
@@ -151,52 +158,52 @@ The *snapshot* files contain the following solution fields:
         The flow depth, :math:`H` [m].
 
     :code:`flow_speed`
-        The flow slope-aligned speed, :math:`\left|\mathbf{u}\right|` [m/s]
+        The flow slope-aligned speed, :math:`\left|\mathbf{u}\right|` [m/s].
 
     :code:`x_velocity`
         The :math:`x`-component of the flow velocity, :math:`\bar{u}` [m/s].
     
     :code:`y_velocity`
-        The :math:`y`-component of the flow velocity, :math:`\bar{v}` [m/s]
+        The :math:`y`-component of the flow velocity, :math:`\bar{v}` [m/s].
     
     :code:`density`
-        The density of the mixture, :math:`\bar{\rho}` [kg/m\ :sup:`3`\ ]
+        The density of the mixture, :math:`\bar{\rho}` [kg/m\ :sup:`3`\ ].
 
     :code:`solids_fraction`
-        The volume fraction of solids in the mixture, :math:`\bar{\psi}` [*dimensionless*]
+        The volume fraction of solids in the mixture, :math:`\bar{\psi}` [*dimensionless*].
     
     :code:`x_flux`
-        The :math:`x`-component of the mass flux per unit area, :math:`\bar{\rho} H\bar{u}` [m\ :sup:`3`\ /s]
+        The :math:`x`-component of the mass flux per unit area, :math:`\bar{\rho} H\bar{u}` [m\ :sup:`3`\ /s].
     
     :code:`y_flux`
-        The :math:`y`-component of the volumetric flux per unit area, :math:`\bar{\rho} H\bar{v}` [m\ :sup:`3`\ /s]
+        The :math:`y`-component of the volumetric flux per unit area, :math:`\bar{\rho} H\bar{v}` [m\ :sup:`3`\ /s].
     
     :code:`Hnpsi`
-        The volume of solids per unit area, :math:`H\bar{\psi}` [m] 
+        The volume of solids per unit area, :math:`H\bar{\psi}` [m].
     
     :code:`base_elevation`
-        The initial topographic elevation, :math:`b_{0} = b(x,y,0)` [m]
+        The initial topographic elevation, :math:`b_{0} = b(x,y,0)` [m].
     
     :code:`elevation_change`
-        The change in topographic elevation, :math:`\delta b_{t} = b(x,y,t) - b(x,y,0)` [m]
+        The change in topographic elevation, :math:`\delta b_{t} = b(x,y,t) - b(x,y,0)` [m].
     
     :code:`x_slope`
-        The topographic slope along the :math:`x` coordinate, :math:`\partial b/\partial x` [*dimensionless*]
+        The topographic slope along the :math:`x` coordinate, :math:`\partial b/\partial x` [*dimensionless*].
     
     :code:`y_slope`
-        The topographic slope along the :math:`y` coordinate, :math:`\partial b/\partial y` [*dimensionless*]
+        The topographic slope along the :math:`y` coordinate, :math:`\partial b/\partial y` [*dimensionless*].
     
     :code:`B0_vertex`
-        The initial topographic elevation at cell vertices, :math:`b_{0} = b(x,y,0)` [m]
+        The initial topographic elevation at cell vertices, :math:`b_{0} = b(x,y,0)` [m].
         This data is required when restarting simulations, but should not be used for post-processing.
         It is not georeferenced.
-        Stored in :code:`.txt_topo` file for text output.
+        Stored in :code:`.txt_topo` files, when using text output.
     
     :code:`Bt_vertex`
-        The change in topographic elevation at cell vertices, :math:`\delta b_{t} = b(x,y,t) - b(x,y,0)` [m]
+        The change in topographic elevation at cell vertices, :math:`\delta b_{t} = b(x,y,t) - b(x,y,0)` [m].
         This data is required when restarting simulations, but should not be used for post-processing.
         It is not georeferenced.
-        Stored in :code:`.txt_topo` file for text output.
+        Stored in :code:`.txt_topo` files, when using text output.
 
     :code:`w`
         The conserved quantity :math:`w = H/\gamma + b` that is computed in the model.
@@ -242,40 +249,47 @@ The *aggregated* result files contain the following solution fields:
 Flow Volumes
 ------------
 
-The file :code:`Volume.txt` contains time series recording the evolution of flow volumes and masses
-during the simulation.  These are summary values, integrated over the full simulation domain.
+The file :code:`Volume.txt` contains time series recording the evolution of flow
+volumes and masses during the simulation.  These are summary values, integrated
+numerically over the full simulation domain, whenever a *snapshot* is recorded.
 
-The data are stored as column-headed, comma-separated values with the first row 
-recording the time, and subsequent columns recording quantities calculated from computed fields.
-The calculated values are written at high precision (sixteen figures) as they can be used to
-verify accurate computation of conserved quantities.
+The data are stored as column-headed, comma-separated values with the first row
+recording the time, and subsequent columns recording quantities calculated from
+computed fields.  The calculated values are written at high precision (sixteen
+figures) as they can be used to verify accurate computation of conserved
+quantities.
 
 The following columns are stored:
 
     :code:`volume`
+
         The total volume of material in the flow domain.
 
         This volume includes material added in initial conditions,
         material added by flux sources, and material entrained into
-        flows by erosion, and is given by
+        flows by erosion, and is given mathematically (following the notation of
+        :ref:`physical_model`) by
 
         .. math::
-            V_{total} = \int_{A} H\gamma\ \mathrm{d}A.
+            V_{total} = \int_{A} H\gamma\ \mathrm{d}A,
 
-
+        where :math:`\mathrm{d}A` denotes a Cartesian area element in the
+        horizontal plane. Kestrel computes a approximation to this (and the
+        other integrals defined given below) in accordance with its finite
+        volume numerical scheme.
 
     :code:`total_bed_volume`
+
         The total volume of material derived from the bed.
 
-        This volume is the difference of material eroded from the bed
-        from that deposited to the bed, and is given by
+        This is the difference of material eroded from the bed from that
+        deposited to the bed, and is given by
 
         .. math::
-            V_{bed} = \int_{A} \left(b(\mathbf{x},t) - b(\mathbf{x},0)\right)\ \mathrm{d}A
+            V_{bed} = \int_{A} \left(b(\mathbf{x},t) - b(\mathbf{x},0)\right)\ \mathrm{d}A.
         
-        where :math:`A` is the area of the flow.
-
     :code:`total_mass`
+
         The total mass of material in the flow domain.
 
         This mass includes material added in initial conditions,
@@ -286,6 +300,7 @@ The following columns are stored:
             M_{total} = \int_{A} \bar{\rho}H\gamma\ \mathrm{d}A.
         
     :code:`bed_mass`
+
         The total mass of material derived from the bed.
 
         This mass is the difference of material eroded from the bed
@@ -307,13 +322,14 @@ The following columns are stored:
             M_{solids} = \int_{A} \rho_{s}H\bar{\psi}\gamma\ \mathrm{d}A.
 
     :code:`bed solids mass`
+
         The total mass of solids derived from the bed.
 
         This mass is the difference of solid mass added by erosion from the bed
         from the solid mass deposited to the bed, and is given by
 
         .. math::
-            M_{bed solids} = \rho_{s}V_{bed}p
+             M_{bed solids} = \psi_b\rho_{s}V_{bed}.
         
         where :math:`p` is the bed porosity.
 

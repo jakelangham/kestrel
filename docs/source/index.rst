@@ -8,10 +8,6 @@ flooding.
 To access the code, or report a problem, consult the `github repository
 <https://github.com/jakelangham/kestrel>`_.
 
-.. note::
-
-   This documentation is under active development.
-
 Contents
 --------
 
