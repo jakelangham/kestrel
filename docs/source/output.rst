@@ -317,5 +317,20 @@ The following columns are stored:
         
         where :math:`p` is the bed porosity.
 
-.. warning::
-    TODO RunInfo.txt
+.. _output_info:
+
+RunInfo
+-------
+
+The *RunInfo.txt* file contains information of the simulation settings and progress,
+including quantities calculated from user inputs within Kestrel.
+
+The file provides a valuable summary of the parameter and input settings used in the
+model and can assist in analysis of the numerical outputs.  Additionally, the 
+*RunInfo.txt* file is required for restarting simulations.
+
+The file is structured in a similar way to Kestrel input files, with blocks corresponding
+to *Domain*, *Initial conditions*, *Parameters*, *Solver settings*, *Output settings*,
+and *Topography*.  Within these blocks, settings and calculated quantities are recorded in
+the form :code:`keyword = value`.  In many cases the keywords are fully descriptive or 
+identical to keywords in the input files.
