@@ -108,18 +108,18 @@ simulations computationally tractable at geophysical scales. `Kestrel` supports
 simulations in either one or two orthogonal coordinate directions, perpendicular
 to gravity. It keeps track of the following
 observables, which depend on space and time coordinates $\mathbf{x}$ and $t$: the flow thickness $H(\mathbf{x},t)$, velocity
-$\mathbf{u}(\mathbf{x},t)$, volumetric solids concentration $\psi(\mathbf{x},t)$, density
-$\rho(\mathbf{x},t)$ and the bed elevation $b(\mathbf{x},t)$. 
+$\bar{\mathbf{u}}(\mathbf{x},t)$, volumetric solids concentration $\bar{\psi}(\mathbf{x},t)$, density
+$\bar{\rho}(\mathbf{x},t)$ and the bed elevation $b(\mathbf{x},t)$. 
 In two spatial dimensions, the governing equations are
 \begin{gather}\frac{\partial H}{\partial t} +
-\nabla\cdot(H\mathbf{u}) = \mathcal{E} - \mathcal{D} + \mathcal{Q}_H,\label{eq:governing eqs 1}\\
-\frac{\partial~}{\partial t}(H\psi) +
-\nabla\cdot(H\mathbf{u}\psi) = \psi_b (\mathcal{E} - \mathcal{D}) +
+\nabla\cdot(H\bar{\mathbf{u}}) = \mathcal{E} - \mathcal{D} + \mathcal{Q}_H,\label{eq:governing eqs 1}\\
+\frac{\partial~}{\partial t}(H\bar{\psi}) +
+\nabla\cdot(H\bar{\mathbf{u}}\bar{\psi}) = \psi_b (\mathcal{E} - \mathcal{D}) +
 \mathcal{Q}_H\mathcal{Q}_{\psi},\\
-\frac{\partial ~}{\partial t}(\rho H \mathbf{u}) + 
-\nabla\cdot(\rho H\mathbf{u}\otimes\mathbf{u}) + 
-\frac{g}{2\cos\theta}\nabla_s\left(\rho H^2\cos^2\theta \right) = 
--\rho gH \nabla_s b - \frac{\rho\mathbf{u}}{|\mathbf{u}|}\mathcal{F} + \nabla\cdot(\nu \rho H \nabla \mathbf{u}), \\
+\frac{\partial ~}{\partial t}(\bar{\rho} H \bar{\mathbf{u}}) + 
+\nabla\cdot(\rho H\bar{\mathbf{u}}\otimes\bar{\mathbf{u}}) + 
+\frac{g}{2\cos\theta}\nabla_s\left(\bar{\rho} H^2\cos^2\theta \right) = 
+-\rho gH \nabla_s b - \mathcal{T} + \nabla\cdot(\nu \bar{\rho} H \nabla \bar{\mathbf{u}}), \\
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
 \end{gather}
@@ -132,18 +132,19 @@ The technical details of these equations, their derivation and our numerical
 solution scheme are fully presented by @Langham:2023.  While most of the terms
 are fixed by the underlying depth-averaged flow physics (and shall not be
 discussed further), some parts of the right-hand sides are user-settable.  The
-terms $\mathcal{F}$, $\mathcal{E}$ and $\mathcal{D}$ denote the basal friction,
+terms $\mathcal{T}$, $\mathcal{E}$ and $\mathcal{D}$ denote the basal drag,
 erosion rate and deposition rate respectively. These are modelling closures,
-assumed to be functions of the flow fields $H$, $\mathbf{u}$ and $\psi$. In each
-case, the user may choose from different options, depending on the problem at
-hand. For example, the friction $\mathcal{F}$ may be set either to a function
-appropriate for turbulent fluids, to various models of purely granular flows, or
-to a combined law that depends on the solids concentration.  This provides the
-flexibility to simulate many different kinds of flow.  Furthermore, it is worth
-noting that in many cases, the question of which closures most faithfully
-capture the flow physics is an open problem that cannot easily be addressed
-experimentally.  Using numerical simulations to investigate the effects of
-different modelling choices is one way to approach this.
+assumed to be functions of the flow fields $H$, $\bar{\mathbf{u}}$ and
+$\bar{\psi}$. In each case, the user may choose from different options,
+depending on the problem at hand. For example, the drag $\mathcal{T}$ may be
+set either to a function appropriate for turbulent fluids, to various models of
+purely granular flows, or to a combined law that depends on the solids
+concentration.  This provides the flexibility to simulate many different kinds
+of flow.  Furthermore, it is worth noting that in many cases, the question of
+which closures most faithfully capture the flow physics is an open problem that
+cannot easily be addressed experimentally.  Using numerical simulations to
+investigate the effects of different modelling choices is one way to approach
+this.
 
 The remaining source terms $\mathcal{Q}_H$ and $\mathcal{Q}_{\psi}$ are
 time-dependent functions that provide one way for a modeller to control fluxes
@@ -188,7 +189,7 @@ Knowledge Exchange Fellowship (NE/R003890/1).  We thank our colleagues Andrew J.
 Hogg, Luke T. Jenkins and Jeremy C. Phillips, who worked on the foundational
 mathematical and geological ideas that underpin the code. We also thank users
 who supported the development of `Kestrel`, especially Felipe Flores
-(SERNAGEOMIN, Chile), Francisco Vasconez (IG-EPN, Ecuador), Selwyn Cabaluna
+(SERNAGEOMIN, Chile), Francisco Vásconez (IG-EPN, Ecuador), Selwyn Cabaluna
 (PHIVOLCS, Phillipines) and other geological collaborators at SERNAGEOMIN,
 IG-EPN, PHIVOLCS, INGEMMET (Perú), as well as all current and past `Kestrel`
 users.
