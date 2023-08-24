@@ -87,7 +87,7 @@ The **optional** settings of the solver block are:
         maximum time step is the either the time step determined by the CFL
         condition, or the output time step.
     
-        :code:`T start = 0`
+    :code:`T start = 0`
 
         The start time of the simulation, in seconds.
     

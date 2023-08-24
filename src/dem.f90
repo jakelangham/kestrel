@@ -78,7 +78,7 @@ contains
 
       real(kind=c_double) :: minE, maxE, minN, maxN
 
-      character(len=1,kind=c_char) :: cpath(len_trim(RunParams%OutDir%s)+1)
+      character(len=1,kind=c_char) :: cpath(RunParams%out_path%len()+1)
       character(len=1,kind=c_char) :: csrtmpath(len_trim(RunParams%SRTMPath%s)+1)
 
       logical(kind=C_BOOL) :: raster
@@ -89,7 +89,7 @@ contains
 
       if (present(interp_flag_in)) interp_flag = interp_flag_in
 
-      cpath = RunParams%OutDir%to_cstring()
+      cpath = RunParams%out_path%to_cstring()
       csrtmpath = RunParams%SRTMPath%to_cstring()
 
       call DomainExtent(RunParams, deltaX, deltaY, minE, maxE, minN, maxN, res, pad=.True.)
@@ -224,16 +224,15 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
-      path = RunParams%OutDir
       fname = varString("DEM.vrt")
 
-      inquire(file=path%s // fname%s, exist=FileExists)
+      inquire(file=RunParams%out_path%s // fname%s, exist=FileExists)
       if (.not.FileExists) then
-         call FatalErrorMessage("dem file " // path%s // fname%s // " not found")
+         call FatalErrorMessage("dem file " // RunParams%out_path%s // fname%s // " not found")
          error stop (1)
       end if
 
-      call RasterInfo(path=path, filename=fname, rasterF=rasterFull)
+      call RasterInfo(path=RunParams%out_path, filename=fname, rasterF=rasterFull)
       rasterDeltaX = rasterFull%pixelWidth
       rasterDeltaY = rasterFull%pixelHeight
       rasterOX = rasterFull%originX

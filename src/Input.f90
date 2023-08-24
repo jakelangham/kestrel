@@ -229,7 +229,6 @@ contains
             ! If currentBlock is "Source", read the Source keyword=value
             if (currentBlock=='Source') then
                FoundSource = .TRUE.
-
                if (variableName=='sourceX') call updateSourceStr(SourceStrings,'x',variableValue)
                if (variableName=='sourceY') call updateSourceStr(SourceStrings,'y',variableValue)
                if (variableName=='sourceLon') call updateSourceStr(SourceStrings,'Lon',variableValue)

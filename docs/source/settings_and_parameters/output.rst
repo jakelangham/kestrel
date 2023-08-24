@@ -51,39 +51,19 @@ The **optional** settings of the output block are:
 
         Name of a text file to contain data on the simulation.
 
-
-The following **conditionally optional** settings can be given if the :code:`format` value includes :code:`txt`:
-
-    :code:`inundation time filename = InundationTime`
-
-        The name of a text file to store the first time of inundation of points in the domain.
-
-    :code:`max height filename = MaxHeights`
-
-        The name of a text file to store the maximum flow depth, and the time of this maximum, for points in the domain.
-
-    :code:`max speed filename = MaxSpeeds`
-
-        The name of a text file to store the maximum flow speed, and the time of this maximum, for points in the domain.
-
-    :code:`max erosion filename = MaxErosion`
-
-        The name of a text file to store the maximum depth of erosion, and the time of this maximum, for points in the domain.
-
-    :code:`max deposit filename = MaxDeposit`
-
-        The name of a text file to store the maximum depth of deposition, and the time of this maximum, for points in the domain.
-    
-    :code:`compression = off`
-
-        Compress text files using tar.
-
-The following **conditionally optional** setting can be given if :code:`format` value includes :code:`nc` or :code:`netcdf`:
+The following **conditionally optional** setting can be given if :code:`format` value includes :code:`txt`, :code:`nc` or :code:`netcdf`:
 
     :code:`maximums filename = Maximums`
 
-        The name of a NetCDF file to contain aggregated data over the duration of the simulation.
+        The name of a file to contain aggregated data over the duration of the simulation.
+        For a text file, the extension .txt if added.
+        For a NetCDF file, the extension .nc is added.
 
+The following **conditionally optional** setting can be given if the :code:`format` value includes :code:`txt`:
+
+    :code:`compression = off`
+
+        Compress text files using tar.
 
 The following **conditionally optional** setting can be given if :code:`format` value includes :code:`kml`:
 

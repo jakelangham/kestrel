@@ -282,6 +282,7 @@ module runsettings_module
       ! Various output file names.
       type(varString) :: basePath
       type(varString) :: OutDir
+      type(varString) :: out_path
       type(varString) :: TopogFilename
       type(varString) :: InfoFilename
       type(varString) :: MaxHeightFilename
