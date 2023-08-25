@@ -51,12 +51,12 @@ The **optional** settings of the output block are:
 
         Name of a text file to contain data on the simulation.
 
-The following **conditionally optional** setting can be given if :code:`format` value includes :code:`txt`, :code:`nc` or :code:`netcdf`:
+The following **conditionally optional** setting can be given if the :code:`format` value includes :code:`txt`, :code:`nc` or :code:`netcdf`:
 
     :code:`maximums filename = Maximums`
 
         The name of a file to contain aggregated data over the duration of the simulation.
-        For a text file, the extension .txt if added.
+        For a text file, the extension .txt is added.
         For a NetCDF file, the extension .nc is added.
 
 The following **conditionally optional** setting can be given if the :code:`format` value includes :code:`txt`:
