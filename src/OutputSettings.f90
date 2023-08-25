@@ -205,7 +205,6 @@ contains
       if (.not.set_basePath) then
          call getcwd(cwd)
          basePath = varString(cwd, trim_str=.TRUE.)
-         basePath = PathTrail(basePath)
          call WarningMessage("In the 'Output' block 'Base path' is not given.  Using current working directory  " // basePath%s)
       end if
       RunParams%basePath = PathTrail(basePath)

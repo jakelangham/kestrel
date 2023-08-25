@@ -206,6 +206,7 @@ contains
          if (.not. set_TopogFunc) call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
             // " missing variable 'Topog function' that is required when 'Type' is 'Function'.")
 
+         RunParams%TopogFunc = TopogFuncStr%trim()
          ! Check if the number of TopogFuncParams are appropriate for each TopogFunc
          select case (TopogFuncStr%s)
 

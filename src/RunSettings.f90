@@ -312,6 +312,7 @@ module runsettings_module
       type(varString) :: RasterFile
       type(varString) :: SRTMPath
       character(len=11), dimension(:), allocatable :: SRTMfiles
+      type(varString) :: TopogFunc
       real(kind=wp), dimension(:), allocatable :: TopogFuncParams
       type(FortranRasterData) :: SRTMtiles
       logical(kind=c_bool) :: EmbedRaster

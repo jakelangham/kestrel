@@ -128,14 +128,14 @@ contains
 
    ! Get the scalar field from the raster and fill into the bandSection array.
    ! If tile lies outside the raster, set to defaultValue and outsideRaster = true
-   subroutine GetRasterData(path, fname, tileNW, tileSE, rdata, &
+   subroutine GetRasterData(path, filename, tileNW, tileSE, rdata, &
       defaultValue, &
       bandSection, rdX, rdY, rOX, rOY, &
       outsideRaster)
       implicit none
 
       type(varString), intent(in) :: path
-      type(varString), intent(in) :: fname
+      type(varString), intent(in) :: filename
       type(pair), intent(in) :: tileNW
       type(pair), intent(in) :: tileSE
       type(FortranRasterData), intent(in) :: rdata
@@ -163,7 +163,7 @@ contains
       xsize = ceiling((tileSE%first - tileNW%first)/rdX, kind=c_int) + 5
       ysize = ceiling((tileSE%second - tileNW%second)/rdY, kind=c_int) + 5
 
-      call GetRasterSection(path, fname, xoff, yoff, xsize, ysize, rasterSection)
+      call GetRasterSection(path, filename, xoff, yoff, xsize, ysize, rasterSection)
 
       rdX = rasterSection%pixelWidth
       rdY = rasterSection%pixelHeight
@@ -195,7 +195,6 @@ contains
       real(kind=wp), dimension(:), intent(in) :: ytile
       real(kind=wp), dimension(:,:), intent(out) :: b0(RunParams%nXpertile+1,RunParams%nYpertile+1)
 
-      type(varString) :: path
       type(varString) :: fname
       logical :: FileExists
 
@@ -244,7 +243,7 @@ contains
       tileSE%first  = RunParams%centerUTM%first + (xtile(nXpertile+1) + 0.5 * deltaX)
       tileSE%second = RunParams%centerUTM%second + (ytile(1) - 0.5 * deltaY)
 
-      call GetRasterData(path=path, fname=fname, tileNW=tileNW, tileSE=tileSE, rdata=rasterFull, &
+      call GetRasterData(path=RunParams%out_path, filename=fname, tileNW=tileNW, tileSE=tileSE, rdata=rasterFull, &
          defaultValue=0.0_wp, &
          bandSection=Elev, &
          rdX=rasterDeltaX, rdY=rasterDeltaY, &

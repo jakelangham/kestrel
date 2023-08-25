@@ -259,17 +259,253 @@ contains
 
       write (101, fmt="(a)") "Domain:"
 
+      write (101, fmt="(a,2P G0)") "Lat = ", RunParams%Lat
+      write (101, fmt="(a,3P G0)") "Lon = ", RunParams%Lon
+
+      write (101, fmt="(a)") "Boundary conditions = " // RunParams%bcs%s
+      if (RunParams%bcs%s=='dirichlet') then
+         write (101, fmt="(a,2P,G0)") "Boundary Hn = ", RunParams%bcsHnval
+         write (101, fmt="(a,2P,G0)") "Boundary U = ", RunParams%bcsuval
+         write (101, fmt="(a,2P,G0)") "Boundary V = ", RunParams%bcsvval
+         write (101, fmt="(a,2P,G0)") "Boundary psi = ", RunParams%bcspsival
+      end if
+
+      write (101, fmt="(a,i0)") "nXtiles = ", RunParams%nXtiles
+      write (101, fmt="(a,i0)") "nYtiles = ", RunParams%nYtiles
+      write (101, fmt="(a,i0)") "nXpertile = ", RunParams%nXpertile
+      write (101, fmt="(a,i0)") "nYpertile = ", RunParams%nYpertile
+      write (101, fmt="(a,G0)") "Xtilesize = ", RunParams%Xtilesize
+      write (101, *)
+
+      if (RunParams%set_Caps) then
+         do J = 1, RunParams%nCaps
+            write (101, fmt="(a)") "Cap:"
+            write (101, fmt="(a,G0)") "capX = ", RunParams%CapSources(J)%x
+            write (101, fmt="(a,G0)") "capY = ", RunParams%CapSources(J)%y
+            write (101, fmt="(a,G0)") "capRadius = ", RunParams%CapSources(J)%Radius
+            write (101, fmt="(a,G0)") "capVolume = ", RunParams%CapSources(J)%Volume
+            write (101, fmt="(a,G0)") "capHeight = ", RunParams%CapSources(J)%Height
+            write (101, fmt="(a,G0)") "capConc = ", RunParams%CapSources(J)%psi
+            write (101, fmt="(a,G0)") "capU = ", RunParams%CapSources(J)%U
+            write (101, fmt="(a,G0)") "capV = ", RunParams%CapSources(J)%V
+            write (101, fmt="(a,a)") "capShape = ", RunParams%CapSources(J)%Shape
+         end do
+      end if
+      if (RunParams%set_Cubes) then
+         do J = 1, RunParams%nCubes
+            write (101, fmt="(a)") "Cube:"
+            write (101, fmt="(a,G0)") "cubeX = ", RunParams%CubeSources(J)%x
+            write (101, fmt="(a,G0)") "cubeY = ", RunParams%CubeSources(J)%y
+            write (101, fmt="(a,G0)") "cubeLength = ", RunParams%CubeSources(J)%Length
+            write (101, fmt="(a,G0)") "cubeWidth = ", RunParams%CubeSources(J)%Width
+            write (101, fmt="(a,G0)") "cubeVolume = ", RunParams%CubeSources(J)%Volume
+            write (101, fmt="(a,G0)") "cubeHeight = ", RunParams%CubeSources(J)%Height
+            write (101, fmt="(a,G0)") "cubeConc = ", RunParams%CubeSources(J)%psi
+            write (101, fmt="(a,G0)") "cubeU = ", RunParams%CubeSources(J)%U
+            write (101, fmt="(a,G0)") "cubeV = ", RunParams%CubeSources(J)%V
+            write (101, fmt="(a,a)") "cubeShape = ", RunParams%CubeSources(J)%shape
+         end do
+      end if
+      if (RunParams%set_Sources) then
+         do J = 1, RunParams%nSources
+            write (101, fmt="(a)") "Source:"
+            write (101, fmt="(a,G0)") "sourceX = ", RunParams%FluxSources(J)%x
+            write (101, fmt="(a,G0)") "sourceY = ", RunParams%FluxSources(J)%y
+            write (101, fmt="(a,G0)") "sourceRadius = ", RunParams%FluxSources(J)%Radius
+            write (101, fmt="(a)", advance="no") "sourceTime = ("
+            do K = 1, RunParams%FluxSources(J)%nFluxSeries
+               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%time(K)
+               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
+            end do
+            write (101, fmt="(a1)") ")"
+            write (101, fmt="(a)", advance="no") "sourceFlux = ("
+            do K = 1, RunParams%FluxSources(J)%nFluxSeries
+               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%flux(K)
+               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
+            end do
+            write (101, fmt="(a1)") ")"
+            write (101, fmt="(a)", advance="no") "sourceConc = ("
+            do K = 1, RunParams%FluxSources(J)%nFluxSeries
+               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%psi(K)
+               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
+            end do
+            write (101, fmt="(a1)") ")"
+         end do
+      end if
+      write (101, *)
+
+      write (101, fmt="(a)") "Parameters:"
+      write (101, fmt="(a,G0)") "g = ", RunParams%g
+      write (101, fmt="(a,G0)") "rhow = ", RunParams%rhow
+      write (101, fmt="(a,G0)") "rhos = ", RunParams%rhos
+      select case (RunParams%DragChoice%s)
+      case ("Chezy")
+         write (101, fmt="(a)") "Drag = Chezy"
+         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
+      case ("Coulomb")
+         write (101, fmt="(a)") "Drag = Coulomb"
+         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
+      case ("Manning")
+         write (101, fmt="(a)") "Drag = Manning"
+         write (101, fmt="(a,G0)") "Manning co = ", RunParams%ManningCo
+      case ("Pouliquen")
+         write (101, fmt="(a)") "Drag = Pouliquen"
+         write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
+         write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
+         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+      case ("Variable")
+         write (101, fmt="(a)") "Drag = Variable"
+         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
+         write (101, fmt="(a,G0)") "Pouliquen Min = ", RunParams%PouliquenMinSlope
+         write (101, fmt="(a,G0)") "Pouliquen Max = ", RunParams%PouliquenMaxSlope
+         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+         write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
+         write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
+      case ("Voellmy")
+         write (101, fmt="(a)") "Drag = Voellmy"
+         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
+         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
+         write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
+         write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
+      end select
+      if ((RunParams%DragChoice%s=="Variable") .or. (RunParams%ErosionChoice%s=="Mixed")) then
+         write (101, fmt="(a,a)") "Switch function = ", RunParams%fswitch%s
+      end if
+      write (101, fmt="(a,a)") "Erosion = ", RunParams%ErosionChoice%s
+      if (RunParams%MorphodynamicsOn) then
+         if (RunParams%ErosionChoice%s=="Fluid") then
+            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
+         end if
+         if (RunParams%ErosionChoice%s=="Granular") then
+            write (101, fmt="(a,G0)") "Granular erosion rate = ", RunParams%EroRateGranular
+         end if
+         if (RunParams%ErosionChoice%s=="Mixed") then
+            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
+            write (101, fmt="(a,G0)") "Granular erosion rate = ", RunParams%EroRateGranular
+         end if
+         if (RunParams%ErosionChoice%s=="Simple") then
+            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
+         end if
+         write (101, fmt="(a,G0)") "Erosion critical height = ", RunParams%EroCriticalHeight
+         write (101, fmt="(a,G0)") "Morphodynamic damping = ", RunParams%MorphoDamp%s
+         write (101, fmt="(a,G0)") "Erosion depth = ", RunParams%EroDepth
+         write (101, fmt="(a,a)") "Erosion transition = ", RunParams%ErosionTransition%s
+         write (101, fmt="(a,G0)") "Bed porosity = ", RunParams%BedPorosity
+      end if
+      write (101, fmt="(a,a)") "Deposition = ", RunParams%DepositionChoice%s
+      if (RunParams%MorphodynamicsOn) then
+         write (101, fmt="(a,G0)") "Settling speed = ", RunParams%ws0
+         write (101, fmt="(a,G0)") "maxPack = ", RunParams%maxPack
+      end if
+      write (101, fmt="(a,G0)") "Eddy viscosity = ", RunParams%EddyViscosity
+      write (101, fmt="(a,G0)") "Solid diameter = ", RunParams%SolidDiameter
+      
+      if (RunParams%geometric_factors) then
+         write (101, fmt="(a)") "Geometric factors = On"
+      else
+         write (101, fmt="(a)") "Geometric factors = Off"
+      end if      
+      write (101, *)
+
+      write (101, fmt="(a)") "Solver:"
+      write (101, fmt="(a,a)") "limiter = ", RunParams%limiter%s
+      write (101, fmt="(a,G0)") "height threshold = ", RunParams%heightThreshold
+      write (101, fmt="(a,i0)") "Tile buffer = ", RunParams%TileBuffer
+      write (101, fmt="(a,G0)") "CFL = ", RunParams%cfl
+      write (101, fmt="(a,G0)") "max dt = ", RunParams%maxdt
+      write (101, fmt="(a,G0)") "T start = ", RunParams%tstart
+      write (101, fmt="(a,G0)") "T end = ", RunParams%tend
+      if (RunParams%Restart) then
+         write (101, fmt="(a)") "Restart = on"
+      else
+         write (101, fmt="(a)") "Restart = off"
+      end if
+      if (RunParams%InitialCondition%len()>0) then
+         write (101, fmt="(a,a)") "Initial condition = ", RunParams%InitialCondition%s
+      end if
+      if (RunParams%bcs%s=='sponge') then
+         write (101, fmt="(a,G0)") "Sponge strength = ", RunParams%SpongeStrength
+      end if
+      write (101, *)
+
+      write (101, fmt="(a)") "Output:"
+      write (101, fmt="(a,i0)") "N out = ", RunParams%Nout
+      write (101, fmt="(a,a)") "base path = ", RunParams%basePath%s
+      write (101, fmt="(a,a)") "directory = ", RunParams%OutDir%s
+      
+      out_fmts = varString("")
+      if (RunParams%out_txt) out_fmts = out_fmts + "txt"
+      if (RunParams%out_nc) then
+         if (out_fmts%len()>0) out_fmts = out_fmts + ", "
+         out_fmts = out_fmts + "nc"
+      end if
+      if (RunParams%out_kml) then
+         if (out_fmts%len()>0) out_fmts = out_fmts + ", "
+         out_fmts = out_fmts + "kml"
+      end if
+      write (101, fmt="(a,a)") "format = ", out_fmts%s
+      
+      write (101, fmt="(a,a)") "info filename = ", RunParams%InfoFilename%s
+
+      if ((RunParams%out_txt) .or. (RunParams%out_nc)) then
+         write (101, fmt="(a,a)") "maximums filename = ", RunParams%MaximumsFilename%s
+      end if
+
+      if (RunParams%out_txt) then
+         if (RunParams%CompressOutput) then
+            write (101, fmt="(a)") "compression = on"
+         else
+            write (101, fmt="(a)") "compression = off"
+         end if
+      end if
+
+      if (RunParams%out_kml) then
+         write (101, fmt="(a,G0)") "kml height = ", RunParams%kmlHeight
+         write (101, fmt="(a,a)") "inundation time filename = ", RunParams%InundationTimeFilename%s
+         write (101, fmt="(a,a)") "max height filename = ", RunParams%MaxHeightFilename%s
+         write (101, fmt="(a,a)") "max speed filename = ", RunParams%MaxSpeedFilename%s
+      end if
+
+      write (101, *)
+      write (101, fmt="(a)") "Topog:"
+      write (101, fmt="(a,a)") "Type = ", RunParams%Topog%s
+
+      if (RunParams%Topog%s=="raster") then
+         write (101, fmt="(a)") "raster file = "//RunParams%RasterFile%s
+         write (101, fmt="(a,a)") "dem directory = ", RunParams%demPath%s
+         if (RunParams%EmbedRaster) then
+            write (101, fmt="(a)") "Embed raster = on"
+         else
+            write (101, fmt="(a)") "Embed raster = off"
+         end if
+      end if
+
+      if ((RunParams%Topog%s=="srtm") .or. (RunParams%EmbedRaster)) then
+         write (101, fmt="(a,a)") "srtm directory = ", RunParams%SRTMPath%s
+      end if
+
+      if (RunParams%Topog%s=="function") then
+         write (101, fmt="(a,a)") "Topog function = ", RunParams%TopogFunc%s
+         if (allocated(RunParams%TopogFuncParams)) then
+            write (101, fmt="(a)", advance="no") "Topog params = ("
+            do J=1,size(RunParams%TopogFuncParams)
+               write (101, fmt="(G0)", advance="no") RunParams%TopogFuncParams(J)
+               if (J<size(RunParams%TopogFuncParams)) write (101, fmt="(a2)", advance="no") ", "
+            end do
+            write (101, fmt="(a1)") ")"
+         end if
+      end if
+
+      write (101, *)
+
+      write (101, fmt="(a)") "## Additional info (not settable) ##"
+      write (101, fmt="(a)") "# Domain:"
       if (RunParams%isOneD) then
          write (101, fmt="(a)") "# Spatial dimensions = 1"
       else
          write (101, fmt="(a)") "# Spatial dimensions = 2"
       end if
-
       if (RunParams%Georeference) then
-
-         write (101, fmt="(a,2P G0)") "Lat = ", RunParams%Lat
-         write (101, fmt="(a,3P G0)") "Lon = ", RunParams%Lon
-
          distxy%first = -0.5_wp*RunParams%nXPoints*RunParams%deltaX + RunParams%centerUTM%first
          distxy%second = -0.5_wp*RunParams%nYPoints*RunParams%deltaY + RunParams%centerUTM%second
          pt = RunParams%projTransformer%utm_to_wgs84(distxy%first, distxy%second)
@@ -299,268 +535,63 @@ contains
          write (101, fmt="(a,2P,G0)") "# central_easting = ", RunParams%centerUTM%first
          write (101, fmt="(a,2P,G0)") "# central_northing = ", RunParams%centerUTM%second
       end if
-
-      write (101, fmt="(a)") "Boundary conditions = " // RunParams%bcs%s
-      if (RunParams%bcs%s=='dirichlet') then
-         write (101, fmt="(a,2P,G0)") "Boundary Hn = ", RunParams%bcsHnval
-         write (101, fmt="(a,2P,G0)") "Boundary U = ", RunParams%bcsuval
-         write (101, fmt="(a,2P,G0)") "Boundary V = ", RunParams%bcsvval
-         write (101, fmt="(a,2P,G0)") "Boundary psi = ", RunParams%bcspsival
-      end if
-
+      
       write (101, fmt="(a,i0)") "# nTiles = ", RunParams%nTiles
-      write (101, fmt="(a,i0)") "nXtiles = ", RunParams%nXtiles
-      write (101, fmt="(a,i0)") "nYtiles = ", RunParams%nYtiles
-      write (101, fmt="(a,i0)") "nXpertile = ", RunParams%nXpertile
-      write (101, fmt="(a,i0)") "nYpertile = ", RunParams%nYpertile
       write (101, fmt="(a,i0)") "# nXPoints = ", RunParams%nXPoints
       write (101, fmt="(a,i0)") "# nYPoints = ", RunParams%nYPoints
-      write (101, fmt="(a,G0)") "Xtilesize = ", RunParams%Xtilesize
       write (101, fmt="(a,G0)") "# Ytilesize = ", RunParams%Ytilesize
       write (101, fmt="(a,G0)") "# xSize = ", RunParams%xSize
       write (101, fmt="(a,G0)") "# ySize = ", RunParams%ySize
       write (101, fmt="(a,G0)") "# deltaX = ", RunParams%deltaX
       write (101, fmt="(a,G0)") "# deltaY = ", RunParams%deltaY
-      write (101, *)
+      write (101, fmt="(a)") "#"
 
       if (RunParams%set_Caps) then
          write (101, fmt="(a,i0,a)") "# Number of cap sources = ", RunParams%nCaps
-         do J = 1, RunParams%nCaps
-            write (101, fmt="(a)") "Cap:"
-            if (RunParams%Georeference) then
+         if (RunParams%Georeference) then
+            do J = 1, RunParams%nCaps
+               write (101, fmt="(a)") "# Cap:"
                write (101, fmt="(a,2P G0)") "# capLat = ", RunParams%CapSources(J)%Lat
                write (101, fmt="(a,3P G0)") "# capLon = ", RunParams%CapSources(J)%Lon
-            end if
-            write (101, fmt="(a,G0)") "capX = ", RunParams%CapSources(J)%x
-            write (101, fmt="(a,G0)") "capY = ", RunParams%CapSources(J)%y
-            write (101, fmt="(a,G0)") "capRadius = ", RunParams%CapSources(J)%Radius
-            write (101, fmt="(a,G0)") "capVolume = ", RunParams%CapSources(J)%Volume
-            write (101, fmt="(a,G0)") "capHeight = ", RunParams%CapSources(J)%Height
-            write (101, fmt="(a,G0)") "capConc = ", RunParams%CapSources(J)%psi
-            write (101, fmt="(a,G0)") "capU = ", RunParams%CapSources(J)%U
-            write (101, fmt="(a,G0)") "capV = ", RunParams%CapSources(J)%V
-            write (101, fmt="(a,a)") "capShape = ", RunParams%CapSources(J)%Shape
-         end do
+            end do
+         end if
       end if
+
       if (RunParams%set_Cubes) then
          write (101, fmt="(a,i0,a)") "# Number of cube sources = ", RunParams%nCubes
-         do J = 1, RunParams%nCubes
-            write (101, fmt="(a)") "Cube:"
-            if (RunParams%Georeference) then
+         if (RunParams%Georeference) then
+            do J = 1, RunParams%nCubes
+               write (101, fmt="(a)") "# Cube:"
                write (101, fmt="(a,2P G0)") "# cubeLat = ", RunParams%CubeSources(J)%Lat
                write (101, fmt="(a,3P G0)") "# cubeLon = ", RunParams%CubeSources(J)%Lon
-            end if
-            write (101, fmt="(a,G0)") "cubeX = ", RunParams%CubeSources(J)%x
-            write (101, fmt="(a,G0)") "cubeY = ", RunParams%CubeSources(J)%y
-            write (101, fmt="(a,G0)") "cubeLength = ", RunParams%CubeSources(J)%Length
-            write (101, fmt="(a,G0)") "cubeWidth = ", RunParams%CubeSources(J)%Width
-            write (101, fmt="(a,G0)") "cubeVolume = ", RunParams%CubeSources(J)%Volume
-            write (101, fmt="(a,G0)") "cubeHeight = ", RunParams%CubeSources(J)%Height
-            write (101, fmt="(a,G0)") "cubeConc = ", RunParams%CubeSources(J)%psi
-            write (101, fmt="(a,G0)") "cubeU = ", RunParams%CubeSources(J)%U
-            write (101, fmt="(a,G0)") "cubeV = ", RunParams%CubeSources(J)%V
-            write (101, fmt="(a,a)") "cubeShape = ", RunParams%CubeSources(J)%shape
-         end do
+            end do
+         end if
       end if
+
       if (RunParams%set_Sources) then
          write (101, fmt="(a,i0,a)") "# Number of flux sources = ", RunParams%nSources
-         do J = 1, RunParams%nSources
-            write (101, fmt="(a)") "Source:"
-            if (RunParams%Georeference) then
+         if (RunParams%Georeference) then
+            do J = 1, RunParams%nSources
+               write (101, fmt="(a)") "# Source:"
                write (101, fmt="(a,2P G0)") "# sourceLat = ", RunParams%FluxSources(J)%Lat
                write (101, fmt="(a,3P G0)") "# sourceLon = ", RunParams%FluxSources(J)%Lon
-            end if
-            write (101, fmt="(a,G0)") "sourceX = ", RunParams%FluxSources(J)%x
-            write (101, fmt="(a,G0)") "sourceY = ", RunParams%FluxSources(J)%y
-            write (101, fmt="(a,G0)") "sourceRadius = ", RunParams%FluxSources(J)%Radius
-            write (101, fmt="(a)", advance="no") "sourceTime = ("
-            do K = 1, RunParams%FluxSources(J)%nFluxSeries
-               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%time(K)
-               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
             end do
-            write (101, fmt="(a1)") ")"
-            write (101, fmt="(a)", advance="no") "sourceFlux = ("
-            do K = 1, RunParams%FluxSources(J)%nFluxSeries
-               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%flux(K)
-               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
-            end do
-            write (101, fmt="(a1)") ")"
-            write (101, fmt="(a)", advance="no") "sourceConc = ("
-            do K = 1, RunParams%FluxSources(J)%nFluxSeries
-               write (101, fmt="(G0)", advance="no") RunParams%FluxSources(J)%psi(K)
-               if (K < RunParams%FluxSources(J)%nFluxSeries) write (101, fmt="(a2)", advance="no") ", "
-            end do
-            write (101, fmt="(a1)") ")"
-         end do
+         end if
       end if
-      write (101, *)
 
-      write (101, fmt="(a)") "Parameters:"
-      write (101, fmt="(a,G0)") 'g = ', RunParams%g
-      write (101, fmt="(a,G0)") 'rhow = ', RunParams%rhow
-      write (101, fmt="(a,G0)") 'rhos = ', RunParams%rhos
-      write (101, fmt="(a,G0)") '# reduced g = ', RunParams%gred
-      select case (RunParams%DragChoice%s)
-      case ("Chezy")
-         write (101, fmt="(a)") 'Drag = Chezy'
-         write (101, fmt="(a,G0)") 'Chezy co = ', RunParams%ChezyCo
-      case ("Coulomb")
-         write (101, fmt="(a)") 'Drag = Coulomb'
-         write (101, fmt="(a,G0)") 'Coulomb co = ', RunParams%CoulombCo
-      case ("Manning")
-         write (101, fmt="(a)") 'Drag = Manning'
-         write (101, fmt="(a,G0)") 'Manning co = ', RunParams%ManningCo
-      case ("Pouliquen")
-         write (101, fmt="(a)") 'Drag = Pouliquen'
-         write (101, fmt="(a,G0)") 'Pouliquen min = ', RunParams%PouliquenMinSlope
-         write (101, fmt="(a,G0)") 'Pouliquen max = ', RunParams%PouliquenMaxSlope
-         write (101, fmt="(a,G0)") 'Pouliquen beta = ', RunParams%PouliquenBeta
-      case ("Variable")
-         write (101, fmt="(a)") 'Drag = Variable'
-         write (101, fmt="(a,G0)") 'Chezy co = ', RunParams%ChezyCo
-         write (101, fmt="(a,G0)") 'Pouliquen Min = ', RunParams%PouliquenMinSlope
-         write (101, fmt="(a,G0)") 'Pouliquen Max = ', RunParams%PouliquenMaxSlope
-         write (101, fmt="(a,G0)") 'Pouliquen beta = ', RunParams%PouliquenBeta
-         write (101, fmt="(a,G0)") 'Voellmy switch rate = ', RunParams%VoellmySwitchRate
-         write (101, fmt="(a,G0)") 'Voellmy switch value = ', RunParams%VoellmySwitchValue
-      case ("Voellmy")
-         write (101, fmt="(a)") 'Drag = Voellmy'
-         write (101, fmt="(a,G0)") 'Chezy co = ', RunParams%ChezyCo
-         write (101, fmt="(a,G0)") 'Coulomb co = ', RunParams%CoulombCo
-         write (101, fmt="(a,G0)") 'Voellmy switch rate = ', RunParams%VoellmySwitchRate
-         write (101, fmt="(a,G0)") 'Voellmy switch value = ', RunParams%VoellmySwitchValue
-      end select
-      if ((RunParams%DragChoice%s=="Variable") .or. (RunParams%ErosionChoice%s=="Mixed")) then
-         write (101, fmt="(a,a)") 'Switch function = ', RunParams%fswitch%s
-      end if
-      write (101, fmt="(a,a)") 'Erosion = '//RunParams%ErosionChoice%s
+      write (101, fmt='(a)') "#"
+      write (101, fmt="(a)") "# Parameters:"
+      write (101, fmt="(a,G0)") "# reduced g = ", RunParams%gred
       if (RunParams%MorphodynamicsOn) then
-         if (RunParams%ErosionChoice%s=="Fluid") then
-            write (101, fmt="(a,G0)") 'Erosion rate = ', RunParams%EroRate
-         end if
-         if (RunParams%ErosionChoice%s=="Granular") then
-            write (101, fmt="(a,G0)") 'Granular erosion rate = ', RunParams%EroRateGranular
-         end if
-         if (RunParams%ErosionChoice%s=="Mixed") then
-            write (101, fmt="(a,G0)") 'Erosion rate = ', RunParams%EroRate
-            write (101, fmt="(a,G0)") 'Granular erosion rate = ', RunParams%EroRateGranular
-         end if
-         if (RunParams%ErosionChoice%s=="Simple") then
-            write (101, fmt="(a,G0)") 'Erosion rate = ', RunParams%EroRate
-         end if
-         write (101, fmt="(a,G0)") '# Critical shields = ', RunParams%CriticalShields
-         write (101, fmt="(a,G0)") 'Erosion critical height = ', RunParams%EroCriticalHeight
-         write (101, fmt="(a,G0)") 'Morphodynamic damping = ', RunParams%MorphoDamp%s
-         write (101, fmt="(a,G0)") 'Erosion depth = ', RunParams%EroDepth
-         write (101, fmt="(a,a)") 'Erosion transition = ', RunParams%ErosionTransition%s
-         write (101, fmt="(a,G0)") 'Bed porosity = ', RunParams%BedPorosity
+         write (101, fmt="(a,G0)") "# Critical shields = ", RunParams%CriticalShields
       end if
-      write (101, fmt="(a,a)") 'Deposition = '//RunParams%DepositionChoice%s
-      if (RunParams%MorphodynamicsOn) then
-         write (101, fmt="(a,G0)") 'Settling speed = ', RunParams%ws0
-         write (101, fmt="(a,G0)") 'maxPack = ', RunParams%maxPack
-      end if
-      write (101, fmt="(a,G0)") 'Eddy viscosity = ', RunParams%EddyViscosity
-      write (101, fmt="(a,G0)") 'Solid diameter = ', RunParams%SolidDiameter
-      write (101, fmt="(a,G0)") '# Particle Reynolds number = ', RunParams%Rep
-      if (RunParams%geometric_factors) then
-         write (101, fmt="(a)") 'Geometric factors = On'
-      else
-         write (101, fmt="(a)") 'Geometric factors = Off'
-      end if      
-      write (101, *)
+      write (101, fmt="(a,G0)") "# Particle Reynolds number = ", RunParams%Rep
 
-      write (101, fmt="(a)") "Solver:"
-      write (101, fmt="(a,a)") 'limiter = ', RunParams%limiter%s
-      write (101, fmt="(a,G0)") 'height threshold = ', RunParams%heightThreshold
-      write (101, fmt="(a,i0)") 'Tile buffer = ', RunParams%TileBuffer
-      write (101, fmt="(a,G0)") 'CFL = ', RunParams%cfl
-      write (101, fmt="(a,G0)") 'max dt = ', RunParams%maxdt
-      write (101, fmt="(a,G0)") 'T start = ', RunParams%tstart
-      write (101, fmt="(a,G0)") 'T end = ', RunParams%tend
-      if (RunParams%Restart) then
-         write (101, fmt="(a)") 'Restart = on'
-      else
-         write (101, fmt="(a)") 'Restart = off'
-      end if
-      if (RunParams%InitialCondition%len()>0) then
-         write (101, fmt="(a,a)") 'Initial condition = ', RunParams%InitialCondition%s
-      end if
-      if (RunParams%bcs%s=='sponge') then
-         write (101, fmt="(a,G0)") 'Sponge strength = ', RunParams%SpongeStrength
-      end if
-      write (101, *)
-
-      write (101, fmt="(a)") "Output:"
-      write (101, fmt="(a,i0)") 'N out = ', RunParams%Nout
-      write (101, fmt="(a,a)") 'base path = ', RunParams%basePath%s
-      write (101, fmt="(a,a)") 'directory = ', RunParams%OutDir%s
-      
-      out_fmts = varString("")
-      if (RunParams%out_txt) out_fmts = out_fmts + 'txt'
-      if (RunParams%out_nc) then
-         if (out_fmts%len()>0) out_fmts = out_fmts + ', '
-         out_fmts = out_fmts + 'nc'
-      end if
-      if (RunParams%out_kml) then
-         if (out_fmts%len()>0) out_fmts = out_fmts + ', '
-         out_fmts = out_fmts + 'kml'
-      end if
-      write (101, fmt="(a,a)") 'format = ', out_fmts%s
-      
-      write (101, fmt="(a,a)") 'info filename = ', RunParams%InfoFilename%s
-
-      if ((RunParams%out_txt) .or. (RunParams%out_nc)) then
-         write (101, fmt="(a,a)") 'maximums filename = ', RunParams%MaxHeightFilename%s
-      end if
-
-      if (RunParams%out_txt) then
-         if (RunParams%CompressOutput) then
-            write (101, fmt="(a)") 'compression = on'
-         else
-            write (101, fmt="(a)") 'compression = off'
-         end if
-      end if
-
-      if (RunParams%out_kml) then
-         write (101, fmt="(a,G0)") 'kml height = ', RunParams%kmlHeight
-         write (101, fmt="(a,a)") 'inundation time filename = ', RunParams%InundationTimeFilename%s
-         write (101, fmt="(a,a)") 'max height filename = ', RunParams%MaxHeightFilename%s
-         write (101, fmt="(a,a)") 'max speed filename = ', RunParams%MaxSpeedFilename%s
-      end if
-
-      write (101, fmt="(a,G0)") '# Time step between outputs = ',  &
+      write (101, fmt="(a)") "#"
+      write (101, fmt="(a)") "# Output:"
+      write (101, fmt="(a,G0)") "# Time step between outputs = ",  &
          (RunParams%tend - RunParams%tstart) / RunParams%Nout
-      write (101, fmt="(a,i0)") '# Last output file = ', RunParams%CurrentOut
-
-      write (101, *)
-      write (101, fmt="(a)") "Topog:"
-      write (101, fmt="(a,a)") "Type = ", RunParams%Topog%s
-
-      if (RunParams%Topog%s=="raster") then
-         write (101, fmt="(a)") "raster file = "//RunParams%RasterFile%s
-         write (101, fmt="(a,a)") "dem directory = ", RunParams%demPath%s
-         if (RunParams%EmbedRaster) then
-            write (101, fmt="(a)") "Embedded raster = on"
-         else
-            write (101, fmt="(a)") "Embedded raster = off"
-         end if
-      end if
-
-      if ((RunParams%Topog%s=="srtm") .or. (RunParams%EmbedRaster)) then
-         write (101, fmt="(a,a)") "srtm directory = ", RunParams%SRTMPath%s
-      end if
-
-      if (RunParams%Topog%s=="func") then
-         if (allocated(RunParams%TopogFuncParams)) then
-            write (101, fmt="(a25)", advance="no") "Topog parameters = ("
-            do J=1,size(RunParams%TopogFuncParams)
-               write (101, fmt="(G0)", advance="no") RunParams%TopogFuncParams(J)
-               if (J<size(RunParams%TopogFuncParams)) write (101, fmt="(a2)", advance="no") ", "
-            end do
-            write (101, fmt="(a1)") ")"
-         end if
-      end if
+      write (101, fmt="(a,i0)") "# Last output file = ", RunParams%CurrentOut
 
       close (101)
 

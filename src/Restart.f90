@@ -598,7 +598,7 @@ contains
                   LastFile = val%to_int()
                   found_lastfile = .true.
                end if
-               if (label%contains("start time")) then
+               if (label%contains("T start")) then
                   tstart = val%to_real()
                   found_tstart = .true.
                end if
@@ -609,7 +609,7 @@ contains
 
       if (.not. found_filetimestep) call FatalErrorMessage("Could not find 'Time step between outputs' in RunInfo.txt file")
       if (.not. found_lastfile) call FatalErrorMessage("Could not find 'Last output file' in RunInfo.txt file")
-      if (.not. found_tstart) call FatalErrorMessage("Could not find 'start time' in RunInfo.txt file")
+      if (.not. found_tstart) call FatalErrorMessage("Could not find 't start' in RunInfo.txt file")
 
       RunParams%FirstOut = LastFile
       RunParams%DeltaT = FileTimeStep
