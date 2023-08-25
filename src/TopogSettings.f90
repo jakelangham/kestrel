@@ -28,7 +28,7 @@ module topog_settings_module
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use varstring_module, only: varString
-   use utilities_module, only: CheckPath, Int2String
+   use utilities_module, only: PathTrail, Int2String
    use runsettings_module, only: RunSet
    use topog_funcs_module
    use utm_module
@@ -156,7 +156,7 @@ contains
             DemPath = varString(cwd, trim_str=.TRUE.)
             call WarningMessage("In the 'Topog' block 'dem directory' is not given.  Using current directory")
          end if   
-         RunParams%DemPath = CheckPath(DemPath)
+         RunParams%DemPath = PathTrail(DemPath)
 
          ! Check EmbedRaster is set
          if (.not.set_EmbedRaster) then
@@ -179,7 +179,7 @@ contains
                   trim(RunParams%InputFile%s) // new_line('A') &
                   // " 'SRTM directory' is not given.")
             end if
-            RunParams%SRTMPath = CheckPath(SRTMPath)
+            RunParams%SRTMPath = PathTrail(SRTMPath)
          end if
 
          RunParams%Georeference = .TRUE.
@@ -194,7 +194,7 @@ contains
                trim(RunParams%InputFile%s) // new_line('A') &
                // " 'SRTM directory' is not given.")
          end if
-         RunParams%SRTMPath = CheckPath(SRTMPath)
+         RunParams%SRTMPath = PathTrail(SRTMPath)
 
          RunParams%Georeference = .TRUE.
       end if
@@ -206,6 +206,7 @@ contains
          if (.not. set_TopogFunc) call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
             // " missing variable 'Topog function' that is required when 'Type' is 'Function'.")
 
+         RunParams%TopogFunc = TopogFuncStr%trim()
          ! Check if the number of TopogFuncParams are appropriate for each TopogFunc
          select case (TopogFuncStr%s)
 

@@ -115,7 +115,7 @@ contains
          cwd = varString()
          call getcwd(cwd_str)
          cwd = varString(cwd_str, trim_str=.TRUE.)
-         decompress_cmd = varString('cd ') + RunParams%OutDir &
+         decompress_cmd = varString('cd ') + RunParams%out_path &
                                    + ' && tar xzf ' + InitFile &
                                    + '.tar.gz ' + ' && cd ' + cwd%s
          call execute_command_line(decompress_cmd%s)
@@ -131,7 +131,7 @@ contains
 #if HAVE_NETCDF4
       case ('nc')
          call LoadInitialCondition_nc(RunParams, grid, InitFile%s, &
-                                      RunParams%OutDir%s // "Maximums.nc")
+                                      RunParams%out_path%s // "Maximums.nc")
 #endif
       end select
 
@@ -289,7 +289,7 @@ contains
 
       ! Read in aggregate data. (Only need to do this if restarting.)
       if (RunParams%Restart) then
-         MaximumsFilename = RunParams%OutDir + RunParams%MaximumsFilename + '.txt'
+         MaximumsFilename = RunParams%out_path + RunParams%MaximumsFilename + '.txt'
          
          inquire (file=MaximumsFilename%s, exist=FileExists)
          if (.not. FileExists) then
@@ -514,7 +514,7 @@ contains
          ext_in%s = '.txt'
       end if
 
-      InfoFile%s = RunParams%OutDir%s // RunParams%InfoFilename%s
+      InfoFile = RunParams%out_path + RunParams%InfoFilename
 
       inquire (file = InfoFile%s, exist = FileExists)
 
@@ -551,7 +551,7 @@ contains
 
       type(RunSet), intent(inout) :: RunParams
 
-      character(len=:), allocatable :: InfoFile
+      type(varString) :: InfoFile
       logical :: FileExists
       integer :: iostatus ! Status of input/output
 
@@ -564,18 +564,16 @@ contains
       logical :: found_lastfile
       logical :: found_tstart
 
-      allocate (character(len=len_trim(RunParams%OutDir%s) + 13) :: InfoFile)
+      InfoFile = RunParams%OutDir + RunParams%InfoFilename
 
-      InfoFile = RunParams%OutDir%s // RunParams%InfoFilename%s
-
-      inquire (File=InfoFile, Exist=FileExists)
+      inquire (File=InfoFile%s, Exist=FileExists)
 
       if (.not. FileExists) then
          call FatalErrorMessage('To restart this simulation, a ' // &
             RunParams%InfoFilename%s // ' file should be present in ' // &
             RunParams%OutDir%s // '.')
       end if
-      open (51, file=InfoFile) ! Open input file
+      open (51, file=InfoFile%s) ! Open input file
 
       found_filetimestep = .false.
       found_lastfile = .false.
@@ -590,7 +588,7 @@ contains
          if (iostatus /= 0) exit ! If iostat returns read error, exit loop
          line = line%adjustl() ! Ignore leading blanks
          if (line%len() > 0) then ! if the line isn't blank, process it
-            if (line%first_char() /= '%') then ! ignore lines starting with %
+            if (line%contains("=")) then ! ignore that are not in keyword = value format
                call line%split("=", label, remain=val)
                if (label%contains("Time step between outputs")) then
                   FileTimeStep = val%to_real()
@@ -600,7 +598,7 @@ contains
                   LastFile = val%to_int()
                   found_lastfile = .true.
                end if
-               if (label%contains("start time")) then
+               if (label%contains("T start")) then
                   tstart = val%to_real()
                   found_tstart = .true.
                end if
@@ -611,7 +609,7 @@ contains
 
       if (.not. found_filetimestep) call FatalErrorMessage("Could not find 'Time step between outputs' in RunInfo.txt file")
       if (.not. found_lastfile) call FatalErrorMessage("Could not find 'Last output file' in RunInfo.txt file")
-      if (.not. found_tstart) call FatalErrorMessage("Could not find 'start time' in RunInfo.txt file")
+      if (.not. found_tstart) call FatalErrorMessage("Could not find 't start' in RunInfo.txt file")
 
       RunParams%FirstOut = LastFile
       RunParams%DeltaT = FileTimeStep

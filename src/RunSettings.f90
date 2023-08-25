@@ -282,6 +282,7 @@ module runsettings_module
       ! Various output file names.
       type(varString) :: basePath
       type(varString) :: OutDir
+      type(varString) :: out_path
       type(varString) :: TopogFilename
       type(varString) :: InfoFilename
       type(varString) :: MaxHeightFilename
@@ -311,6 +312,7 @@ module runsettings_module
       type(varString) :: RasterFile
       type(varString) :: SRTMPath
       character(len=11), dimension(:), allocatable :: SRTMfiles
+      type(varString) :: TopogFunc
       real(kind=wp), dimension(:), allocatable :: TopogFuncParams
       type(FortranRasterData) :: SRTMtiles
       logical(kind=c_bool) :: EmbedRaster

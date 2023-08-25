@@ -763,7 +763,7 @@ contains
 
       call WarningMessage("The 'Initial Conditions' block" &
          // " contains both " // trim(var1) // " and " // trim(var2) // ".  Only one should be set. " &
-         // trim(var1) // " is given first, so ignoring " // trim(var2) // ".")
+         // "Using " // trim(var1) // " and ignoring " // trim(var2) // ".")
 
       return
    end subroutine Warning_TwoGiven

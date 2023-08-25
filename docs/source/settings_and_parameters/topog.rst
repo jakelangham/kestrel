@@ -66,10 +66,12 @@ The following parameter is **conditionally required** when :code:`Type = DEM` or
     :code:`srtm directory`
 
         The directory containing the SRTM data. This should be in the form of
-        an SRTM archive, i.e. with a structure N01/N01*.tif, N02/N02*.tif, ...
+        an SRTM archive, i.e. either:
+        - containing zip files with extension :code:`.SRTMGL1.hgt.zip`
+        - a directory with a structure N01/N01*.tif, N02/N02*.tif, ...
 
         .. note::
-            SRTM files may be either geotiff or USGS hgt format (included zipped
+            SRTM files may be either geotiff or USGS hgt format (including zipped
             hgt files with extension :code:`.SRTMGL1.hgt.zip`).
 
 There is one **conditionally required** setting needed when :code:`Type =

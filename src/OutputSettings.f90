@@ -27,7 +27,7 @@ module outputsettings_module
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use varstring_module, only: varString
-   use utilities_module, only: CheckPath
+   use utilities_module, only: PathTrail
    use runsettings_module, only: RunSet
 
    implicit none
@@ -205,17 +205,18 @@ contains
       if (.not.set_basePath) then
          call getcwd(cwd)
          basePath = varString(cwd, trim_str=.TRUE.)
-         basePath = CheckPath(basePath)
          call WarningMessage("In the 'Output' block 'Base path' is not given.  Using current working directory  " // basePath%s)
       end if
-      RunParams%basePath = basePath
+      RunParams%basePath = PathTrail(basePath)
 
       if (.not.set_OutDir) then
          OutDir = varString(OutDir_d)
          call WarningMessage("In the 'Output' block 'Directory' is not given.  Using default directory " // OutDir_d)
       end if
-      RunParams%OutDir = RunParams%basePath + OutDir
-      RunParams%OutDir = CheckPath(RunParams%OutDir)
+      RunParams%OutDir = OutDir
+      RunParams%OutDir = PathTrail(RunParams%OutDir)
+
+      RunParams%out_path = RunParams%basePath + RunParams%OutDir
 
       if (.not.set_InfoFilename) then
          InfoFilename = varString(InfoFilename_d)

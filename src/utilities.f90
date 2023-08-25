@@ -51,7 +51,7 @@ module utilities_module
    public :: Int2String
    public :: AddToVector, InVector, RemoveFromVector
    public :: AddToOrderedVector
-   public :: CheckPath, CheckFileExists
+   public :: PathTrail, CheckFileExists
    public :: KahanAdd, KahanSum
    public :: pair
 
@@ -370,7 +370,7 @@ contains
 
    end function InVector_i
 
-   pure function CheckPath(path) result(valid_path)
+   pure function PathTrail(path) result(valid_path)
       type(varString), intent(in) :: path
       type(varString) :: valid_path
       ! character(len=:), allocatable :: tmp_path
@@ -389,7 +389,7 @@ contains
 
       return
 
-   end function CheckPath
+   end function PathTrail
 
    function check_file_exists_str(fname) result(exist)
       character(len=*), intent(in) :: fname
