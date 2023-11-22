@@ -16,7 +16,7 @@ started
 
 1. Kestrel builds with GNU autotools on Unix-like platforms. The auto-generated
    configuration scripts are not included in the git repository, so you'll need
-   to do
+   to make sure you have automake, autoconf (etc) installed and run
 
    > `autoreconf -fi`
 
