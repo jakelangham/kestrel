@@ -199,9 +199,7 @@ AC_DEFUN([AX_LIB_PROJ],
         HAVE_PROJ="no"
         AC_MSG_RESULT([$HAVE_PROJ])
 
-        if test "$proj_requested" = "yes"; then
-            AC_MSG_WARN([proj projection support requested but headers or library not found. Specify valid prefix of proj using --with-proj=@<:@DIR@:>@ or provide include directory and linker flags using --with-proj-inc and --with-proj-lib])
-        fi
+        AC_MSG_ERROR([proj projection support required but headers or library not found. Specify a valid prefix of proj using --with-proj=@<:@DIR@:>@ or provide include directory and linker flags using --with-proj-inc and --with-proj-lib])
     fi
 ])
 
