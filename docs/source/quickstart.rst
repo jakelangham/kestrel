@@ -15,7 +15,9 @@ In order to do so, make sure the following dependencies are present on your syst
 * `GDAL <https://gdal.org/>`_ (>= 2.2.0)
 * `PROJ <https://proj.org/>`_
 * GNU autotools (if building directly from the git repository)
-* (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_
+* (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (the
+  `NetCDF-Fortran <https://docs.unidata.ucar.edu/netcdf-fortran/current/>`_ 
+  library is required in this case)
 * (optional) `Julia <https://julialang.org/>`_, for running tests
 
 .. _installation:
@@ -57,7 +59,7 @@ you can instead use Boost to do filesystem calls by specifying
 
 where ARG optionally specifies the location of your Boost installation.
 
-Both GDAL and PROJ libraries are required and sometimes might be in unusual
+Both the GDAL and PROJ libraries are required and sometimes might be in unusual
 places, depending on your system. If they are not found automatically, their 
 base directories can be specified with
 
