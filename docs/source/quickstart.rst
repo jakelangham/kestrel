@@ -57,6 +57,14 @@ you can instead use Boost to do filesystem calls by specifying
 
 where ARG optionally specifies the location of your Boost installation.
 
+Both GDAL and PROJ libraries are required and sometimes might be in unusual
+places, depending on your system. If they are not found automatically, their 
+base directories can be specified with
+
+.. code-block:: bash
+
+  $ ./configure --with-gdal=[ARG] --with-proj=[ARG]
+
 For testing, the path to a valid Julia executable can be specified with
 
 .. code-block:: bash
