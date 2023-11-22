@@ -93,6 +93,7 @@ contains
          InitFile = RunParams%InitialCondition
       else if (RunParams%Restart) then
          call GetLastResultFile(RunParams, InitFile, ext='')
+         InitFile = RunParams%basePath + InitFile
       else
          return ! No initial conditions to load
       end if
@@ -385,8 +386,10 @@ contains
       call get_nc_att(ncid, 'nXtiles', nXtiles)
       call get_nc_att(ncid, 'nYtiles', nYtiles)
 
-      call get_nc_att(ncid, 'central_easting', central_easting)
-      call get_nc_att(ncid, 'central_northing', central_northing)
+      if (RunParams%Georeference) then
+        call get_nc_att(ncid, 'central_easting', central_easting)
+        call get_nc_att(ncid, 'central_northing', central_northing)
+      end if
 
       nX = nXtiles*nXpertile
       nY = nYtiles*nYpertile
@@ -564,8 +567,7 @@ contains
       logical :: found_lastfile
       logical :: found_tstart
 
-      InfoFile = RunParams%OutDir + RunParams%InfoFilename
-
+      InfoFile = RunParams%basePath + RunParams%OutDir + RunParams%InfoFilename
       inquire (File=InfoFile%s, Exist=FileExists)
 
       if (.not. FileExists) then
@@ -590,15 +592,16 @@ contains
          if (line%len() > 0) then ! if the line isn't blank, process it
             if (line%contains("=")) then ! ignore that are not in keyword = value format
                call line%split("=", label, remain=val)
-               if (label%contains("Time step between outputs")) then
+               label = label%to_lower()
+               if (label%contains("time step between outputs")) then
                   FileTimeStep = val%to_real()
                   found_filetimestep = .true.
                end if
-               if (label%contains("Last output file")) then
+               if (label%contains("last output file")) then
                   LastFile = val%to_int()
                   found_lastfile = .true.
                end if
-               if (label%contains("T start")) then
+               if (label%contains("t start")) then
                   tstart = val%to_real()
                   found_tstart = .true.
                end if
