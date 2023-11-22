@@ -29,29 +29,49 @@ $prog $t1
 rm $t1
 
 echo "Checking final output files"
+
+out1="$f1/000004.nc"
+out2="$f2/000004.nc"
+if [[ ! -e "$out1" || ! -e "$out2" ]]; then
+   echo "FAIL: Output files ($out1, $out2) not found"
+   exit 1
+fi
+
 t1=`mktemp`
-ncdump $f1/000004.nc > $t1
+ncdump $out1 > $t1
 t2=`mktemp`
-ncdump $f2/000004.nc > $t2
+ncdump $out2 > $t2
 fail=`diff -I 'Restart =' $t1 $t2`
 rm $t1 $t2
 
 if [ "$fail" ]; then
    echo "FAIL: Final two netcdf outputs differ."
+   exit 1
 else
    echo "PASS: Final two netcdf outputs are identical."
 fi
 
 echo "Checking Maximums files"
+
+max1="$f1/Maximums.nc"
+max2="$f2/Maximums.nc"
+if [[ ! -e "$max1" || ! -e "$max2" ]]; then
+   echo "FAIL: Maximums files ($out1, $out2) not found"
+   exit 1
+fi
+
 t1=`mktemp`
-ncdump $f1/Maximums.nc > $t1
+ncdump $max1 > $t1
 t2=`mktemp`
-ncdump $f2/Maximums.nc > $t2
+ncdump $max2 > $t2
 fail=`diff -I 'Restart =' $t1 $t2`
 rm $t1 $t2
 
 if [ "$fail" ]; then
    echo "FAIL: Final two netcdf outputs differ."
+   exit 1
 else
    echo "PASS: Final two netcdf outputs are identical."
 fi
+
+exit 0
