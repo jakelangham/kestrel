@@ -38,7 +38,7 @@
 module output_module
 
    use set_precision_module, only: wp
-   use utilities_module, only: CheckFileExists, PathTrail, Int2String, KahanAdd, pair
+   use utilities_module, only: AddToOrderedVector, CheckFileExists, PathTrail, Int2String, KahanAdd, pair
    use grid_module, only: GridCoords, GridType, TileList, TileType
    use closures_module, only : FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use runsettings_module, only : RunSet
@@ -965,6 +965,9 @@ contains
 
       integer :: tile_left, tile_bottom
 
+      integer, dimension(:), allocatable :: TileCols
+      integer, dimension(:), allocatable :: TileRows
+
       real(kind=wp), dimension(:, :), allocatable :: spd
 
       if (RunParams%Lat < 0) then
@@ -985,15 +988,6 @@ contains
       nY_vertex_pertile = nYpertile + 1
       nXY_vertex_pertile = [nX_vertex_pertile, nY_vertex_pertile]
 
-      nXtiles = int((grid%xmax - grid%xmin + RunParams%deltaX)/(RunParams%Xtilesize))
-      nYtiles = int((grid%ymax - grid%ymin + RunParams%deltaY)/(RunParams%Ytilesize))
-
-      nX = nXtiles*nXpertile
-      nY = nYtiles*nYpertile
-
-      nX_vertex = nXtiles*(nXpertile + 1)
-      nY_vertex = nYtiles*(nYpertile + 1)
-
       do tt = 1, nTiles
 
          ttk = grid%ActiveTiles%List(tt)
@@ -1002,7 +996,19 @@ contains
 
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
+
+         call AddToOrderedVector(TileCols, tile_i, repeat=.FALSE.)
+         call AddToOrderedVector(TileRows, tile_j, repeat=.FALSE.)
       end do
+
+      nXtiles = size(TileCols)
+      nYtiles = size(TileRows)
+
+      nX = nXtiles*nXpertile
+      nY = nYtiles*nYpertile
+
+      nX_vertex = nXtiles*(nXpertile + 1)
+      nY_vertex = nYtiles*(nYpertile + 1)
 
       filename_full = RunParams%out_path + trim(filename)
 
@@ -1373,6 +1379,9 @@ contains
 
       integer :: tile_left, tile_bottom
 
+      integer, dimension(:), allocatable :: TileCols
+      integer, dimension(:), allocatable :: TileRows
+
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
       else
@@ -1388,12 +1397,6 @@ contains
 
       nXYpertile = [nXpertile, nYpertile]
 
-      nXtiles = int((grid%xmax - grid%xmin + RunParams%deltaX)/(RunParams%Xtilesize))
-      nYtiles = int((grid%ymax - grid%ymin + RunParams%deltaY)/(RunParams%Ytilesize))
-
-      nX = nXtiles*nXpertile
-      nY = nYtiles*nYpertile
-
       do tt = 1, nTiles
 
          ttk = grid%ActiveTiles%List(tt)
@@ -1402,7 +1405,16 @@ contains
 
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
+
+         call AddToOrderedVector(TileCols, tile_i, repeat=.FALSE.)
+         call AddToOrderedVector(TileRows, tile_j, repeat=.FALSE.)
       end do
+
+      nXtiles = size(TileCols)
+      nYtiles = size(TileRows)
+
+      nX = nXtiles*nXpertile
+      nY = nYtiles*nYpertile
 
       nc_status = nf90_create(path=filename, cmode=NF90_NETCDF4, ncid=ncid)
       if (nc_status /= NF90_NOERR) call handle_err(nc_status, 'nf90_create '//filename)
