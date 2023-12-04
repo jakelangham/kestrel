@@ -162,17 +162,12 @@ contains
          end if
       end do
 
-      b0(:,:) = b0(:,:)-tan(31.0_wp*pi/180.0_wp)*76.0_wp
-
       ! Add confining walls
       do ii=1,size(x)
          if (x(ii)<8.5_wp) then
             do jj=1,size(y)
                b0(ii,jj) = b0(ii,jj) + 0.5_wp*wallH*(tanh(sigma*(y(jj)-1.0_wp)) &
                   - tanh(sigma*(y(jj)-2.0_wp)) + tanh(sigma*(y(jj)+2.0_wp)) - tanh(sigma*(y(jj)+1.0_wp)))
-            !    if ((y(jj)>-2.0_wp .and. y(jj)<-1.0_wp) .or. (y(jj)<2.0_wp .and. y(jj)>1.0_wp)) then
-            !        b0(ii,jj) = b0(ii,jj) + wallH
-            !    end if
             end do
          end if
       end do
