@@ -25,7 +25,7 @@ In order to do so, make sure the following dependencies are present on your syst
 Installation
 ------------
 
-We use GNU autools for our build system. If building directly from the git repository, you must first generate the relevant build scripts using the command
+We use GNU autotools for our build system. If building directly from the git repository, you must first generate the relevant build scripts using the command
 
 .. code-block:: bash
 
