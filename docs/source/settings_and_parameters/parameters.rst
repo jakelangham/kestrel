@@ -99,7 +99,7 @@ There are two **required** settings in the *Parameters* block:
         :code:`variable`
 
             Sets the following drag law, which interpolates between the Chézy
-            and Pouliqeun laws, depending on the solids fraction:
+            and Pouliquen laws, depending on the solids fraction:
 
                 :math:`\mathcal{F} = (1 - f(\bar{\psi})) C_d |\mathbf{u}|^2 +
                 f(\bar{\psi}) \mu(I) g_\perp H`,

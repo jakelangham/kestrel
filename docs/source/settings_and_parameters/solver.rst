@@ -27,7 +27,7 @@ The **optional** settings of the solver block are:
             
             :code:`MinMod2` (default)
 
-                The generalized minmod limiter, defined as
+                The generalised minmod limiter, defined as
 
                     .. math::
                         \mathrm{MinMod}(a, b) = \begin{cases} \mathrm{sgn}(a) . \min(\theta\left|a\right|, \tfrac{1}{2}\left|a+b\right|, \theta\left|b\right|), & \text{if $\mathrm{sgn}(a)=\mathrm{sgn}(b)$}\\ 0, & \text{if $\mathrm{sgn}(a)+\mathrm{sgn}(b)$ = 0}. \end{cases}
@@ -72,7 +72,7 @@ The **optional** settings of the solver block are:
 
     :code:`Tile buffer = 1`
 
-        Neighbouring tiles are activited if flow reaches :code:`tile buffer` cells from a tile edge.  The default value :code:`tile buffer = 1` should ensure that a neighbouring tile is added when needed.
+        Neighbouring tiles are activated if flow reaches :code:`tile buffer` cells from a tile edge.  The default value :code:`tile buffer = 1` should ensure that a neighbouring tile is added when needed.
 
     :code:`CFL = 0.5` for 1D simulations; :code:`CFL = 0.25` for 2D simulations
 

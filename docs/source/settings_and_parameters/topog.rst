@@ -3,7 +3,7 @@ Topog
 
 The *Topog* block specifies the topography to be used for the simulation.
 Topography can be given either as a Digital Elevation Model (DEM) or through a
-parameterized analytic function.  The *Topog* block is identified using the block
+parameterised analytic function.  The *Topog* block is identified using the block
 keyword :code:`Topog:`.
 
 There is a single **required** parameter in the *Topog* block:
@@ -22,9 +22,9 @@ There is a single **required** parameter in the *Topog* block:
 
         :code:`Function`
 
-            Use a parameterized analytic function defining a surface.
+            Use a parameterised analytic function defining a surface.
 
-The following statment is **conditionally required** when :code:`Type = DEM` or
+The following statement is **conditionally required** when :code:`Type = DEM` or
 :code:`Type = Raster`:
 
     :code:`raster file`
@@ -122,7 +122,7 @@ functions:
 
             - :code:`alpha` -- slope on left-hand-side.
             - :code:`beta` -- slope on right-hand-side.
-            - :code:`R` -- radius of connecting cicular arc.
+            - :code:`R` -- radius of connecting circular arc.
 
     :code:`Topog function = xBislope`
 
@@ -141,7 +141,7 @@ functions:
 
     :code:`Topog function = USGS`
 
-        Parameterization of the USGS flume.  This has slope of 31° for
+        Parametrisation of the USGS flume.  This has slope of 31° for
         :math:`x<0`, and slope 2.4° for :math:`x>x_{1}>0` that are connected
         by a smooth :math:`\cosh` curve section.  Note :math:`x_{1}` is
         determined to ensure smooth connection of the slope elements.  The flume
@@ -169,7 +169,7 @@ functions:
 
         Two-dimensional sinusoidal variation, with one complete period in the
         specified domain. Letting :math:`L_{x}` and :math:`L_{y}` denote the
-        domain lengths in :math:`x` and :math:`y` respectively, the suface is
+        domain lengths in :math:`x` and :math:`y` respectively, the surface is
         :math:`b_{0}(x,y) = \epsilon \sin(2\pi x / L_{x}) \sin(2\pi y / L_{y}).`
 
         :code:`Topog params = (epsilon)`

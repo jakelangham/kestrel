@@ -37,7 +37,7 @@ Then the code can be compiled with
 
   $ ./configure && make
 
-If succesful, this places an executable in the src directory.
+If successful, this places an executable in the src directory.
 
 You may wish to provide additional flags to the configure script, depending on
 your local setup. For example, you can do
@@ -245,8 +245,8 @@ release, there is a ``Source``.
 .. literalinclude:: ../../examples/Input2d_flux_SRTM.txt
    :lines: 23-29
 
-This specifies source fluxes as input material for the flow, occuring within
-a circle centered at ``SourceLat``/``SourceLon`` with a 5 metre radius. These
+This specifies source fluxes as input material for the flow, occurring within
+a circle centred at ``SourceLat``/``SourceLon`` with a 5 metre radius. These
 fluxes are time dependent, in accordance with the given time series data. In
 general, any number of ``Cap`` and ``Source`` blocks may be specified for a
 simulation.

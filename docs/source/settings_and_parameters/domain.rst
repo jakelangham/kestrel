@@ -21,14 +21,14 @@ The following **required** settings are specified in the *Domain* block:
 
     :code:`Lat = 13.248745`
 
-        The latitude of the center of the domain in decimal degrees in WGS84
+        The latitude of the centre of the domain in decimal degrees in WGS84
         coordinates, for georeferenced simulations.  For simulations using an
         analytical surface, this should be set to the required central point for
         :math:`y`-coordinate.
 
     :code:`Lon = 123.686939`
 
-        The longitude of the center of the domain in decimal degrees in WGS84
+        The longitude of the centre of the domain in decimal degrees in WGS84
         coordinates, for georeferenced simulations.  For simulations using an
         analytical surface, this should be set to the required central point for
         :math:`x`-coordinate.
@@ -118,7 +118,7 @@ The following settings are **conditionally required** when the optional
 
     .. note:: 
 
-        Dirchlet conditions only affect parts of the simulation containing flow.
+        Dirichlet conditions only affect parts of the simulation containing flow.
         Therefore, the typical way to make use of them is to provide some
         flowing material via a `Cap` block (see below) that touches the edge of
         the domain.

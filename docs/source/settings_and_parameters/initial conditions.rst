@@ -28,22 +28,22 @@ These **required** specifiers give:
 
     :code:`capLat = 13.248745`
 
-        The latitude of the center of the volume in decimal degrees in WGS84
+        The latitude of the centre of the volume in decimal degrees in WGS84
         coordinates.
 
     :code:`capLat = 123.686939`
 
-        The longitude of the center of the volume in decimal degrees in WGS84
+        The longitude of the centre of the volume in decimal degrees in WGS84
         coordinates.
 
     :code:`capX = 100`
 
-        The offset of the center of the volume along the :math:`x` axis in
+        The offset of the centre of the volume along the :math:`x` axis in
         metres from the centre of the domain.
 
     :code:`capY = -50`
 
-        The offset of the center of the volume along the :math:`y` axis in
+        The offset of the centre of the volume along the :math:`y` axis in
         metres from the centre of the domain.
 
 To set the volume of the release, exactly two out of three of the following
@@ -137,22 +137,22 @@ These **required** specifiers give:
 
     :code:`cubeLat = 13.248745`
 
-        The latitude of the center of the volume in decimal degrees in WGS84
+        The latitude of the centre of the volume in decimal degrees in WGS84
         coordinates.
 
     :code:`cubeLat = 123.686939`
 
-        The longitude of the center of the volume in decimal degrees in WGS84
+        The longitude of the centre of the volume in decimal degrees in WGS84
         coordinates.
 
     :code:`cubeX = 100`
 
-        The offset of the center of the volume along the :math:`x` axis in
+        The offset of the centre of the volume along the :math:`x` axis in
         metres from the centre of the domain.
 
     :code:`cubeY = -50`
 
-        The offset of the center of the volume along the :math:`y` axis in
+        The offset of the centre of the volume along the :math:`y` axis in
         metres from the centre of the domain.
 
 To set the volume of the release, the following settings are **required**:
@@ -238,19 +238,19 @@ These **required** specifiers give:
 
     :code:`sourceLat = 13.248745`
 
-        The latitude of the center of the flux source in decimal degrees in WGS84 coordinates.
+        The latitude of the centre of the flux source in decimal degrees in WGS84 coordinates.
 
     :code:`sourceLon = 123.686939`
 
-        The longitude of the center of the flux source in decimal degrees in WGS84 coordinates.
+        The longitude of the centre of the flux source in decimal degrees in WGS84 coordinates.
 
     :code:`sourceX = 100`
 
-        The offset of the center of the flux source along the :math:`x` axis in metres from the centre of the domain.
+        The offset of the centre of the flux source along the :math:`x` axis in metres from the centre of the domain.
 
     :code:`sourceY = -50`
 
-        The offset of the center of the flux source along the :math:`y` axis in metres from the centre of the domain.
+        The offset of the centre of the flux source along the :math:`y` axis in metres from the centre of the domain.
 
 The following are the additional **required** settings for a source block:
 

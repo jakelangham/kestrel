@@ -31,7 +31,7 @@ essential processes in the system:
       column perpendicular to the bed.
     - Beneath the erodible bed lies an inerodible bedrock. The initial thickness
       of the erodible layer, measured vertically, is a positive constant (which
-      may be zero, for simulating flows on inerodible susbtrates).
+      may be zero, for simulating flows on inerodible substrates).
     - The typical curvature of the bed is no greater (in an order-of-magnitude
       sense) than :math:`H/L` and the rate of change of bed elevation due to
       morphodynamics is no greater than the typical bed-normal velocity scale.
@@ -128,7 +128,7 @@ In the derivation of the above equations, the terms :math:`\mathcal{F}`,
 :math:`\mathcal{E}`, :math:`\mathcal{D}` and :math:`\mathcal{R}` are left as
 arbitrary functions of the flow variables, e.g. :math:`\mathcal{F} \equiv
 \mathcal{F}(H,\bar{\mathbf{u}},\bar{\psi},b)`. More generally, they could also
-be functions of space, time and other observatbles that Kestrel does not
+be functions of space, time and other observables that Kestrel does not
 explicitly solve for, such as temperature, or pore pressure. However, this
 functionality is not currently supported.
 
