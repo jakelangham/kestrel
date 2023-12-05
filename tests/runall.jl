@@ -150,8 +150,15 @@ function run_all()
    @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
 end
 
-tests = ( if isempty(ARGS); ["all"]; else ARGS; end)
-if "all" in tests
+# Print a list of available test categories.
+function print_options()
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+end
+
+tests = (if isempty(ARGS); ["all"]; else ARGS; end)
+if "help" in tests
+   print_options()
+elseif "all" in tests
    run_all()
 else
    numtests = 0
@@ -187,7 +194,7 @@ else
       @printf "Results: %i/%i passed" numpassed numtests
       @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
    else
-      println("No tests selected.  Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+      println("No valid tests selected.")
+      print_options()
    end
-
 end
