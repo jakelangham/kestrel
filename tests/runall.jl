@@ -45,10 +45,9 @@ tests_identical = [
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
-with_netcdf = false
 tests_netcdf = []
-if !isempty(read(pipeline(`ldd $prog`, `grep netcdf`)))
-   with_netcdf = true
+with_netcdf = links_to_netcdf(prog)
+if with_netcdf
    tests_netcdf = [
       ("netcdf_restart", 2)
    ]
