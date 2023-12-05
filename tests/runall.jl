@@ -177,11 +177,12 @@ else
          numtests += length(tests_netcdf)
          numpassed += run_netcdf()
       else
-         printstyled("FAIL Kestrel is not build with NetCDF support\n"; color=:red, bold=true)
+         printstyled("FAIL Kestrel is not built with NetCDF support\n"; 
+                     color = :red, bold = true)
       end
    end
 
-   if numtests>=1
+   if numtests >= 1
       ratio = 100 * numpassed / numtests
       @printf "Results: %i/%i passed" numpassed numtests
       @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
