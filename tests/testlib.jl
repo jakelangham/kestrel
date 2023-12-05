@@ -490,7 +490,7 @@ end
 function links_to_netcdf(prog)
     lib_printer_exec = "ldd" # default library checker
     if Sys.isapple()
-      lib_printer_exec = ["otool", "-L"]
+        lib_printer_exec = ["otool", "-L"]
     end
 
     cmd = `$lib_printer_exec $prog`
