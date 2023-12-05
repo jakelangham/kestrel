@@ -62,6 +62,14 @@ expected, you probably do not need to bother with this.
 More detailed user documentation is available
 [here](https://kestrel-unibristol.readthedocs.io/en/latest/index.html).
 
+## Contributing ##
+
+Fixes, improvements and suggestions/bug reports are most welcome. The best way to 
+contribute is publically, via the 
+[issue tracker](https://github.com/jakelangham/kestrel/issues), though you may also
+use the details below to contact us directly. A little guidance on the sorts of
+contributions that might be valuable is given [here](https://kestrel-unibristol.readthedocs.io/en/latest/contributing.html).
+
 ## Contact ##
 
 Kestrel is developed and maintained by Mark J. Woodhouse
