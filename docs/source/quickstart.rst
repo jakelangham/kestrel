@@ -82,7 +82,7 @@ Some other options are listed in the help dialogue of the configure script
   $ ./configure --help
 
 .. _quick_run:
-  
+
 Running simulations
 -------------------
 
@@ -318,3 +318,44 @@ separately.)
    :width: 100%
    :align: center
 
+Testing
+-------
+
+If you want to check that Kestrel is working well, there is a lightweight test
+suite available as a Julia script. It is unlikely to be necessary to run these
+if you are only using the main code branch to run simulations. However, when
+modifying the code, these tests can be used to identify problems. 
+
+To run all tests, change to the ./tests subdirectory and run:
+
+.. code-block:: bash
+
+   $ ./julia runall.jl
+
+Note that this assumes the existence of a valid Julia symlink within ./tests.
+
+Most of the tests run simple simulations and perform consistency checks like
+verifying conservation of flow volume. They are divided into different
+categories that can be specified on the command line. For example to execute
+just the 'noflow' tests, which check that initially static flows with horizontal
+free surfaces remain at rest, you can run:
+
+.. code-block:: bash
+
+   $ ./julia runall.jl noflow
+
+Any number of test categories may be specified in this way.
+
+The command
+
+.. code-block:: bash
+
+   $ ./julia runall.jl help
+
+prints a list of the available categories.
+
+.. warning::
+
+   Running these is the first step in debugging and won't catch everything.
+   At this stage, you will most likely need to read runall.jl and testlib.jl
+   carefully to understand what each test is doing.
