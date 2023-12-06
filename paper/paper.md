@@ -174,13 +174,14 @@ include improvements to standard numerical schemes, a careful treatment of the
 effects of the basal geometry and a regularisation that ensures the model is
 well-posed as an initial value problem.
 
-Despite the relative simplicity of our approach, morphodynamic simulations
-involve many free parameters, which are not all directly measurable for real
-world scenarios. Proper calibration and an appreciation of the uncertainties
-present at each stage of the modelling process is essential to obtain reliable
-results from `Kestrel`.  Examples and guidance for getting started may be found
-in our documentation.  Results from `Kestrel` simulations have thus far been
-used in the following scientific publications:
+Even in the most straightforward cases, morphodynamic simulations involve many
+free parameters, which are not all directly measurable for real world scenarios.
+Proper calibration and an appreciation of the uncertainties present at each
+stage of the modelling process is essential to obtain reliable results from
+`Kestrel`. Examples and guidance for getting started may be found in our
+documentation, which includes details of the currently available model closures
+and their associated parameters.  Results from `Kestrel` simulations have thus
+far been used in the following scientific publications:
 [@Jenkins:2023;@Langham:2023]. `Kestrel` also forms the backend for the
 `LaharFlow` volcanic hazard model [@Laharflow:2023].
 
