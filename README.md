@@ -3,6 +3,24 @@
 Kestrel is a Fortran code for simulating sediment-laden Earth surface flows,
 such as debris flows, landslides and flash flooding.
 
+## Features ##
+
+The software is designed to be easy to install and use. Simulations approximate
+solutions to a underlying set of shallow-layer equations that describe a generic
+flowing mixture of fluid and sediment. A modular design allows a variety of popular 
+closures to be selected at runtime to specialise simulations for particular purposes.
+
+* Fully conservative well-balanced positivity-preserving finite volume solver.
+* Dynamic erosion and deposition of sediment.
+* User-settable basal drag and morphodynamics parametrisations.
+* Simulation on user-specified topographies, via digital elevation maps (DEMs).
+* Output via geo-referenced NetCDF or plain-text.
+
+An overview of the physical modelling framework may be found 
+[here](https://kestrel-unibristol.readthedocs.io/en/latest/physical%20model.html).
+For full details, including the numerical implementation, consult our 
+[paper](https://arxiv.org/abs/2306.16185).
+
 ## 'Very' quick start ##
 
 Most likely, you will need to refer to the
