@@ -170,7 +170,7 @@ twofold: (1) to simplify the problem for modellers wishing to conduct
 simulations efficiently, without compromising the most essential flow physics and (2) in
 order to focus on making some important technical advances for morphodynamic
 models, which are particular to our code and detailed by @Langham:2023. These
-include improvements to standard numerical schemes, a careful treatment of the
+advances include improvements to standard numerical schemes, a careful treatment of the
 effects of the basal geometry and a regularisation that ensures the model is
 well-posed as an initial value problem.
 
