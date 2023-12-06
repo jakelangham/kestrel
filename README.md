@@ -12,8 +12,11 @@ closures to be selected at runtime to specialise simulations for particular purp
 
 * Fully conservative well-balanced positivity-preserving finite volume solver.
 * Dynamic erosion and deposition of sediment.
+* Eddy viscosity implementation to ensure well-posedness of morphodynamic flows
+  (see [here](https://arxiv.org/abs/2007.15989) and [here](https://arxiv.org/abs/2306.16185) for detailed discussions of this issue).
 * User-settable basal drag and morphodynamics parametrisations.
-* Simulation on user-specified topographies, via digital elevation maps (DEMs).
+* Simulation on user-specified topographies: simple geometric surfaces and digital elevation maps (DEMs).
+* Variety of boundary conditions for initiating flows, including from multiple locations.
 * Output via geo-referenced NetCDF or plain-text.
 
 An overview of the physical modelling framework may be found 
