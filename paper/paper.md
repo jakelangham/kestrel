@@ -33,11 +33,12 @@ exchange with the topography over which the flow propagates, by incorporating
 sediment entrainment and deposition. These physical processes, which mutually
 couple the flow with its underlying bed, are sometimes collectively termed
 'morphodynamics'.  Simulations may be initiated either on simple surfaces or on
-more realistic terrains via a user-specified digital elevation model (DEM). The
+more realistic terrains, via a user-specified digital elevation model (DEM). The
 latter option enables computations on topographies measured to approximate the
 Earth's surface, so that real world events may be reconstructed and potential
 future scenarios may be modelled. `Kestrel` has been primarily developed for
-Earth sciences research into natural hazards, including volcanic mudflows, flash
+Earth sciences research into natural hazards, including volcanic mudflows
+(lahars), flash
 floods and landslides. However, it may also be useful for modelling flows of
 interest to engineers, applied mathematicians, geophysicists and industry
 scientists, see e.g.\ @Capart:1998, @Cao:2004, @Iverson:2015 and
@@ -79,7 +80,7 @@ some degree. The presence of sediment at sufficiently high concentrations
 substantially complicates the physics of these flows, by modifying their
 density, rheology and their ability to entrain or deposit further volumes
 of sediment [@Iverson:1997;@Iverson:2015]. In many regions of the world, local conditions can trigger
-destructive flowing fluid--sediment mixtures that travel over distance of up to tens of
+destructive flowing fluid--sediment mixtures that travel over distances of up to tens of
 kilometres [@Pierson:1990;@Scott:2005;@Jakob:2005]. Driven by the need to understand their fundamental physics and
 ultimately to create predictive tools that can mitigate hazards, the development
 of mathematical models for these flows is an active research area and there is a
@@ -164,7 +165,7 @@ sediment particles and the assumption that the sediment is composed of particles
 that are all roughly the same size.  Conversely, we include the effects of
 morphodynamics, which not all codes support. The reasoning for these choices is
 twofold: (1) to simplify the problem for modellers wishing to conduct
-simulations, without compromising the most essential flow physics and (2) in
+simulations efficiently, without compromising the most essential flow physics and (2) in
 order to focus on making some important technical advances for morphodynamic
 models, which are particular to our code and detailed by @Langham:2023. These
 include improvements to standard numerical schemes, a careful treatment of the
