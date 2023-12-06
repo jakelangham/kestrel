@@ -3,6 +3,28 @@
 Kestrel is a Fortran code for simulating sediment-laden Earth surface flows,
 such as debris flows, landslides and flash flooding.
 
+## Features ##
+
+The software is designed to be easy to install and use. Simulations approximate
+solutions to a underlying set of shallow-layer equations that describe a generic
+flowing mixture of fluid and sediment. A modular design allows a variety of popular 
+closures to be selected at runtime to specialise simulations for particular purposes.
+
+* Fully conservative well-balanced positivity-preserving finite volume solver.
+* Dynamic erosion and deposition of sediment.
+* Eddy viscosity implementation to ensure well-posedness of morphodynamic flows.
+* User-settable basal drag and morphodynamics parametrisations.
+* Simulation on user-specified topographies: simple geometric surfaces and digital elevation maps (DEMs).
+* Variety of boundary conditions for initiating flows, including from multiple locations.
+* Output via geo-referenced NetCDF or plain-text.
+
+An overview of the physical modelling framework may be found 
+[here](https://kestrel-unibristol.readthedocs.io/en/latest/physical%20model.html).
+For full details, including the numerical implementation, consult our 
+paper [[1]](https://arxiv.org/abs/2306.16185). The issue of well-posedness referred to above 
+is explored in detail in refs [[1]](https://arxiv.org/abs/2007.15989) and 
+[[2]](https://arxiv.org/abs/2306.16185).
+
 ## 'Very' quick start ##
 
 Most likely, you will need to refer to the
@@ -75,3 +97,9 @@ contributions that might be valuable is given [here](https://kestrel-unibristol.
 Kestrel is developed and maintained by Mark J. Woodhouse
 (mark.woodhouse@bristol.ac.uk) and Jake Langham (J.Langham@bristol.ac.uk),
 University of Bristol.
+
+## References
+
+* [1] Langham J, Woodhouse MJ, Hogg AJ, Jenkins LT, Phillips JC. 2023 Simulating shallow morphodynamic flows on evolving topographies. _arXiv_ **2306.16185**
+* [2] Langham J, Woodhouse MJ, Hogg AJ, Phillips JC. 2021 Linear stability of shallow
+morphodynamic flows. _J. Fluid Mech._ **916**.
