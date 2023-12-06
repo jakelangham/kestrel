@@ -161,18 +161,19 @@ simple initial volumes of material (such as cubes and cylinders) can be
 specified via an input file.
 
 In deriving Eqs.\ \eqref{eq:governing eqs 1}--\eqref{eq:governing eqs 4}, some
-physical assumptions are made that simplify our model compared to some of the
-similar codes cited above, such as the neglect of interstitial pressure between
-sediment particles and the assumption that the sediment is composed of particles
-that are all roughly the same size.  Conversely, we include the effects of
-morphodynamics, which not all codes support. The reasoning for these choices is
-twofold: (1) to simplify the problem for modellers wishing to conduct
-simulations efficiently, without compromising the most essential flow physics and (2) in
-order to focus on making some important technical advances for morphodynamic
-models, which are particular to our code and detailed by @Langham:2023. These
-advances include improvements to standard numerical schemes, a careful treatment of the
-effects of the basal geometry and a regularisation that ensures the model is
-well-posed as an initial value problem.
+physical assumptions are made that reduce the complexity of our model compared
+to some of the similar codes cited above, such as the neglect of interstitial
+pressure between sediment particles and the assumption that the sediment is
+composed of particles that are all roughly the same size.  Conversely, we
+include the effects of morphodynamics, which not all codes support. The
+reasoning for these choices is twofold: (1) to simplify the problem for
+modellers wishing to conduct simulations efficiently, without compromising the
+most essential flow physics and (2) in order to focus on making some important
+technical advances for morphodynamic models, which are particular to our code
+and detailed by @Langham:2023. These advances include improvements to standard
+numerical schemes, a careful treatment of the effects of the basal geometry and
+a regularisation that ensures the model is well-posed as an initial value
+problem.
 
 Even in the most straightforward cases, morphodynamic simulations involve many
 free parameters, which are not all directly measurable for real world scenarios.
