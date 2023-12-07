@@ -257,24 +257,16 @@ contains
    end subroutine AddToVector_ivec
 
    ! Assuming numerically ordered vector, add val in correct position
-   recursive subroutine AddToOrderedVector_i(vector, val, repeat)
+   recursive subroutine AddToOrderedVector_i(vector, val)
 
       implicit none
 
       integer, dimension(:), intent(inout), allocatable :: vector
-      logical, optional, intent(in) :: repeat
       integer, intent(in) :: val
 
-      logical :: repetition
       integer, dimension(:), allocatable :: temp
 
       integer :: N, i, pos
-
-      if (present(repeat)) then
-        repetition = repeat
-      else
-        repetition = .TRUE.
-      end if
 
       if (.not. allocated(vector)) then
         allocate(vector(1))
@@ -283,10 +275,6 @@ contains
       end if
 
       N = size(vector)
-
-      if (.not. repetition) then
-        if (InVector(vector, val)) return
-      end if
 
       pos = 1
       do i = 1, N

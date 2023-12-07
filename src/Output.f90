@@ -964,6 +964,8 @@ contains
       character(len=1) :: hemisphere
 
       integer :: tile_left, tile_bottom
+      integer :: minTileX, maxTileX
+      integer :: minTileY, maxTileY
 
       integer, dimension(:), allocatable :: TileCols
       integer, dimension(:), allocatable :: TileRows
@@ -978,6 +980,10 @@ contains
 
       tile_left = maxval(grid%ActiveTiles%List)
       tile_bottom = tile_left
+      minTileX = RunParams%nXtiles+1
+      maxTileX = 0
+      minTileY = RunParams%nYtiles+1
+      maxTileY = 0
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
@@ -997,12 +1003,14 @@ contains
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
 
-         call AddToOrderedVector(TileCols, tile_i, repeat=.FALSE.)
-         call AddToOrderedVector(TileRows, tile_j, repeat=.FALSE.)
+         minTileX = min(tile_i, minTileX)
+         maxTileX = max(tile_i, maxTileX)
+         minTileY = min(tile_j, minTileY)
+         maxTileY = max(tile_j, maxTileY)
       end do
 
-      nXtiles = size(TileCols)
-      nYtiles = size(TileRows)
+      nXtiles = maxTileX-minTileX+1
+      nYtiles = maxTileY-minTileY+1
 
       nX = nXtiles*nXpertile
       nY = nYtiles*nYpertile
@@ -1378,6 +1386,8 @@ contains
       character(len=1) :: hemisphere
 
       integer :: tile_left, tile_bottom
+      integer :: minTileX, maxTileX
+      integer :: minTileY, maxTileY
 
       integer, dimension(:), allocatable :: TileCols
       integer, dimension(:), allocatable :: TileRows
@@ -1390,6 +1400,10 @@ contains
 
       tile_left = maxval(grid%ActiveTiles%List)
       tile_bottom = tile_left
+      minTileX = RunParams%nXtiles+1
+      maxTileX = 0
+      minTileY = RunParams%nYtiles+1
+      maxTileY = 0
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
@@ -1406,12 +1420,14 @@ contains
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
 
-         call AddToOrderedVector(TileCols, tile_i, repeat=.FALSE.)
-         call AddToOrderedVector(TileRows, tile_j, repeat=.FALSE.)
+         minTileX = min(tile_i, minTileX)
+         maxTileX = max(tile_i, maxTileX)
+         minTileY = min(tile_j, minTileY)
+         maxTileY = max(tile_j, maxTileY)
       end do
 
-      nXtiles = size(TileCols)
-      nYtiles = size(TileRows)
+      nXtiles = maxTileX-minTileX+1
+      nYtiles = maxTileY-minTileY+1
 
       nX = nXtiles*nXpertile
       nY = nYtiles*nYpertile
