@@ -964,6 +964,8 @@ contains
       character(len=1) :: hemisphere
 
       integer :: tile_left, tile_bottom
+      integer :: minTileX, maxTileX
+      integer :: minTileY, maxTileY
 
       real(kind=wp), dimension(:, :), allocatable :: spd
 
@@ -975,6 +977,10 @@ contains
 
       tile_left = maxval(grid%ActiveTiles%List)
       tile_bottom = tile_left
+      minTileX = RunParams%nXtiles+1
+      maxTileX = 0
+      minTileY = RunParams%nYtiles+1
+      maxTileY = 0
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
@@ -985,15 +991,6 @@ contains
       nY_vertex_pertile = nYpertile + 1
       nXY_vertex_pertile = [nX_vertex_pertile, nY_vertex_pertile]
 
-      nXtiles = int((grid%xmax - grid%xmin + RunParams%deltaX)/(RunParams%Xtilesize))
-      nYtiles = int((grid%ymax - grid%ymin + RunParams%deltaY)/(RunParams%Ytilesize))
-
-      nX = nXtiles*nXpertile
-      nY = nYtiles*nYpertile
-
-      nX_vertex = nXtiles*(nXpertile + 1)
-      nY_vertex = nYtiles*(nYpertile + 1)
-
       do tt = 1, nTiles
 
          ttk = grid%ActiveTiles%List(tt)
@@ -1002,7 +999,21 @@ contains
 
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
+
+         minTileX = min(tile_i, minTileX)
+         maxTileX = max(tile_i, maxTileX)
+         minTileY = min(tile_j, minTileY)
+         maxTileY = max(tile_j, maxTileY)
       end do
+
+      nXtiles = maxTileX-minTileX+1
+      nYtiles = maxTileY-minTileY+1
+
+      nX = nXtiles*nXpertile
+      nY = nYtiles*nYpertile
+
+      nX_vertex = nXtiles*(nXpertile + 1)
+      nY_vertex = nYtiles*(nYpertile + 1)
 
       filename_full = RunParams%out_path + trim(filename)
 
@@ -1372,6 +1383,8 @@ contains
       character(len=1) :: hemisphere
 
       integer :: tile_left, tile_bottom
+      integer :: minTileX, maxTileX
+      integer :: minTileY, maxTileY
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
@@ -1381,18 +1394,16 @@ contains
 
       tile_left = maxval(grid%ActiveTiles%List)
       tile_bottom = tile_left
+      minTileX = RunParams%nXtiles+1
+      maxTileX = 0
+      minTileY = RunParams%nYtiles+1
+      maxTileY = 0
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
       nTiles = grid%ActiveTiles%Size
 
       nXYpertile = [nXpertile, nYpertile]
-
-      nXtiles = int((grid%xmax - grid%xmin + RunParams%deltaX)/(RunParams%Xtilesize))
-      nYtiles = int((grid%ymax - grid%ymin + RunParams%deltaY)/(RunParams%Ytilesize))
-
-      nX = nXtiles*nXpertile
-      nY = nYtiles*nYpertile
 
       do tt = 1, nTiles
 
@@ -1402,7 +1413,18 @@ contains
 
          if (tile_i < tile_left) tile_left = tile_i
          if (tile_j < tile_bottom) tile_bottom = tile_j
+
+         minTileX = min(tile_i, minTileX)
+         maxTileX = max(tile_i, maxTileX)
+         minTileY = min(tile_j, minTileY)
+         maxTileY = max(tile_j, maxTileY)
       end do
+
+      nXtiles = maxTileX-minTileX+1
+      nYtiles = maxTileY-minTileY+1
+
+      nX = nXtiles*nXpertile
+      nY = nYtiles*nYpertile
 
       nc_status = nf90_create(path=filename, cmode=NF90_NETCDF4, ncid=ncid)
       if (nc_status /= NF90_NOERR) call handle_err(nc_status, 'nf90_create '//filename)

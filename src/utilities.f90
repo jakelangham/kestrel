@@ -268,6 +268,12 @@ contains
 
       integer :: N, i, pos
 
+      if (.not. allocated(vector)) then
+        allocate(vector(1))
+        vector(1) = val
+        return
+      end if
+
       N = size(vector)
 
       pos = 1
