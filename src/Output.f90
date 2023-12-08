@@ -38,7 +38,7 @@
 module output_module
 
    use set_precision_module, only: wp
-   use utilities_module, only: AddToOrderedVector, CheckFileExists, PathTrail, Int2String, KahanAdd, pair
+   use utilities_module, only: CheckFileExists, PathTrail, Int2String, KahanAdd, pair
    use grid_module, only: GridCoords, GridType, TileList, TileType
    use closures_module, only : FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use runsettings_module, only : RunSet
@@ -967,9 +967,6 @@ contains
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
 
-      integer, dimension(:), allocatable :: TileCols
-      integer, dimension(:), allocatable :: TileRows
-
       real(kind=wp), dimension(:, :), allocatable :: spd
 
       if (RunParams%Lat < 0) then
@@ -1388,9 +1385,6 @@ contains
       integer :: tile_left, tile_bottom
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
-
-      integer, dimension(:), allocatable :: TileCols
-      integer, dimension(:), allocatable :: TileRows
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
