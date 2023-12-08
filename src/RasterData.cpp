@@ -55,17 +55,22 @@ RasterData::RasterData(const char *filename) {
         // Get EPSG projection reference
 	    OGRSpatialReference sref = GetSpatialReference(poDataset);
         latlon = sref.EPSGTreatsAsLatLong(); // Check whether CRS uses lat-long coordinates
-		
+
+        // Try to find the CRS Authority Code
+        // this approach uses the GDAL FindMatches function which could return several possible
+        // codes -- the first one is the 'best' match
+        int matches;
+        int* conf;
+        OGRSpatialReferenceH *srefs = sref.FindMatches(NULL, &matches, &conf);
+        const char* a_code = OSRGetAuthorityCode(srefs[0],NULL);
+        std::string auth_code = a_code;
+
 	    // Retrieve EPSG code and store
         try {
-	        if (strcmp(sref.GetAuthorityName(NULL), "EPSG")==0) {
-	    	    EPSG_code = atoi(sref.GetAuthorityCode(NULL));
-	        }
-            else {
-                throw (poDataset->GetFileList());
-            }
+	    	    EPSG_code = stoi(auth_code);
         }
-        catch (char **fileList) {
+        catch (std::exception const & e) {
+            char **fileList = poDataset->GetFileList();
             std::cerr << "Error: no EPSG authority in " << fileList << std::endl;
             std::cerr << "Check files and ensure they are properly georeferenced" << std::endl;
             exit(EXIT_FAILURE);
