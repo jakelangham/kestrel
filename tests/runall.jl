@@ -45,10 +45,9 @@ tests_identical = [
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
-with_netcdf = false
 tests_netcdf = []
-if !isempty(read(pipeline(`ldd $prog`, `grep netcdf`)))
-   with_netcdf = true
+with_netcdf = links_to_netcdf(prog)
+if with_netcdf
    tests_netcdf = [
       ("netcdf_restart", 2)
    ]
@@ -151,8 +150,15 @@ function run_all()
    @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
 end
 
-tests = ( if isempty(ARGS); ["all"]; else ARGS; end)
-if "all" in tests
+# Print a list of available test categories.
+function print_options()
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+end
+
+tests = (if isempty(ARGS); ["all"]; else ARGS; end)
+if "help" in tests
+   print_options()
+elseif "all" in tests
    run_all()
 else
    numtests = 0
@@ -178,16 +184,17 @@ else
          numtests += length(tests_netcdf)
          numpassed += run_netcdf()
       else
-         printstyled("FAIL Kestrel is not build with NetCDF support\n"; color=:red, bold=true)
+         printstyled("FAIL Kestrel is not built with NetCDF support\n"; 
+                     color = :red, bold = true)
       end
    end
 
-   if numtests>=1
+   if numtests >= 1
       ratio = 100 * numpassed / numtests
       @printf "Results: %i/%i passed" numpassed numtests
       @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
    else
-      println("No tests selected.  Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+      println("No valid tests selected.")
+      print_options()
    end
-
 end

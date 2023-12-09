@@ -15,7 +15,9 @@ In order to do so, make sure the following dependencies are present on your syst
 * `GDAL <https://gdal.org/>`_ (>= 2.2.0)
 * `PROJ <https://proj.org/>`_
 * GNU autotools (if building directly from the git repository)
-* (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_
+* (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (the
+  `NetCDF-Fortran <https://docs.unidata.ucar.edu/netcdf-fortran/current/>`_ 
+  library is required in this case)
 * (optional) `Julia <https://julialang.org/>`_, for running tests
 
 .. _installation:
@@ -23,7 +25,7 @@ In order to do so, make sure the following dependencies are present on your syst
 Installation
 ------------
 
-We use GNU autools for our build system. If building directly from the git repository, you must first generate the relevant build scripts using the command
+We use GNU autotools for our build system. If building directly from the git repository, you must first generate the relevant build scripts using the command
 
 .. code-block:: bash
 
@@ -35,7 +37,7 @@ Then the code can be compiled with
 
   $ ./configure && make
 
-If succesful, this places an executable in the src directory.
+If successful, this places an executable in the src directory.
 
 You may wish to provide additional flags to the configure script, depending on
 your local setup. For example, you can do
@@ -57,6 +59,14 @@ you can instead use Boost to do filesystem calls by specifying
 
 where ARG optionally specifies the location of your Boost installation.
 
+Both the GDAL and PROJ libraries are required and sometimes might be in unusual
+places, depending on your system. If they are not found automatically, their 
+base directories can be specified with
+
+.. code-block:: bash
+
+  $ ./configure --with-gdal=[ARG] --with-proj=[ARG]
+
 For testing, the path to a valid Julia executable can be specified with
 
 .. code-block:: bash
@@ -72,7 +82,7 @@ Some other options are listed in the help dialogue of the configure script
   $ ./configure --help
 
 .. _quick_run:
-  
+
 Running simulations
 -------------------
 
@@ -235,8 +245,8 @@ release, there is a ``Source``.
 .. literalinclude:: ../../examples/Input2d_flux_SRTM.txt
    :lines: 23-29
 
-This specifies source fluxes as input material for the flow, occuring within
-a circle centered at ``SourceLat``/``SourceLon`` with a 5 metre radius. These
+This specifies source fluxes as input material for the flow, occurring within
+a circle centred at ``SourceLat``/``SourceLon`` with a 5 metre radius. These
 fluxes are time dependent, in accordance with the given time series data. In
 general, any number of ``Cap`` and ``Source`` blocks may be specified for a
 simulation.
@@ -308,3 +318,44 @@ separately.)
    :width: 100%
    :align: center
 
+Testing
+-------
+
+If you want to check that Kestrel is working well, there is a lightweight test
+suite available as a Julia script. It is unlikely to be necessary to run these
+if you are only using the main code branch to run simulations. However, when
+modifying the code, these tests can be used to identify problems. 
+
+To run all tests, change to the ./tests subdirectory and run:
+
+.. code-block:: bash
+
+   $ ./julia runall.jl
+
+Note that this assumes the existence of a valid Julia symlink within ./tests.
+
+Most of the tests run simple simulations and perform consistency checks like
+verifying conservation of flow volume. They are divided into different
+categories that can be specified on the command line. For example to execute
+just the 'noflow' tests, which check that initially static flows with horizontal
+free surfaces remain at rest, you can run:
+
+.. code-block:: bash
+
+   $ ./julia runall.jl noflow
+
+Any number of test categories may be specified in this way.
+
+The command
+
+.. code-block:: bash
+
+   $ ./julia runall.jl help
+
+prints a list of the available categories.
+
+.. warning::
+
+   Running these is the first step in debugging and won't catch everything.
+   At this stage, you will most likely need to read runall.jl and testlib.jl
+   carefully to understand what each test is doing.

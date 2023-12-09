@@ -33,11 +33,12 @@ exchange with the topography over which the flow propagates, by incorporating
 sediment entrainment and deposition. These physical processes, which mutually
 couple the flow with its underlying bed, are sometimes collectively termed
 'morphodynamics'.  Simulations may be initiated either on simple surfaces or on
-more realistic terrains via a user-specified digital elevation model (DEM). The
+more realistic terrains, via a user-specified digital elevation model (DEM). The
 latter option enables computations on topographies measured to approximate the
 Earth's surface, so that real world events may be reconstructed and potential
 future scenarios may be modelled. `Kestrel` has been primarily developed for
-Earth sciences research into natural hazards, including volcanic mudflows, flash
+Earth sciences research into natural hazards, including volcanic mudflows
+(lahars), flash
 floods and landslides. However, it may also be useful for modelling flows of
 interest to engineers, applied mathematicians, geophysicists and industry
 scientists, see e.g.\ @Capart:1998, @Cao:2004, @Iverson:2015 and
@@ -78,8 +79,8 @@ All fluid flows that propagate over the Earth's surface transport sediment to
 some degree. The presence of sediment at sufficiently high concentrations
 substantially complicates the physics of these flows, by modifying their
 density, rheology and their ability to entrain or deposit further volumes
-of sediment [@Iverson:1997;@Iverson2015]. In many regions of the world, local conditions can trigger
-destructive flowing fluid--sediment mixtures that travel over distance of up to tens of
+of sediment [@Iverson:1997;@Iverson:2015]. In many regions of the world, local conditions can trigger
+destructive flowing fluid--sediment mixtures that travel over distances of up to tens of
 kilometres [@Pierson:1990;@Scott:2005;@Jakob:2005]. Driven by the need to understand their fundamental physics and
 ultimately to create predictive tools that can mitigate hazards, the development
 of mathematical models for these flows is an active research area and there is a
@@ -98,7 +99,11 @@ uses a slightly different description of the flow physics and underlying
 mathematical framework. In some cases, it can be difficult to discern from the
 available documentation exactly which model and assumptions are used in the
 latest software version and how the program operates `under the hood' to produce
-its results. 
+its results.  The diversity of approaches reflects differences in the level of
+detail included in physical descriptions, as well as genuine uncertainties
+present in current understanding of Earth surface flow physics.  Our code implements
+a newly derived modelling framework and accompanying numerical scheme detailed
+in @Langham:2023. Its essential features are described below.
 
 Like all the above software, `Kestrel` numerically approximates solutions to an
 underlying system of partial differential equations for the flow, whose
@@ -128,23 +133,21 @@ $\theta(\mathbf{x},t)$ is the local slope angle between the bed normal and
 gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$, 
 with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
 
-The technical details of these equations, their derivation and our numerical
-solution scheme are fully presented by @Langham:2023.  While most of the terms
-are fixed by the underlying depth-averaged flow physics (and shall not be
-discussed further), some parts of the right-hand sides are user-settable.  The
-terms $\mathcal{T}$, $\mathcal{E}$ and $\mathcal{D}$ denote the basal drag,
-erosion rate and deposition rate respectively. These are modelling closures,
-assumed to be functions of the flow fields $H$, $\bar{\mathbf{u}}$ and
-$\bar{\psi}$. In each case, the user may choose from different options,
-depending on the problem at hand. For example, the drag $\mathcal{T}$ may be
-set either to a function appropriate for turbulent fluids, to various models of
-purely granular flows, or to a combined law that depends on the solids
-concentration.  This provides the flexibility to simulate many different kinds
-of flow.  Furthermore, it is worth noting that in many cases, the question of
-which closures most faithfully capture the flow physics is an open problem that
-cannot easily be addressed experimentally.  Using numerical simulations to
-investigate the effects of different modelling choices is one way to approach
-this.
+While most of the terms are fixed by the underlying depth-averaged flow physics
+(and shall not be discussed further), some parts of the right-hand sides are
+user-settable.  The terms $\mathcal{T}$, $\mathcal{E}$ and $\mathcal{D}$ denote
+the basal drag, erosion rate and deposition rate respectively. These are
+modelling closures, assumed to be functions of the flow fields $H$,
+$\bar{\mathbf{u}}$ and $\bar{\psi}$. In each case, the user may choose from
+different options, depending on the problem at hand. For example, the drag
+$\mathcal{T}$ may be set either to a function appropriate for turbulent fluids,
+to various models of purely granular flows, or to a combined law that depends on
+the solids concentration.  This provides the flexibility to simulate many
+different kinds of flow.  Furthermore, it is worth noting that in many cases,
+the question of which closures most faithfully capture the flow physics is an
+open problem that cannot easily be addressed experimentally.  Using numerical
+simulations to investigate the effects of different modelling choices is one way
+to approach this.
 
 The remaining source terms $\mathcal{Q}_H$ and $\mathcal{Q}_{\psi}$ are
 time-dependent functions that provide one way for a modeller to control fluxes
@@ -158,26 +161,28 @@ simple initial volumes of material (such as cubes and cylinders) can be
 specified via an input file.
 
 In deriving Eqs.\ \eqref{eq:governing eqs 1}--\eqref{eq:governing eqs 4}, some
-physical assumptions are made that simplify our model compared to some of the
-similar codes cited above, such as the neglect of interstitial pressure between
-sediment particles and the assumption that the sediment is composed of particles
-that are all roughly the same size.  Conversely, we include the effects of
-morphodynamics, which not all codes support. The reasoning for these choices is
-twofold: (1) to simplify the problem for modellers wishing to conduct
-simulations, without compromising the most essential flow physics and (2) in
-order to focus on making some important technical advances for morphodynamic
-models, which are particular to our code and detailed by @Langham:2023. These
-include improvements to standard numerical schemes, a careful treatment of the
-effects of the basal geometry and a regularisation that ensures the model is
-well-posed as an initial value problem.
+physical assumptions are made that reduce the complexity of our model compared
+to some of the similar codes cited above, such as the neglect of interstitial
+pressure between sediment particles and the assumption that the sediment is
+composed of particles that are all roughly the same size.  Conversely, we
+include the effects of morphodynamics, which not all codes support. The
+reasoning for these choices is twofold: (1) to simplify the problem for
+modellers wishing to conduct simulations efficiently, without compromising the
+most essential flow physics and (2) in order to focus on making some important
+technical advances for morphodynamic models, which are particular to our code
+and detailed by @Langham:2023. These advances include improvements to standard
+numerical schemes, a careful treatment of the effects of the basal geometry and
+a regularisation that ensures the model is well-posed as an initial value
+problem.
 
-Despite the relative simplicity of our approach, morphodynamic simulations
-involve many free parameters, which are not all directly measurable for real
-world scenarios. Proper calibration and an appreciation of the uncertainties
-present at each stage of the modelling process is essential to obtain reliable
-results from `Kestrel`.  Examples and guidance for getting started may be found
-in our documentation.  Results from `Kestrel` simulations have thus far been
-used in the following scientific publications:
+Even in the most straightforward cases, morphodynamic simulations involve many
+free parameters, which are not all directly measurable for real world scenarios.
+Proper calibration and an appreciation of the uncertainties present at each
+stage of the modelling process is essential to obtain reliable results from
+`Kestrel`. Examples and guidance for getting started may be found in our
+documentation, which includes details of the currently available model closures
+and their associated parameters.  Results from `Kestrel` simulations have thus
+far been used in the following scientific publications:
 [@Jenkins:2023;@Langham:2023]. `Kestrel` also forms the backend for the
 `LaharFlow` volcanic hazard model [@Laharflow:2023].
 

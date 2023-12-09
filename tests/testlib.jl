@@ -486,6 +486,25 @@ function strip_comments(strings)
    return stripped
 end
 
+# Verify if the executable prog links to the NetCDF libraries.
+function links_to_netcdf(prog)
+    lib_printer_exec = "ldd" # default library checker
+    if Sys.isapple()
+        lib_printer_exec = ["otool", "-L"]
+    end
+
+    cmd = `$lib_printer_exec $prog`
+    cmd_output = try
+        read(cmd, String)
+    catch
+        println("Warning: unable to look for netcdf support with command: $cmd")
+        println("Continuing without testing netcdf features.")
+        return false
+    end
+
+    return match(r"netcdf", cmd_output) !== nothing
+end
+
 # Print a pending animation while waiting for task t to complete.
 function wait_for_task(t)
    while !istaskdone(t)

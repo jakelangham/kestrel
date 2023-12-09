@@ -12,7 +12,7 @@ of numerical result files:
       in time. The files have sequential numeric names, e.g.  *000001.nc*,
       *000002.nc*, .... The snapshot file *000000.nc* contains the initial
       conditions of the flow.
-    * *aggregated* files that contain data that summarize the flow up to the
+    * *aggregated* files that contain data that summarise the flow up to the
       point at which they are written. These files are updated throughout the
       simulation.  Aggregated results are stored in a single file with the
       filename set using the optional input :code:`maximums filename` with
@@ -28,8 +28,8 @@ column-headed comma-separated values (with a *.txt* extension),
 or as NetCDF files (with a *.nc* extension).  Here we first describe
 the output files in these two formats.  Additionally, Kestrel produces:
 
-    * a *RunInfo.txt* file that summarizes the settings used in the model;
-    * a *Volume.txt* file that summarizes the time series of volumes of material;
+    * a *RunInfo.txt* file that summaries the settings used in the model;
+    * a *Volume.txt* file that summaries the time series of volumes of material;
     * (when using ``.txt`` output) files that record topographic data at cell
       vertices.
 

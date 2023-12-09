@@ -967,9 +967,6 @@ contains
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
 
-      integer, dimension(:), allocatable :: TileCols
-      integer, dimension(:), allocatable :: TileRows
-
       real(kind=wp), dimension(:, :), allocatable :: spd
 
       if (RunParams%Lat < 0) then
@@ -1388,9 +1385,6 @@ contains
       integer :: tile_left, tile_bottom
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
-
-      integer, dimension(:), allocatable :: TileCols
-      integer, dimension(:), allocatable :: TileRows
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
