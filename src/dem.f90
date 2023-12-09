@@ -30,7 +30,7 @@ module dem_module
    use set_precision_module, only: wp, pi
    use runsettings_module, only: RunSet, FortranRasterData
    use grid_module, only: GridType
-   use utilities_module, only: pair
+   use utilities_module, only: pair, CheckFileExists
    use messages_module, only: InfoMessage, WarningMessage, FatalErrorMessage
    use varstring_module, only: varString
    use interpolate_2d_module, only: Bicubic
@@ -45,6 +45,56 @@ module dem_module
 
 contains
 
+   function CheckDEMvrtExists(RunParams) result(exists)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      logical :: exists
+
+      type(varString) :: dem_file
+
+      dem_file = RunParams%out_path + 'DEM.vrt'
+      exists = CheckFileExists(dem_file)
+
+      return
+
+   end function CheckDEMvrtExists
+
+   function CheckDEMProperties(RunParams, deltaX, deltaY, dem_path, dem_file) result(good_dem)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: deltaX
+      real(kind=wp), intent(in) :: deltaY
+      type(varString), intent(in) :: dem_path
+      type(varString), intent(in) :: dem_file
+      logical :: good_dem
+
+      type(pair) :: res
+      real(kind=c_double) :: minE, maxE, minN, maxN
+
+      type(FortranRasterData) :: demInfo
+
+      good_dem = .TRUE.
+
+      call DomainExtent(RunParams, deltaX, deltaY, minE, maxE, minN, maxN, res, pad=.True.)
+
+      call RasterInfo(dem_path, dem_file, demInfo)
+
+      if (demInfo%ReadSuccess .ne. 1) call FatalErrorMessage("Cannot read DEM file "//dem_path%s//dem_file%s)
+
+      if (demInfo%pixelWidth .ne. deltaX) good_dem = .FALSE.
+      if (-demInfo%pixelHeight .ne. deltaY) good_dem = .FALSE.
+
+      if (demInfo%NE%first .ne. maxN) good_dem = .FALSE.
+      if (demInfo%NE%second .ne. maxE) good_dem = .FALSE.
+      if (demInfo%SW%first .ne. minN) good_dem = .FALSE.
+      if (demInfo%SW%second .ne. minE) good_dem = .FALSE.
+
+      return
+   
+   end function CheckDEMProperties
+
    ! If the user has specified a topography that requires an external datafile,
    ! such as a DEM, we try to load it in preparation for running a simulation.
    ! Note that we need to have read the input file (to populate RunParams) and
@@ -57,7 +107,7 @@ contains
 
       select case (RunParams%Topog%s)
          case ('srtm', 'SRTM', 'raster', 'Raster')
-            call InfoMessage("Preparing topographic data")
+            call InfoMessage("Preparing topographic data.")
             call PrepareDEM(RunParams, grid%deltaX, grid%deltaY)
       end select
  
@@ -85,7 +135,8 @@ contains
 
       type(varString) :: geotif
       character(len=1,kind=c_char) :: cgeotif(len_trim(trim(RunParams%demPath%s))+1+len_trim(RunParams%RasterFile%s) + 1)
-      logical FileExists
+      logical :: FileExists
+      logical :: dem_exists, good_dem
 
       if (present(interp_flag_in)) interp_flag = interp_flag_in
 
@@ -93,6 +144,27 @@ contains
       csrtmpath = RunParams%SRTMPath%to_cstring()
 
       call DomainExtent(RunParams, deltaX, deltaY, minE, maxE, minN, maxN, res, pad=.True.)
+
+      dem_exists = CheckDEMvrtExists(RunParams)
+
+      if (.not. RunParams%RebuildDEM) then
+         ! Requested to use existing DEM.vrt file.  Check this exists
+         if (dem_exists) then
+            ! DEM.vrt exists, so check it covers the domain and has the correct resolution
+            good_dem = CheckDEMProperties(RunParams, deltaX, deltaY, RunParams%out_path, varString("DEM.vrt"))
+            if (good_dem) then
+               ! DEM.vrt is good -- report and return
+               call InfoMessage("Using existing DEM.vrt file.")
+               return
+            else
+               ! DEM.vrt is not good -- warn and move on to rebuild
+               call WarningMessage("DEM.vrt is not compatible with domain extent and/or resolution. Rebuilding DEM.")
+            end if
+         else
+            ! DEM.vrt does not exist, so warn and move on to rebuild.
+            call WarningMessage("DEM.vrt not found in "//RunParams%out_path%s// ". Building DEM.")
+         end if
+      end if
 
       select case (RunParams%Topog%s)
        case ('srtm')
