@@ -52,7 +52,7 @@ needs.
 `Kestrel` is predominantly written in `Fortran`, with some `C++` for handling
 geospatial data via external libraries.  While expertise in the scientific
 background is required to set up simulations and correctly interpret their
-results, the program is otherwise intended to be straightfoward to use for a
+results, the program is otherwise intended to be straightforward to use for a
 broad range of scientists.  It has relatively few dependencies (`GDAL`, `PROJ`
 and optionally, `NetCDF`), making it easy to build on modern Unix-like
 platforms.  After installation, simulations are prepared by writing an input
@@ -111,11 +111,23 @@ derivation uses the fact that the flow's lateral extent typically greatly
 exceeds its thickness, to reduce the spatial dimension by 1, thereby rendering
 simulations computationally tractable at geophysical scales. `Kestrel` supports
 simulations in either one or two orthogonal coordinate directions, perpendicular
-to gravity. It keeps track of the following
-observables, which depend on space and time coordinates $\mathbf{x}$ and $t$: the flow thickness $H(\mathbf{x},t)$, velocity
-$\bar{\mathbf{u}}(\mathbf{x},t)$, volumetric solids concentration $\bar{\psi}(\mathbf{x},t)$, density
-$\bar{\rho}(\mathbf{x},t)$ and the bed elevation $b(\mathbf{x},t)$. 
-In two spatial dimensions, the governing equations are
+to gravity. It keeps track of the following observables, which depend on space
+and time coordinates $\mathbf{x}$ and $t$: the flow thickness $H(\mathbf{x},t)$,
+in-plane velocity $\bar{\mathbf{u}}(\mathbf{x},t)$, volumetric solids
+concentration $\bar{\psi}(\mathbf{x},t)$, and the bed elevation
+$b(\mathbf{x},t)$.  A diagram of an example flow is shown in
+\autoref{fig:schematic}.
+
+![Schematic cross-section of the model setup showing the primary variables $H$,
+$\bar{\mathbf{u}}$, $\bar{\psi}$ and $b$.  Note that `Kestrel` solves for the
+component of flow velocity perpendicular to gravity (dashed arrow). The total
+velocity is determined by the assumption that it lies parallel with the local
+slope.  In the depicted flow, a portion of the erodible part of the bed towards
+the front has been eroded (as indicated by the dotted line), leading to an
+increase in the solids concentration. 
+\label{fig:schematic}](schematic.pdf){width=8.5cm}
+
+In two spatial dimensions, the governing equations that `Kestrel` solves are
 \begin{gather}\frac{\partial H}{\partial t} +
 \nabla\cdot(H\bar{\mathbf{u}}) = \mathcal{E} - \mathcal{D} + \mathcal{Q}_H,\label{eq:governing eqs 1}\\
 \frac{\partial~}{\partial t}(H\bar{\psi}) +
@@ -128,26 +140,27 @@ In two spatial dimensions, the governing equations are
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
 \end{gather}
-where $\psi_b$, $g$ and $\nu$ are user-defined modelling parameters,
-$\theta(\mathbf{x},t)$ is the local slope angle between the bed normal and
-gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$, 
+where $\bar{\rho} = \bar{\psi}\rho_s + (1-\bar{\psi})\rho_f$ is the flow
+density, $\rho_s$, $\rho_f$, $\psi_b$, $g$ and $\nu$ are user-defined modelling
+parameters, $\theta(\mathbf{x},t)$ is the local slope angle between the bed
+normal and gravity, and $\nabla_s = \nabla - \mathbf{s}(\mathbf{s}\cdot\nabla)$,
 with $\mathbf{s} \equiv \cos(\theta)\nabla b$.
 
-While most of the terms are fixed by the underlying depth-averaged flow physics
-(and shall not be discussed further), some parts of the right-hand sides are
-user-settable.  The terms $\mathcal{T}$, $\mathcal{E}$ and $\mathcal{D}$ denote
-the basal drag, erosion rate and deposition rate respectively. These are
-modelling closures, assumed to be functions of the flow fields $H$,
-$\bar{\mathbf{u}}$ and $\bar{\psi}$. In each case, the user may choose from
-different options, depending on the problem at hand. For example, the drag
-$\mathcal{T}$ may be set either to a function appropriate for turbulent fluids,
-to various models of purely granular flows, or to a combined law that depends on
-the solids concentration.  This provides the flexibility to simulate many
-different kinds of flow.  Furthermore, it is worth noting that in many cases,
-the question of which closures most faithfully capture the flow physics is an
-open problem that cannot easily be addressed experimentally.  Using numerical
-simulations to investigate the effects of different modelling choices is one way
-to approach this.
+While most of the terms in these equations are fixed by the underlying
+depth-averaged flow physics (and shall not be discussed further), some parts of
+the right-hand sides are user-settable.  The terms $\mathcal{T}$, $\mathcal{E}$
+and $\mathcal{D}$ denote the basal drag, erosion rate and deposition rate
+respectively. These are modelling closures, assumed to be functions of the flow
+fields $H$, $\bar{\mathbf{u}}$ and $\bar{\psi}$. In each case, the user may
+choose from different options, depending on the problem at hand. For example,
+the drag $\mathcal{T}$ may be set either to a function appropriate for turbulent
+fluids, to various models of purely granular flows, or to a combined law that
+depends on the solids concentration.  This provides the flexibility to simulate
+many different kinds of flow.  Furthermore, it is worth noting that in many
+cases, the question of which closures most faithfully capture the flow physics
+is an open problem that cannot easily be addressed experimentally.  Using
+numerical simulations to investigate the effects of different modelling choices
+is one way to approach this.
 
 The remaining source terms $\mathcal{Q}_H$ and $\mathcal{Q}_{\psi}$ are
 time-dependent functions that provide one way for a modeller to control fluxes
