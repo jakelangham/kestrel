@@ -37,10 +37,15 @@ Then the code can be compiled with
 
   $ ./configure && make
 
-If successful, this places an executable in the src directory.
+If successful, this places an executable in the src directory. Alternatively,
+you may wish to install Kestrel in another location with the commands:
 
-You may wish to provide additional flags to the configure script, depending on
-your local setup. For example, you can do
+.. code-block:: bash
+
+  $ ./configure --prefix=[installation-directory] && make && make install
+
+It is sometimes necessary to provide additional flags to the configure script,
+depending on your local setup. For example, you can do
 
 .. code-block:: bash
 
