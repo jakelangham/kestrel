@@ -96,14 +96,15 @@ programs most closely related to ours are the open source codes `D-CLAW`
 components of the proprietary software packages `RAMMS`
 [@Christen:2010;@Meyrat:2022] and `Flo-2D` [@Flo2D:2023].  Each of these codes
 uses a slightly different description of the flow physics and underlying
-mathematical framework. In some cases, it can be difficult to discern from the
-available documentation exactly which model and assumptions are used in the
-latest software version and how the program operates `under the hood' to produce
-its results.  The diversity of approaches reflects differences in the level of
-detail included in physical descriptions, as well as genuine uncertainties
-present in current understanding of Earth surface flow physics.  Our code implements
-a newly derived modelling framework and accompanying numerical scheme detailed
-in @Langham:2023. Its essential features are described below.
+mathematical framework.  The diversity of approaches reflects differences in the
+level of detail included in physical descriptions, as well as genuine
+uncertainties present in current understanding of Earth surface flow physics.
+Our code implements a newly derived modelling framework and accompanying
+numerical scheme detailed in @Langham:2023, which is designed to be adjusted to
+accommodate a wide range of flow types by specifying particular physical
+closures at runtime. The model and its implementation also resolve some
+important technical issues that affect morphodynamic simulations on complex
+terrains. Its essential features are briefly described below.
 
 Like all the above software, `Kestrel` numerically approximates solutions to an
 underlying system of partial differential equations for the flow, whose
