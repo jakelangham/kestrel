@@ -56,14 +56,17 @@ results, the program is otherwise intended to be straightforward to use for a
 broad range of scientists.  It has relatively few dependencies (`GDAL`, `PROJ`
 and optionally, `NetCDF`), making it easy to build on modern Unix-like
 platforms.  After installation, simulations are prepared by writing an input
-file specifying suitable parameter choices and run on the command line.
+file specifying suitable parameter choices and run on the command line.  During
+the simulation, resources are allocated dynamically, according to the inundated
+area at each time step, in order to handle large-scale flows efficiently.
 Solution fields are saved at regular intervals, together with spatial maps of
 their maximums over the whole simulation. Output is via text file or `NetCDF`
-(preferred).  In the latter case, we provide an extension to the open-source
-`QGIS` software, which imports `Kestrel` solutions at their georeferenced
-coordinates and prepares each of the data fields for visualisation.  This
-provides a particularly convenient workflow for geoscientists.  An example of
-this output is given in \autoref{fig:example}.
+(preferred). In the latter case, data is losslessly compressed, enabling
+efficient checkpointing for large simulations. Additionally, we provide an
+extension to the open-source `QGIS` software, which imports `Kestrel` solutions
+in NetCDF format at their georeferenced coordinates and prepares each of the
+data fields for visualisation.  This provides a particularly convenient workflow
+for geoscientists.  An example of this output is given in \autoref{fig:example}.
 
 ![An example of `Kestrel` simulation output, postprocessed and georeferenced
 automatically in `QGIS`, using our bespoke plugin. (Labels and colour bars have
