@@ -140,7 +140,7 @@ In two spatial dimensions, the governing equations that `Kestrel` solves are
 \frac{\partial ~}{\partial t}(\bar{\rho} H \bar{\mathbf{u}}) + 
 \nabla\cdot(\rho H\bar{\mathbf{u}}\otimes\bar{\mathbf{u}}) + 
 \frac{g}{2\cos\theta}\nabla_s\left(\bar{\rho} H^2\cos^2\theta \right) = 
--\rho gH \nabla_s b - \mathcal{T} + \nabla\cdot(\nu \bar{\rho} H \nabla \bar{\mathbf{u}}), \\
+-\bar{\rho} gH \nabla_s b - \mathcal{T} + \nabla\cdot(\nu \bar{\rho} H \nabla \bar{\mathbf{u}}), \\
 \frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
 \end{gather}
