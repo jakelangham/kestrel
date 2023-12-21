@@ -20,6 +20,10 @@ In order to do so, make sure the following dependencies are present on your syst
   library is required in this case)
 * (optional) `Julia <https://julialang.org/>`_, for running tests
 
+On GNU/Linux/UNIX systems, these should be available via your package manager.
+For MacOS users, we recommend installing these dependencies with `homebrew
+<https://brew.sh/>`_.
+
 .. _installation:
 
 Installation
