@@ -132,18 +132,20 @@ increase in the solids concentration.
 \label{fig:schematic}](schematic.pdf){width=8.5cm}
 
 In two spatial dimensions, the governing equations that `Kestrel` solves are
-\begin{gather}\frac{\partial H}{\partial t} +
-\nabla\cdot(H\bar{\mathbf{u}}) = \mathcal{E} - \mathcal{D} + \mathcal{Q}_H,\label{eq:governing eqs 1}\\
+\begin{equation}\frac{\partial H}{\partial t} +
+\nabla\cdot(H\bar{\mathbf{u}}) = \mathcal{E} - \mathcal{D} + \mathcal{Q}_H,\label{eq:governing eqs 1}\end{equation}
+\begin{equation}
 \frac{\partial~}{\partial t}(H\bar{\psi}) +
 \nabla\cdot(H\bar{\mathbf{u}}\bar{\psi}) = \psi_b (\mathcal{E} - \mathcal{D}) +
-\mathcal{Q}_H\mathcal{Q}_{\psi},\\
+\mathcal{Q}_H\mathcal{Q}_{\psi},\end{equation}
+\begin{equation}
 \frac{\partial ~}{\partial t}(\bar{\rho} H \bar{\mathbf{u}}) + 
 \nabla\cdot(\rho H\bar{\mathbf{u}}\otimes\bar{\mathbf{u}}) + 
 \frac{g}{2\cos\theta}\nabla_s\left(\bar{\rho} H^2\cos^2\theta \right) = 
--\bar{\rho} gH \nabla_s b - \mathcal{T} + \nabla\cdot(\nu \bar{\rho} H \nabla \bar{\mathbf{u}}), \\
-\frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
+-\bar{\rho} gH \nabla_s b - \mathcal{T} + \nabla\cdot(\nu \bar{\rho} H \nabla \bar{\mathbf{u}}), \end{equation}
+\begin{equation}\frac{\partial b}{\partial t} = \frac{\mathcal{D} - \mathcal{E}}{\cos\theta},
 \label{eq:governing eqs 4}
-\end{gather}
+\end{equation}
 where $\bar{\rho} = \bar{\psi}\rho_s + (1-\bar{\psi})\rho_f$ is the flow
 density, $\rho_s$, $\rho_f$, $\psi_b$, $g$ and $\nu$ are user-defined modelling
 parameters, $\theta(\mathbf{x},t)$ is the local slope angle between the bed
