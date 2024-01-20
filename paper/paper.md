@@ -201,8 +201,8 @@ stage of the modelling process is essential to obtain reliable results from
 `Kestrel`. Examples and guidance for getting started may be found in our
 documentation, which includes details of the currently available model closures
 and their associated parameters.  Results from `Kestrel` simulations have thus
-far been used in the following scientific publications:
-@Jenkins:2023 and @Langham:2023. `Kestrel` also forms the backend for the
+far been used in the following scientific publications: @Jenkins:2023,
+@Langham:2023 and @Phillips:2024. `Kestrel` also forms the backend for the
 `LaharFlow` volcanic hazard model [@Laharflow:2023].
 
 # Acknowledgements
