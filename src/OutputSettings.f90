@@ -180,7 +180,10 @@ contains
                   call FatalErrorMessage('NetCDF not active')
 #endif
                 case default
-                  call WarningMessage("In the 'Output' block the value of 'Format' is not recognised.")
+                  call WarningMessage("In the 'Output' block the value of " &
+                                      // "'Format' is not recognised. " &
+                                      // "Using default .txt files")
+                  RunParams%out_txt = .TRUE.
                end select
             end do
 
