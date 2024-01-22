@@ -2068,9 +2068,9 @@ contains
          case ("Manning")
             call put_nc_att(ncid, "Manning coefficient", RunParams%ManningCo)
       end select
+      call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice%s)
       if (RunParams%MorphodynamicsOn) then
          call put_nc_att(ncid, "morphodynamics time stepping", "on")
-         call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice%s)
          select case (RunParams%ErosionChoice%s)
             case ('Fluid')
                call put_nc_att(ncid, "fluid erosion rate", RunParams%EroRate)
