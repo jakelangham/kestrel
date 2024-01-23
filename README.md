@@ -1,5 +1,7 @@
 # Kestrel #
 
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.06079/status.svg)](https://doi.org/10.21105/joss.06079)
+
 Kestrel is a Fortran code for simulating sediment-laden Earth surface flows,
 such as debris flows, landslides and flash flooding.
 
