@@ -252,6 +252,14 @@ contains
                      // " two 'Topog params' are needed for 'Type = USGS'; received " // Int2String(size(RunParams%TopogFuncParams)))
                end if
                TopogFunc => usgs
+
+            case ('flume')
+                if (size(RunParams%TopogFuncParams) < 6) then
+                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                      trim(RunParams%InputFile%s) // new_line('A') &
+                      // " six 'Topog params' are needed for 'Type = Flume'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                end if
+                TopogFunc => flume
             
             case ('xbislope')
                if (size(RunParams%TopogFuncParams) < 3) then
