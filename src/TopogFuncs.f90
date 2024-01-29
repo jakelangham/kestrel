@@ -215,7 +215,7 @@ contains
       ! Build topography along x
       do ii=1,size(x)
          if (x(ii)<0.0_wp) then
-            b0(ii,:) = -tan(31.0_wp*pi/180.0_wp)*x(ii)
+            b0(ii,:) = -tan(theta0*pi/180.0_wp)*x(ii)
          elseif (x(ii)>x1) then
             b0(ii,:) = zc0 + alpha*cosh((x1-xc0)/alpha) - tan(theta1*pi/180.0_wp)*(x(ii)-x1)
          else
@@ -228,7 +228,7 @@ contains
          if (x(ii)<xwall) then
             do jj=1,size(y)
                b0(ii,jj) = b0(ii,jj) + 0.5_wp*wallH*(tanh(sigma*(y(jj)-0.5_wp*wallW)) &
-                  - tanh(sigma*(y(jj)-0.5_wp*wallW)) + tanh(sigma*(y(jj)+0.5_wp*wallW)) - tanh(sigma*(y(jj)+0.5_wp*wallW)))
+                  - tanh(sigma*(y(jj)-1.5_wp*wallW)) + tanh(sigma*(y(jj)+1.5_wp*wallW)) - tanh(sigma*(y(jj)+0.5_wp*wallW)))
             end do
          end if
       end do
