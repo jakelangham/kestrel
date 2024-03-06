@@ -32,6 +32,7 @@ module solver_settings_module
    use limiters_module
    use varstring_module, only: varString
    use runsettings_module, only: RunSet
+   use closures_module
 
    implicit none
 
@@ -41,6 +42,8 @@ module solver_settings_module
 ! default values
    character(len=7), parameter :: limiter_d = 'MinMod2'
    procedure(limiter), pointer :: limiter_dfunc => MinMod2
+   character(len=2), parameter :: desingularization_d = 'L1'
+   procedure(DesingularizeFunc), pointer :: desingularize_dfunc => Desingularize_L1
    real(kind=wp), parameter :: heightThreshold_d = 1e-6_wp
    integer, parameter :: TileBuffer_d = 1
    real(kind=wp), parameter :: cfl_1d_d = 0.5_wp
@@ -63,11 +66,13 @@ contains
 
       type(varString) :: label
       type(varString) :: limiter_label
+      type(varString) :: desingularization_label
       type(varString) :: Restart_label
 
       integer :: J, N
 
       logical :: set_limiter
+      logical :: set_desingularization
       logical :: set_heightThreshold
       logical :: set_SpongeStrength
       logical :: set_TileBuffer
@@ -81,6 +86,7 @@ contains
       N = size(SolverValues)
 
       set_limiter=.FALSE.
+      set_desingularization=.FALSE.
       set_heightThreshold=.FALSE.
       set_SpongeStrength=.FALSE.
       set_TileBuffer=.FALSE.
@@ -124,6 +130,29 @@ contains
                      RunParams%limiter = varString(limiter_d)
                      limiter => limiter_dfunc
                end select
+
+            case ('desingularization')
+                set_desingularization=.TRUE.
+                desingularization_label = SolverValues(J)%to_lower()
+                select case (desingularization_label%s)
+                    case ('l1','chertock')
+                        RunParams%desingularization = varString('L1')
+                        DesingularizeFunc => Desingularize_L1
+                    case ('l2','kurganov')
+                        RunParams%desingularization = varString('L2')
+                        DesingularizeFunc => Desingularize_L2
+                    case ('linf','linfty','infinity')
+                        RunParams%desingularization = varString('Linfty')
+                        DesingularizeFunc => Desingularize_Linfty
+                    case ('step','bollermann')
+                        RunParams%desingularization = varString('Step')
+                        DesingularizeFunc => Desingularize_step
+                    case default
+                        call WarningMessage("In the 'Solver' block the value of 'desingularization' is not recognized.  " &
+                           // "Using the default desingularization formula = " // desingularization_d)
+                        RunParams%desingularization = varString(desingularization_d)
+                        DesingularizeFunc => desingularize_dfunc
+                end select
 
             case ('height threshold')
                set_heightThreshold=.TRUE.
@@ -181,6 +210,11 @@ contains
          RunParams%limiter = varString(limiter_d)
          limiter => limiter_dfunc
       end if
+
+      if (.not.set_desingularization) then
+        RunParams%desingularization = varString(desingularization_d)
+        DesingularizeFunc => desingularize_dfunc
+     end if
 
       if (.not.set_heightThreshold) RunParams%heightThreshold = heightThreshold_d
 

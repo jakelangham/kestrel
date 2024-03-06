@@ -409,6 +409,7 @@ contains
 
       write (101, fmt="(a)") "Solver:"
       write (101, fmt="(a,a)") "limiter = ", RunParams%limiter%s
+      write (101, fmt="(a,a)") "desingularization = ", RunParams%desingularization%s
       write (101, fmt="(a,G0)") "height threshold = ", RunParams%heightThreshold
       write (101, fmt="(a,i0)") "Tile buffer = ", RunParams%TileBuffer
       write (101, fmt="(a,G0)") "CFL = ", RunParams%cfl
@@ -2005,6 +2006,7 @@ contains
       call put_nc_att(ncid, "centre_latitude", RunParams%Lat)
       call put_nc_att(ncid, "centre_longitude", RunParams%Lon)
       call put_nc_att(ncid, "limiter", RunParams%limiter)
+      call put_nc_att(ncid, "desingularization", RunParams%desingularization)
       call put_nc_att(ncid, "heightThreshold", RunParams%heightThreshold)
       if (RunParams%SpongeLayer) then
          call put_nc_att(ncid, "SpongeLayer", 'On')

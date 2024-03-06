@@ -61,6 +61,7 @@ module topog_funcs_module
    public :: x2slopes ! Two slopes connected by a circular arc
    public :: usgs ! Parameterization of the USGS flume
    public :: flume ! General flume based on the USGS flume
+   public :: quadratic_flume ! Flume with runout and quadratic cross-section
    public :: xbislope ! Two slopes with smooth transition
    public :: flat ! Flat topography
    public :: xslope ! Uniform slope along x
@@ -234,6 +235,60 @@ contains
       end do
       return
    end subroutine flume
+
+   ! Parameterization of a quadratic flume
+   ! This has slope theta0 for x<0, and slope theta1 for x>x1>0
+   ! that are connected by a smooth cosh curve section.
+   ! Note x1 is determined to ensure smooth connection.
+   ! The channel cross-section is quadratic b(x,y) = -theta0*x + a*y^2
+   !  parameters required:
+   !  theta0 -- slope (in degrees) for x<0; passed in RunParams%TopogFuncParams(1)
+   !  theta1 -- slope (in degrees) for x>x1; passed in RunParams%TopogFuncParams(2)
+   !  xwall -- x coordinate for end of wall; passed in RunParams%TopogFuncParams(3)
+   !  a -- quadratic coefficient; passed in RunParams%TopogFuncParams(4)
+   pure subroutine quadratic_flume(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: theta0, theta1, xwall, a
+      real(kind=wp) :: alpha, xc0, zc0, x1
+      integer :: ii, jj
+
+      ! Get parameters
+      theta0 = RunParams%TopogFuncParams(1)
+      theta1 = RunParams%TopogFuncParams(2)
+      xwall = RunParams%TopogFuncParams(3)
+      a = RunParams%TopogFuncParams(4)
+      
+      ! Set parameters
+      alpha = 8.5_wp/(asinh(-tan(4.0_wp*pi/180_wp))-asinh(-tan(theta0*pi/180_wp)))
+      xc0 = - alpha*asinh(-tan(theta0*pi/180.0_wp))
+      zc0 = -alpha*cosh((-xc0)/alpha)
+      x1 = xc0 + alpha*asinh(-tan(theta1*pi/180.0_wp))
+      
+      ! Build topography along x
+      do ii=1,size(x)
+         if (x(ii)<0.0_wp) then
+            b0(ii,:) = -tan(theta0*pi/180.0_wp)*x(ii)
+         elseif (x(ii)>x1) then
+            b0(ii,:) = zc0 + alpha*cosh((x1-xc0)/alpha) - tan(theta1*pi/180.0_wp)*(x(ii)-x1)
+         else
+            b0(ii,:) = zc0 + alpha*cosh((x(ii)-xc0)/alpha)
+         end if
+      end do
+
+      ! Add confining walls
+      do ii=1,size(x)
+         if (x(ii)<xwall) then
+            do jj=1,size(y)
+               b0(ii,jj) = b0(ii,jj) + a*y(jj)*y(jj)
+            end do
+         end if
+      end do
+      return
+   end subroutine quadratic_flume
 
    ! Two slopes with smooth transition
    ! Three parameters required:

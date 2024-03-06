@@ -72,7 +72,7 @@ contains
 
       ! If restarting, need to read in settings from the InfoFile - in case of
       ! conflict we choose the InfoFile settings.
-      if (RunParams%Restart .and. RunParams%InitialCondition%s == " ") then
+      if (RunParams%Restart .and. RunParams%InitialCondition%len() == 0) then
          call ReadRunInfoToRunParams(RunParams)
       end if
       
@@ -89,7 +89,7 @@ contains
       end if
 
       ! Get the initial condition file name.
-      if (RunParams%InitialCondition%s /= " ") then
+      if (RunParams%InitialCondition%len()>0) then
          InitFile = RunParams%InitialCondition
       else if (RunParams%Restart) then
          call GetLastResultFile(RunParams, InitFile, ext='')
@@ -471,7 +471,7 @@ contains
 
       end do
 
-      call get_nc_att(ncid, 'DeltaT', RunParams%DeltaT)
+    !   call get_nc_att(ncid, 'DeltaT', RunParams%DeltaT)
 
       nc_status = nf90_close(ncid)
       if (nc_status /= NF90_NOERR) call handle_err(nc_status, 'close nc')
