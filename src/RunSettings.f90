@@ -263,6 +263,7 @@ module runsettings_module
       ! Small height below which desingularisation for derived variables (e.g.
       ! u & v) is applied in the numerical scheme. Also used elsewhere when we
       ! occasionally need to define cutoffs based on flow depth.
+      type(varString) :: desingularization
       real(kind=wp) :: heightThreshold
       ! Sets a buffer around flowing area where tiles are activated.
       integer :: TileBuffer
