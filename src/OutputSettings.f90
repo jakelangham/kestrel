@@ -164,25 +164,23 @@ contains
             RunParams%kmlHeight = OutputValues(J)%to_real()
 
           case ('format')
+            set_outputFormat=.TRUE.
             call OutputValues(J)%read_list(outputFormat, delimiter=',')
             N_fmts = OutputValues(J)%count_substring(',')+1
             do K=1,N_fmts
                select case (outputFormat(K)%s)
                 case ('txt')
                   RunParams%out_txt = .TRUE.
-                  set_outputFormat=.TRUE.
                 case ('kml')
                   RunParams%out_kml = .TRUE.
-                  set_outputFormat=.TRUE.
                 case ('nc','netcdf')
 #if HAVE_NETCDF4
                   RunParams%out_nc = .TRUE.
-                  set_outputFormat=.TRUE.
 #else
                   call FatalErrorMessage('NetCDF not active')
 #endif
                 case default
-                  call WarningMessage("In the 'Output' block the setting 'Format = "//outputFormat(K)%s//"' is not recognised.")
+                  call WarningMessage("In the 'Output' block the value of 'Format' is not recognised.")
                end select
             end do
 
@@ -237,6 +235,7 @@ contains
          call WarningMessage("In the 'Output' block in the input file 'Format' is not given.  Using txt output format.")
       end if
 
+      ! Set defaults for optional settings if not set.
       if (.not.set_MaximumsFilename) then
          MaximumsFilename = varString(MaximumsFilename_d)
       end if

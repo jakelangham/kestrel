@@ -56,6 +56,9 @@ module timestepper_module
    use update_tiles_module, only: AddTile
    use varstring_module, only: varString
    use output_module, only: OutputSolutionData, OutputAggregateData, OutputInfo, CalculateVolume
+#if DEBUG_SPD>0
+    use utilities_module, only: Int2String
+#endif
 
    implicit none
 
@@ -125,11 +128,7 @@ contains
 
       integer :: nTiles, nActiveTiles, nDimensions, nFlux
 
-      character(len=10) :: basePath
-
       logical :: integrating, firstStep, refineTimeStep
-
-      basePath = "./"
 
       nTiles = grid%nTiles
       nActiveTiles = grid%activeTiles%size
@@ -855,17 +854,26 @@ contains
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
          tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
+         tilesto(ttk)%u(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxx, :, :)
          tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
 
          tilesto(ttk)%uPlusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%bt, :, :)
          tilesto(ttk)%uMinusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%bt, :, :)
          tilesto(ttk)%uPlusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdx, :, :)
          tilesto(ttk)%uMinusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdx, :, :)
+         tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :)
+         tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :)
          if (.not. RunParams%isOneD) then
             tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
+            tilesto(ttk)%u(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdyy, :, :)
+            tilesto(ttk)%u(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxy, :, :)
 
             tilesto(ttk)%uPlusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdy, :, :)
             tilesto(ttk)%uMinusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdy, :, :)
+            tilesto(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :)
+            tilesto(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :)
+            tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :)
+            tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :)
 
             tilesto(ttk)%uPlusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%bt, :, :)
             tilesto(ttk)%uMinusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%bt, :, :)
@@ -873,6 +881,12 @@ contains
             tilesto(ttk)%uMinusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdx, :, :)
             tilesto(ttk)%uPlusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdy, :, :)
             tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
+            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :)
+            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :)
+            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :)
+            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :)
+            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :)
+            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :)
          end if
       end do
    end subroutine CopyMutableTopographicData
@@ -1203,7 +1217,7 @@ contains
             spd = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, tile%u(:, ii, jj)))
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
-               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // Int2String(ii) //',' // Int2String(jj) ' : spd = ', spd)
+               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // Int2String(ii) //',' // Int2String(jj) // ' : spd = ', spd)
 #if DEBUG_SPD==2
                call exit(1)
 #endif

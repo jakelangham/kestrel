@@ -43,6 +43,7 @@ module parameters_module
    character(len=4), parameter :: morpho_damp_d = 'tanh'
    procedure(MorphoDamping), pointer :: morpho_damp_dfunc => tanhMorphoDamping
    logical, parameter :: geometric_factors_d = .true.
+   logical, parameter :: curvature_d = .true.
    real(kind=wp), parameter :: g_d = 9.81_wp
    real(kind=wp), parameter :: chezyco_d = 0.01_wp
    real(kind=wp), parameter :: manningco_d = 0.03_wp
@@ -89,7 +90,7 @@ contains
 
       type(varString) :: label
       type(varString) :: DragChoice, DepositionChoice, ErosionChoice
-      type(varString) :: geometric_factors, switcher, eroTransition
+      type(varString) :: geometric_factors, curvature, switcher, eroTransition
       type(varString) :: morpho_damp
 
       integer :: J, N
@@ -120,6 +121,7 @@ contains
       logical :: set_SolidDiameter
       logical :: set_EddyViscosity
       logical :: set_geometric_factors
+      logical :: set_curvature
       logical :: set_SettlingSpeed
       logical :: set_MorphoDamp
 
@@ -153,6 +155,7 @@ contains
       set_SolidDiameter=.FALSE.
       set_EddyViscosity=.FALSE.
       set_geometric_factors = .false.
+      set_curvature = .false.
       set_SettlingSpeed = .false.
       set_MorphoDamp = .false.
 
@@ -234,20 +237,33 @@ contains
                geometric_factors = ParamValues(J)%to_lower()
                !0=Off, 1=On (perhaps will change in future for different formulations
                select case (geometric_factors%s)
-                case ('off')
-                  RunParams%geometric_factors = .false.
-                  GeometricCorrectionFactor => NoGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
-                case ('on')
-                  RunParams%geometric_factors = .true.
-                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
-                case default
-                  set_geometric_factors = geometric_factors_d
-                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
-            end select
+                  case ('off')
+                     RunParams%geometric_factors = .false.
+                     GeometricCorrectionFactor => NoGeometricCorrectionFactor
+                     GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
+                  case ('on')
+                     RunParams%geometric_factors = .true.
+                     GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
+                     GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+                  case default
+                     set_geometric_factors = geometric_factors_d
+                     GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
+                     GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+               end select
 
+            case ('curvature')
+               curvature = ParamValues(J)%to_lower()
+               select case(curvature%s)
+                  case ('off')
+                     set_curvature=.true.
+                     RunParams%curvature=.false.
+                  case ('on')
+                     set_curvature=.true.
+                     RunParams%curvature=.true.
+                  case default
+                     set_curvature=.false.
+               end select
+                
             case ('g')
                set_g=.TRUE.
                RunParams%g = ParamValues(J)%to_real()
@@ -457,6 +473,11 @@ contains
             GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
          end if
       end if
+
+      if (.not.set_curvature) then
+         RunParams%curvature=curvature_d
+      end if
+
       if (.not.set_g) RunParams%g = g_d
       if (.not.set_drag) then
          RunParams%DragChoice = varString('Chezy')

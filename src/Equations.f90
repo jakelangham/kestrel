@@ -482,6 +482,9 @@ contains
 
       real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, gam, dbdx, dbdy
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+      real(kind=wp) :: rhoHnu, rhoHnv, u, v
+      real(kind=wp) :: curvatureTerm
 
       stvect(:) = 0.0_wp
 
@@ -617,6 +620,23 @@ contains
       stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
       stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
 
+      if (RunParams%curvature) then
+         ! Determine the curvature terms and add it on to the momentum
+         ! equations.
+         d2bdxx = uvect(RunParams%Vars%d2bdxx)
+         d2bdyy = uvect(RunParams%Vars%d2bdyy)
+         d2bdxy = uvect(RunParams%Vars%d2bdxy)
+
+         rhoHnu = uvect(irhoHnu)
+         rhoHnv = uvect(irhoHnv)
+         u = uvect(iu)
+         v = uvect(iv)
+
+         curvatureTerm = rhoHnu*u*d2bdxx + 2.0_wp*rhoHnu*v*d2bdxy + rhoHnv*v*d2bdyy
+         stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx / gam
+         stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy / gam
+      end if
+
    end subroutine ExplicitSourceTerms
 
    ! Compute (hydraulic) implicit source terms for each of the governing
@@ -635,7 +655,8 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, hr, modu
+      real(kind=wp) :: Hn, modu
+      real(kind=wp) :: gam, f
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -643,17 +664,15 @@ contains
 
       Hn = uvect(iHn)
 
-      stvect(:) = 0.0_wp
+      gam = GeometricCorrectionFactor(RunParams, uvect)
 
-      if (Hn > RunParams%heightThreshold) then
-         modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
-         if (modu > 1.0e-8_wp) then
-            hr = 1.0_wp / Hn ! hr = 1/Hn calculated using desingularization
-            stvect(irhoHnu) = -friction * hr / modu
-            stvect(irhoHnv) = -friction * hr / modu
-         end if
-      end if
+      ! Desingularize 1/(Hn*modu)
+      f = DesingularizeFunc(Hn*modu, 1.0e-8_wp*gam)
+
+      stvect(irhoHnu) = -friction * f
+      stvect(irhoHnv) = stvect(irhoHnu)
 
    end subroutine ImplicitSourceTerms
 

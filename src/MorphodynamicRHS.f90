@@ -314,14 +314,19 @@ contains
       integer, intent(in) :: tID
 
       integer :: i, j, ib0, ibt, idbdx, idbdy
+      integer :: id2bdxx, id2bdyy, id2bdxy
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: dbdx, dbdy, b0_centre, bt_centre
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
 
       ib0 = RunParams%Vars%b0
       ibt = RunParams%Vars%bt
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
+      id2bdxx = RunParams%Vars%d2bdxx
+      id2bdyy = RunParams%Vars%d2bdyy
+      id2bdxy = RunParams%Vars%d2bdxy
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
@@ -353,6 +358,54 @@ contains
                tiles(tID)%u(idbdy,i,j) = dbdy
             end do
          end do
+         
+         if (RunParams%curvature) then
+            do i = 1, RunParams%nXpertile
+               do j = 1, RunParams%nYpertile
+
+                  if (i==1) then
+                     d2bdxx = deltaXRecip * ( &
+                        tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i  , j  ) &
+                     )
+                  elseif (i==RunParams%nXpertile) then
+                     d2bdxx = deltaXRecip * ( &
+                        tiles(tID)%u(idbdx, i, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
+                     )
+                  else
+                     d2bdxx = 0.5_wp * deltaXRecip * ( &
+                        tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
+                     )
+                  end if
+                  tiles(tID)%u(id2bdxx,i,j) = d2bdxx
+
+                  if (j==1) then
+                     d2bdyy = deltaYRecip * ( &
+                        tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i , j) &
+                     )
+                     d2bdxy = deltaYRecip * ( &
+                        tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i , j) &
+                     )
+                  elseif (j==RunParams%nYpertile) then
+                     d2bdyy = deltaYRecip * ( &
+                        tiles(tID)%u(idbdy, i, j ) - tiles(tID)%u(idbdy, i, j-1) &
+                     )
+                     d2bdxy = deltaYRecip * ( &
+                        tiles(tID)%u(idbdx, i, j ) - tiles(tID)%u(idbdx, i , j-1) &
+                     )
+                  else
+                     d2bdyy = 0.5_wp * deltaYRecip * ( &
+                        tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i, j-1) &
+                     )  
+                     d2bdxy = deltaYRecip * ( &
+                        tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i, j-1) &
+                     )
+                  end if
+                  tiles(tID)%u(id2bdyy,i,j) = d2bdyy
+                  tiles(tID)%u(id2bdxy,i,j) = d2bdxy
+               end do
+            end do
+         end if
+
       else
          do i = 1, RunParams%nXpertile
             b0_centre = 0.5_wp * (tiles(tID)%b0(i, 1) + tiles(tID)%b0(i+1, 1))
@@ -363,6 +416,19 @@ contains
                -tiles(tID)%b0(i  , 1), -tiles(tID)%bt(i  , 1)])
             tiles(tID)%u(idbdx,i,1) = dbdx
          end do
+
+         if (RunParams%curvature) then
+            do i = 1, RunParams%nXpertile
+               if (i==1) then
+                  d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%U(idbdx, i, 1))
+               elseif (i==RunParams%nXpertile) then
+                  d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, 1) - tiles(tID)%U(idbdx, i-1, 1))
+               else
+                  d2bdxx = 0.5_wp * deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%U(idbdx, i-1, 1))
+               end if
+               tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+            end do
+         end if
       end if
 
    end subroutine ComputeCellCentredTopographicData_tileID
@@ -377,9 +443,11 @@ contains
       integer, intent(in) :: tID, i, j
 
       integer :: ibt, idbdx, idbdy
+      integer :: id2bdxx, id2bdyy, id2bdxy
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: dbdx, dbdy, bt_centre
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
 
       ibt = RunParams%Vars%bt
       idbdx = RunParams%Vars%dbdx
@@ -406,12 +474,34 @@ contains
             tiles(tID)%b0(i+1, j+1), tiles(tID)%bt(i+1, j+1), &
             -tiles(tID)%b0(i+1, j  ), -tiles(tID)%bt(i+1, j  )])
          tiles(tID)%u(idbdy,i,j) = dbdy
+
+         if (RunParams%curvature) then
+            d2bdxx = deltaXRecip * ( &
+               tiles(tID)%u(idbdx,i+1, j) - tiles(tID)%u(idbdx,i, j) &
+            )
+            tiles(tID)%u(id2bdxx, i, j) = d2bdxx
+
+            d2bdyy = deltaYRecip * ( &
+               tiles(tID)%u(idbdy,i, j+1) - tiles(tID)%u(idbdy,i, j) &
+            )
+            tiles(tID)%u(id2bdyy, i, j) = d2bdyy
+
+            d2bdxy = 0.5_wp * deltaYRecip * &
+               KahanSum([tiles(tID)%u(idbdx,i, j+1), -tiles(tID)%u(idbdx,i, j), &
+                  tiles(tID)%u(idbdx,i+1, j+1), -tiles(tID)%u(idbdx,i+1, j)])
+            tiles(tID)%u(id2bdxy, i, j) = d2bdxy
+         end if
       else
          bt_centre = 0.5_wp * (tiles(tID)%bt(i, 1) + tiles(tID)%bt(i+1, 1))
          tiles(tID)%u(ibt,i,1) = bt_centre
          dbdx = deltaXRecip * KahanSum([tiles(tID)%b0(i+1, 1), tiles(tID)%bt(i+1, 1), &
             -tiles(tID)%b0(i  , 1), -tiles(tID)%bt(i  , 1)])
          tiles(tID)%u(idbdx,i,1) = dbdx
+
+         if (RunParams%curvature) then
+            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i, 1))
+            tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+         end if
       end if
    end subroutine ComputeCellCentredTopographicData_ij
 

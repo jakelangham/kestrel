@@ -91,8 +91,11 @@ program Kestrel
    RunParams%Vars%bt = 11
    RunParams%Vars%dbdx = 12
    RunParams%Vars%dbdy = 13
+   RunParams%Vars%d2bdxx = 14
+   RunParams%Vars%d2bdyy = 15
+   RunParams%Vars%d2bdxy = 16
 
-   RunParams%nDimensions = 13
+   RunParams%nDimensions = 16
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel."

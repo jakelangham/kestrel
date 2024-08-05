@@ -46,6 +46,7 @@ module runsettings_module
       integer :: w, rhoHnu, rhoHnv, Hnpsi ! Conserved quantities
       integer :: Hn, hp, u, v, psi, rho ! Derived variables
       integer :: b0, bt, dbdx, dbdy ! Specified elevation and slopes
+      integer :: d2bdxx, d2bdyy, d2bdxy ! second derivatives of elevation
    end type VarIndex
 
    ! Cap initial condition type. Defines an initial release of a volume of
@@ -213,6 +214,8 @@ module runsettings_module
    ! -- Parameters. --
       ! Use geometrically corrected coordinates?
       logical :: geometric_factors
+      ! Use curvature terms?
+      logical :: curvature
       real(kind=wp) :: g ! gravity
       real(kind=wp) :: rhow ! Density of water
       real(kind=wp) :: rhos ! Density of solids
@@ -263,6 +266,7 @@ module runsettings_module
       ! Small height below which desingularisation for derived variables (e.g.
       ! u & v) is applied in the numerical scheme. Also used elsewhere when we
       ! occasionally need to define cutoffs based on flow depth.
+      type(varString) :: desingularization
       real(kind=wp) :: heightThreshold
       ! Sets a buffer around flowing area where tiles are activated.
       integer :: TileBuffer
