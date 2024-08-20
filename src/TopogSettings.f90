@@ -351,7 +351,7 @@ contains
             RunParams%UTM_zone_letter = "N"
          end if
          RunParams%utmEPSG = LatLonToUtmEpsg(RunParams%Lat, RunParams%Lon)
-         RunParams%projTransformer = proj_transformer(RunParams%utmEPSG)
+         call new(RunParams%projTransformer, RunParams%utmEPSG)
          RunParams%centerUTM = RunParams%projTransformer%wgs84_to_utm(RunParams%Lat, RunParams%Lon)
       end if
 

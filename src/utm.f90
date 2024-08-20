@@ -33,7 +33,7 @@ module utm_module
 
     private
     public :: LatLonToZoneNumber, ZoneNumberToCentralLongitude, LatLonToUtmEpsg
-    public :: proj_transformer
+    public :: new, delete, proj_transformer
    
     ! Fortran interface to proj_transformer
     ! Use a Fortran type to represent a C++ class in an opaque manner
@@ -41,7 +41,7 @@ module utm_module
         private
         type(c_ptr) :: object = c_null_ptr ! Pointer to C++ proj_transformer object
     contains
-        final :: delete_proj_transformer ! Destructor in Fortran
+        final :: proj_transformer__delete ! Destructor in Fortran
 
         procedure :: proj_transformer_wgs84_to_utm_f ! Transform from wgs84 to UTM with coordinates passed as reals
         procedure :: proj_transformer_wgs84_to_utm_pair ! Transform from wgs84 to UTM with coordinates passed as type(pair)
@@ -50,13 +50,8 @@ module utm_module
         procedure :: proj_transformer_utm_to_wgs84_pair ! Transform from UTM to WGS84 with coordinates passed as type(pair)
         generic, public :: utm_to_wgs84 => proj_transformer_utm_to_wgs84_f, proj_transformer_utm_to_wgs84_pair ! Overloaded interface to utm_to_wgs84
     end type proj_transformer
-    ! Constructor interface
-    interface proj_transformer
-        procedure create_proj_transformer
-    end interface
-
     interface
-        ! Bind to C constructor
+        ! Bindings to C functions
         function proj_transformer__new_c(utm_code) result(this) bind(C, name="proj_transformer__new")
             import
             implicit none
@@ -64,14 +59,12 @@ module utm_module
             integer(kind=c_int), value :: utm_code
         end function proj_transformer__new_c
 
-        ! Bind to C destructor
         subroutine proj_transformer__delete_c(self) bind(C,name="proj_transformer__delete")
             import
             implicit none
             type(c_ptr), value :: self
         end subroutine proj_transformer__delete_c
 
-        ! Bind to C method wgs84_to_utm
         function proj_transformer__wgs84_to_utm_c(this, latitude, longitude) result(en) bind(C,name="proj_transformer__wgs84_to_utm")
             import
             implicit none
@@ -81,7 +74,6 @@ module utm_module
             type(c_ptr) :: en
         end function proj_transformer__wgs84_to_utm_c
 
-        ! Bind to C method utm_to_wgs84
         function proj_transformer__utm_to_wgs84_c(this, easting, northing) result(latlon) bind(C,name="proj_transformer__utm_to_wgs84")
             import
             type(c_ptr), intent(in), value :: this
@@ -90,7 +82,6 @@ module utm_module
             type(c_ptr) :: latlon
         end function proj_transformer__utm_to_wgs84_c
 
-        ! Bind to C method latlon_to_zone_number
         function LatLonToZoneNumber(latitude, longitude) result(zone_number) bind(C,name="latlon_to_zone_number")
             import
             real(kind=c_double), intent(in), value :: latitude
@@ -98,14 +89,12 @@ module utm_module
             integer(kind=c_int) :: zone_number
         end function LatLonToZoneNumber
 
-        ! Bind to C method zone_number_to_central_longitude
         function ZoneNumberToCentralLongitude(zone_number) result(lon) bind(C, name="zone_number_to_central_longitude")
             import
             integer(kind=c_int), intent(in), value :: zone_number
             integer(kind=c_int) :: lon
         end function ZoneNumberToCentralLongitude
 
-        ! Bind to C method latlon_to_utm_epsg
         function LatLonToUtmEpsg(latitude, longitude) result(utm_code) bind(C, name="latlon_to_utm_epsg")
             import
             real(kind=c_double), intent(in), value :: latitude
@@ -114,19 +103,27 @@ module utm_module
         end function LatLonToUtmEpsg
     end interface
 
-contains
-    function create_proj_transformer(utm_code) result(PT)
-        implicit none
-        integer(kind=c_int), intent(in) :: utm_code
-        type(proj_transformer) :: PT
-        PT%object = proj_transformer__new_c(utm_code)
-    end function create_proj_transformer
+    interface new
+        module procedure proj_transformer__new
+    end interface new
+    interface delete
+        module procedure proj_transformer__delete
+    end interface delete
 
-    subroutine delete_proj_transformer(this)
+contains
+    subroutine proj_transformer__new(this, utm_code)
         implicit none
-        type(proj_transformer) :: this
+        type(proj_transformer), intent(out) :: this
+        integer(kind=c_int), intent(in) :: utm_code
+        this%object = proj_transformer__new_c(utm_code)
+    end subroutine proj_transformer__new
+
+    subroutine proj_transformer__delete(this)
+        implicit none
+        type(proj_transformer), intent(inout) :: this
         call proj_transformer__delete_c(this%object)
-    end subroutine delete_proj_transformer
+        this%object = c_null_ptr
+    end subroutine proj_transformer__delete
 
     function proj_transformer_wgs84_to_utm_f(this, latitude, longitude) result(EN)
         implicit none
