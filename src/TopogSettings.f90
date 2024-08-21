@@ -260,7 +260,23 @@ contains
                       // " six 'Topog params' are needed for 'Type = Flume'; received " // Int2String(size(RunParams%TopogFuncParams)))
                 end if
                 TopogFunc => flume
-            
+
+            case ('channel power law')
+                if (size(RunParams%TopogFuncParams) < 3) then
+                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                      trim(RunParams%InputFile%s) // new_line('A') &
+                      // " three 'Topog params' are needed for 'Type = Channel power law'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                end if
+                TopogFunc => channel_powerlaw
+
+            case ('channel trapezium')
+                if (size(RunParams%TopogFuncParams) < 3) then
+                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                      trim(RunParams%InputFile%s) // new_line('A') &
+                      // " three 'Topog params' are needed for 'Type = Channel trapezium'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                end if
+                TopogFunc => channel_trapezium
+
             case ('xbislope')
                if (size(RunParams%TopogFuncParams) < 3) then
                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
@@ -268,6 +284,14 @@ contains
                      // " three 'Topog params' are needed for 'Type = xbislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
                end if
                TopogFunc => xbislope            
+
+            case ('xtrislope')
+               if (size(RunParams%TopogFuncParams) < 6) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                     trim(RunParams%InputFile%s) // new_line('A') &
+                     // " six 'Topog params' are needed for 'Type = xtrislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xtrislope 
 
             case ('xsinslope')
                if (size(RunParams%TopogFuncParams) < 1) then

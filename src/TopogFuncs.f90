@@ -38,7 +38,10 @@
 !   x2slopes - Two slopes connected by a circular arc
 !   usgs - Parameterization of the USGS flume
 !   flume - General flume based on the USGS flume
+!   channel_powerlaw - Slope along x, power law cross section in y
+!   channel_trapezium - Slope along x, trapezium cross section in y
 !   xbislope - Two slopes with smooth transition
+!   xtrislope - Three slopes with piecewise continuous transition
 !   flat - Flat topography
 !   xslope - Uniform slope along x
 !   yslope - Uniform slope along y
@@ -61,7 +64,10 @@ module topog_funcs_module
    public :: x2slopes ! Two slopes connected by a circular arc
    public :: usgs ! Parameterization of the USGS flume
    public :: flume ! General flume based on the USGS flume
+   public :: channel_powerlaw ! Slope along x, power law cross section in y
+   public :: channel_trapezium ! Slope along x, trapezium cross section in y
    public :: xbislope ! Two slopes with smooth transition
+   public :: xtrislope ! Three slopes with piecewise continuous transition
    public :: flat ! Flat topography
    public :: xslope ! Uniform slope along x
    public :: yslope ! Uniform slope along y
@@ -235,6 +241,72 @@ contains
       return
    end subroutine flume
 
+   ! Channel with constant slope in x and banks defined by a power law as so
+   !
+   ! b(x, y) = x * slope + cos(theta) * (|y| / W)^alpha
+   !
+   ! where theta is the slope angle and accounts for the rotation of the banks
+   ! to the Earth-centred system.
+   ! Note that 2*W sets the approximate width of the channel.
+   !  parameters required:
+   !  slope  -- slope in x.
+   !  W      -- characteristic width of power law channel cross section.
+   !  alpha  -- index of the power law.
+   pure subroutine channel_powerlaw(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      integer :: ii, jj
+      real(kind=wp) :: slope, W, alpha, costheta
+
+      slope = RunParams%TopogFuncParams(1)
+      W = RunParams%TopogFuncParams(2)
+      alpha = RunParams%TopogFuncParams(3)
+
+      costheta = cos(atan(slope))
+   
+      do ii = 1, size(x)
+         do jj = 1, size(y)
+            b0(ii, jj) = slope * x(ii) + costheta * (abs(y(jj)) / W)**alpha
+         end do
+      end do
+      
+   end subroutine channel_powerlaw
+
+   ! Channel with constant slope in x and banks defined by a trapezium as so
+   !
+   ! b(x, y) = x * slope + cos(theta) * max{0, Sb (|y| - W/2)}
+   !
+   ! where theta is the slope angle and accounts for the rotation of the banks
+   ! to the Earth-centred system.
+   !  parameters required:
+   !  slope  -- slope in x.
+   !  W      -- width of trapezium base.
+   !  Sb     -- gradient of the banks in slope-aligned coordinates.
+   pure subroutine channel_trapezium(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      integer :: ii, jj
+      real(kind=wp) :: slope, W, Sb, costheta
+
+      slope = RunParams%TopogFuncParams(1)
+      W = RunParams%TopogFuncParams(2)
+      Sb = RunParams%TopogFuncParams(3)
+
+      costheta = cos(atan(slope))
+
+      do ii = 1, size(x)
+         do jj = 1, size(y)
+            b0(ii, jj) = slope * x(ii) + costheta * max(0.0_wp, Sb * (abs(y(jj)) - 0.5_wp * W))
+         end do
+      end do
+   end subroutine channel_trapezium
+
    ! Two slopes with smooth transition
    ! Three parameters required:
    !  phi1 -- angle of slope in degrees on left-hand-side; passed in RunParams%TopogFuncParams(1)
@@ -263,6 +335,57 @@ contains
       end do
    return
    end subroutine xbislope
+
+   ! Three constant slopes in x connected via piecewise continuous transitions 
+   ! via cosine functions at at x = x1, x2 with slopes s1, s2, s3.
+   ! Six parameters required:
+   !  phi1, phi2, phi3 -- angle of slopes 1,2,3 in degrees
+   !  lam -- length scale of connecting sine curves
+   !  x1, x2 -- locations of the two transition points x = x1 (connecting 
+   !            slopes 1 & 2), x2 (connecting slopes 2 & 3)
+   pure subroutine xtrislope(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: phi1, phi2, phi3, lam, s1, s2, s3, x1, x2
+      real(kind=wp) :: c2, c3, c4, c5, A
+      integer :: ii
+
+      phi1 = RunParams%TopogFuncParams(1) * pi / 180.0_wp
+      phi2 = RunParams%TopogFuncParams(2) * pi / 180.0_wp
+      phi3 = RunParams%TopogFuncParams(3) * pi / 180.0_wp
+      lam = RunParams%TopogFuncParams(4)
+      x1 = RunParams%TopogFuncParams(5)
+      x2 = RunParams%TopogFuncParams(6)
+      s1 = tan(phi1)
+      s2 = tan(phi2)
+      s3 = tan(phi3)
+
+      c2 = (x1 - 0.5_wp * lam) * 0.5_wp * (s1 - s2)
+      c3 = (x1 + 0.5_wp * lam) * 0.5_wp * (s1 - s2) + c2
+      c4 = (x2 - 0.5_wp * lam) * 0.5_wp * (s2 - s3) + c3
+      c5 = (x2 + 0.5_wp * lam) * 0.5_wp * (s2 - s3) + c4
+
+      ! Build topography
+      do ii = 1, size(x)
+         if (x(ii) < x1 - 0.5_wp * lam) then
+            b0(ii,:) = s1 * x(ii)
+         elseif (x(ii) < x1 + 0.5_wp * lam) then
+            A = 0.5_wp * (s2 - s1) * lam / pi
+            b0(ii,:) = A * sin((x(ii) - x1) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s1 + s2) * x + c2
+         elseif (x(ii) < x2 - 0.5_wp * lam) then
+            b0(ii,:) = s2 * x(ii) + c3
+         elseif (x(ii) < x2 + 0.5_wp * lam) then
+            A = 0.5_wp * (s3 - s2) * lam / pi
+            b0(ii,:) = A * sin((x(ii) - x2) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s2 + s3) * x + c4
+         else
+            b0(ii,:) = s3 * x(ii) + c5
+         endif
+      end do
+
+   end subroutine xtrislope
 
    ! Flat topography
    pure subroutine flat(RunParams, x, y, b0)
