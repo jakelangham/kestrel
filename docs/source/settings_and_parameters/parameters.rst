@@ -96,6 +96,58 @@ There are two **required** settings in the *Parameters* block:
 
                 Sets :math:`\beta`, which is required to be strictly positive.
 
+        :code:`edwards2019`
+
+            Sets Edwards et al.'s extension to the Pouliquen law (see e.g. 
+            Edwards, Russell, Johnson, Gray, *J. Fluid Mech.*, **875**, `2019
+            <https://doi.org/10.1017/jfm.2019.517>`_)
+
+                :math:`\mathcal{F} = \mu(Fr, H) g_\perp H`,
+
+            where :math:`g_\perp` is gravitational acceleration resolved
+            perpendicular to the local slope, :math:`Fr = |\mathbf{u}|/\sqrt{g_\perp H}` 
+            is the local Froude number and the friction function is defined as
+
+                :math:`\mu(Fr, H) = \mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(Fr + \Gamma))}`,
+
+            when :math:`Fr > \beta_*` and
+
+                :math:`\mu(Fr, H) = \left(\frac{Fr}{\beta_*}\right)^\kappa \left\{\mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(\beta_* + \Gamma))} - \mu_{\mathrm{start}(H)}\right\} + \mu_{\mathrm{start}(H)}`
+
+            when :math:`Fr \leq \beta_*`, with :math:`\mu_{\mathrm{start}(H)} =
+            \mu_3 + (\mu_2 - \mu_1) / (1 + H / L)`.
+
+            The following **conditionally optional** settings are used to set
+            the various empirical coefficients in this model:
+
+                :code:`pouliquen min = 0.1`
+
+                Sets :math:`\mu_1`, which is required to be strictly positive.
+            
+                :code:`pouliquen max = 0.4`
+
+                Sets :math:`\mu_2`, which is required to be strictly positive.
+
+                :code:`pouliquen intermediate = 0.2`
+            
+                Sets :math:`\mu_3`, which is required to be strictly positive.
+
+                :code:`pouliquen beta = 0.136`
+
+                Sets :math:`\beta`, which is required to be strictly positive.
+
+                :code:`edwards2019 betastar = 0.136`
+                
+                Sets :math:`\beta_*`, which is required to be strictly positive.
+
+                :code:`edwards2019 kappa = 1.0`
+
+                Sets :math:`\kappa`, which is required to be strictly positive.
+
+                :code:`edwards2019 gamma = 0.0`
+
+                Sets :math:`\Gamma`.
+
         :code:`variable`
 
             Sets the following drag law, which interpolates between the Chézy
