@@ -389,6 +389,9 @@ contains
       if (RunParams%Georeference) then
         call get_nc_att(ncid, 'central_easting', central_easting)
         call get_nc_att(ncid, 'central_northing', central_northing)
+      else
+         central_easting = 0.0_wp
+         central_northing = 0.0_wp
       end if
 
       nX = nXtiles*nXpertile
