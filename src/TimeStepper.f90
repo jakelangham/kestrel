@@ -56,6 +56,7 @@ module timestepper_module
    use update_tiles_module, only: AddTile
    use varstring_module, only: varString
    use output_module, only: OutputSolutionData, OutputAggregateData, OutputInfo, CalculateVolume
+   use utilities_module, only: Int2String
 
    implicit none
 
@@ -1203,7 +1204,8 @@ contains
             spd = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, tile%u(:, ii, jj)))
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
-               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // Int2String(ii) //',' // Int2String(jj) ' : spd = ', spd)
+               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
+                   Int2String(ii) // ',' // Int2String(jj) // ' : spd = ', spd)
 #if DEBUG_SPD==2
                call exit(1)
 #endif
