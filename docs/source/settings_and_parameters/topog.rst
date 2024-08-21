@@ -152,7 +152,34 @@ functions:
         :code:`Topog params = (wallH, sigma)`
 
             - :code:`wallH` -- the height of the sidewalls of the flume.
-            - :code:`sigma` -- the width of the sidewalls of the flume.
+            - :code:`sigma` -- the characteristic lateral slope of the channel
+              banks, which are centred at :math:`y=\pm 3/2`. 
+              Note that sufficiently low :code:`sigma` values also
+              control the effective width of the channel.
+
+    :code:`Topog function = flume`
+
+        Generalised USGS flume geometry that requires six parameters to specify
+        its features. It defines a channel at slope angle :math:`\theta_0` for
+        :math:`x<0`, confined by walls for :math:`x<x_{\mathrm{wall}}` that
+        smoothly connects to an unconfined runout plane of slope angle
+        :math:`\theta_1` for :math:`x>x_1>0` (note that :math:`x_1` is
+        determined to ensure the smooth connection).
+        The confining walls are constructed by :math:`\tanh` bumps, centred at
+        :math:`y=\pm W` with characteristic width :math:`W`.
+
+        :code:`Topog params = (theta0, theta1, xwall, wallW, wallH, sigma)`
+
+            - :code:`theta0` -- the slope (in degrees) for :math:`x < 0`.
+            - :code:`theta1` -- the slope (in degrees) for :math:`x > x_1`.
+            - :code:`xwall` -- :math:`x_{\mathrm{wall}}` coordinate defining the
+              transition between confined and unconfined parts of the topography.
+            - :code:`wallW` -- the characteristic width :math:`W` of the channel.
+            - :code:`wallH` -- the height of the sidewalls of the flume.
+            - :code:`sigma` -- the characteristic lateral slope of the channel
+              banks, which are centred at :math:`y=\pm W`.
+              Note that sufficiently low :code:`sigma` values also
+              control the effective width of the channel.
 
     :code:`Topog function = xsinslope`
 
