@@ -223,7 +223,11 @@ module runsettings_module
       real(kind=wp) :: CoulombCo ! Coulomb coefficient
       real(kind=wp) :: PouliquenMinSlope ! Minimum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenMaxSlope ! Maximum slope angle for steady flow with Pouliquen friction
+      real(kind=wp) :: PouliquenIntermediateSlope ! Intermediate slope angle for Pouliquen friction
       real(kind=wp) :: PouliquenBeta ! beta parameter in Pouliquen friction
+      real(kind=wp) :: Edwards2019betastar ! beta* parameter in Edwards' 2019 JFM friction model
+      real(kind=wp) :: Edwards2019kappa ! smoothing power in Edwards' 2019 JFM friction model
+      real(kind=wp) :: Edwards2019Gamma ! Gamma parameter in Edwards' 2019 JFM friction model
       real(kind=wp) :: VoellmySwitchRate ! Steepness of transition in Voellmy drag
       real(kind=wp) :: VoellmySwitchValue ! Centre value of transition in Voellmy drag
       ! Morphodynamic parameters.
