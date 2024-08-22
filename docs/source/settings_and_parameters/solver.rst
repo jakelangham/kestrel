@@ -66,6 +66,62 @@ The **optional** settings of the solver block are:
                 .. note::
                         As the governing equations are hyperbolic, solutions can exhibit discontinuities.  Therefore, :code:`None` is **not** recommended.
 
+    :code:`desingularization = L1`
+
+        A desingularization formula is used to compute the reciprocal of a value while avoiding blow-up when dividing by a small number.
+
+        These functions compute :math:`1/x` and use a threshold value, :math:`\epsilon`.
+        The functions return a value :math:`1/x` for :math:`x>\epsilon`, but a thresholded value for :math:`x < \epsilon`.
+        The value of :math:`\epsilon` is specified using :code:`height threshold` when computing :math:`1/H`.
+
+        Commonly used desingularization formulae have the form
+
+            .. math::
+                \frac{1}{x} = \frac{\alpha x}{\left|\left|x^{2},\max\left(x^{2},\epsilon^{2}\right)\right|\right|_{p}}
+        
+        with :math:`||\cdot,\cdot||_{p}` representing the p-norm, and :math:`\alpha = ||1,1||_{p}`.
+
+        For example, `Chertock et al (2015) <https://doi.org/10.1002/fld.4023>`_ uses the L1-norm, 
+        `Kurganov & Petrova (2007) <http://dx.doi.org/10.4310/CMS.2007.v5.n1.a6>`_ uses the L2-norm,
+        and this could reasonably be continued, and culminate in the infinity-norm (so that :math:`1/x = x/\epsilon^2` for :math:`x<\epsilon`).
+        The naming of the desingularization formulae below is based on this, with the exception of desingularization formula of `Bollermann et al (2013) <https://doi.org/10.1007/s10915-012-9677-5>`_ who use a step-function
+        with :math:`1/x = 0` for :math:`x<\epsilon` -- we call this Desingularize_step.
+
+        Options are:
+
+            :code:`L1` or :code:`Chertock`
+
+                The desingularization formula of `Chertock et al (2015) <https://doi.org/10.1002/fld.4023>`_, 
+                using the L1-norm, given by
+
+                .. math::
+                    \frac{1}{x} = \frac{2x}{x^{2}+\max\left(x^{2},\epsilon^{2}\right)}
+
+            :code:`L2` or :code:`Kurganov`
+
+                The desingularization formula of `Kurganov & Petrova (2007) <http://dx.doi.org/10.4310/CMS.2007.v5.n1.a6>`_,
+                using the L2-norm, given by
+
+                .. math::
+                    \frac{1}{x} = \frac{\sqrt{2}x}{\sqrt{x^{4}+\max\left(x^{4},\epsilon^{4}\right)}}
+
+            :code:`Linf` or :code:`Linfty` or :code:`Linfinity`
+
+                The desingularization using the L\ :math:`\infty`-norm, given by
+
+                .. math::
+                    \frac{1}{x} = \frac{x}{\max\left(x^{2},\epsilon^{2}\right)}
+            
+            :code:`step` or :code:`Bollermann`
+
+                The desingularization formula of `Bollermann et al (2013) <https://doi.org/10.1007/s10915-012-9677-5>`_,
+                given by
+
+                .. math::
+                    \frac{1}{x} = \left\{\begin{array}{lr} 1/x, &\text{for } x\ge\epsilon\\
+                                                             0, &\text{for } x<\epsilon
+                                        \end{array}\right.
+
     :code:`height threshold = 1e-6`
 
         A threshold on flow depths.  Flow depths below :code:`height threshold` are neglected.

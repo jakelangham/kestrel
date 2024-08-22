@@ -480,12 +480,9 @@ contains
       integer :: iw, irhoHnu, irhoHnv, iHnpsi, irho
       integer :: iHn, iu, iv, ib0, ibt
 
-      real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, gam, dbdx, dbdy
 
       stvect(:) = 0.0_wp
-
-      heightThreshold = RunParams%heightThreshold
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -635,7 +632,8 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, hr, modu
+      real(kind=wp) :: Hn, modu
+      real(kind=wp) :: gam, f
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -644,16 +642,15 @@ contains
       Hn = uvect(iHn)
 
       stvect(:) = 0.0_wp
+      gam = GeometricCorrectionFactor(RunParams, uvect)
 
-      if (Hn > RunParams%heightThreshold) then
-         modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
-         if (modu > 1.0e-8_wp) then
-            hr = 1.0_wp / Hn ! hr = 1/Hn calculated using desingularization
-            stvect(irhoHnu) = -friction * hr / modu
-            stvect(irhoHnv) = -friction * hr / modu
-         end if
-      end if
+      ! Desingularize 1/(Hn*modu)
+      f = DesingularizeFunc(Hn*modu, 1.0e-8_wp*gam)
+
+      stvect(irhoHnu) = -friction * f
+      stvect(irhoHnv) = stvect(irhoHnu)
 
    end subroutine ImplicitSourceTerms
 
