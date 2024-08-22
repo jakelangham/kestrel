@@ -3,6 +3,10 @@ AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,o
 AM_CXXFLAGS = -g
 else
 AM_FCFLAGS = -O2 -falign-loops=16 -march=native -mtune=native
+if LINUX
+# These optimisation flags are only supported by gcc on linux.
+AM_FCFLAGS += -march=native -mtune=native
+endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
 
