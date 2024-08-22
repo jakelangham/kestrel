@@ -108,11 +108,11 @@ There are two **required** settings in the *Parameters* block:
             perpendicular to the local slope, :math:`Fr = |\mathbf{u}|/\sqrt{g_\perp H}` 
             is the local Froude number and the friction function is defined as
 
-                :math:`\mu(Fr, H) = \mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(Fr + \Gamma))}`,
+                :math:`\mu(Fr, H) = \mu_1 + \dfrac{\mu_2 - \mu_1}{1 + H \beta / (L(Fr + \Gamma))}`,
 
             when :math:`Fr > \beta_*` and
 
-                :math:`\mu(Fr, H) = \left(\frac{Fr}{\beta_*}\right)^\kappa \left\{\mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(\beta_* + \Gamma))} - \mu_{\mathrm{start}(H)}\right\} + \mu_{\mathrm{start}(H)}`
+                :math:`\mu(Fr, H) = \left(\dfrac{Fr}{\beta_*}\right)^\kappa \left\{\mu_1 + \dfrac{\mu_2 - \mu_1}{1 + H \beta / (L(\beta_* + \Gamma))} - \mu_{\mathrm{start}(H)}\right\} + \mu_{\mathrm{start}(H)}`
 
             when :math:`Fr \leq \beta_*`, with :math:`\mu_{\mathrm{start}(H)} =
             \mu_3 + (\mu_2 - \mu_1) / (1 + H / L)`.
