@@ -1,0 +1,47 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 100
+nYtiles = 1
+nXpertile = 100
+nYpertile = 1
+Xtilesize = 100
+Boundary Conditions = halt
+
+Source:
+  sourceX = 0
+  sourceY = 0
+  sourceRadius = 10
+  sourceTime = (0,1000)
+  sourceFlux = (1.,1.)
+  sourceConc = (0.,0.)
+
+Parameters:
+Drag = Edwards2019
+Pouliquen min = 0.11
+Pouliquen max = 0.45
+Pouliquen intermediate = 0.2
+Pouliquen beta = 0.136
+Edwards2019 betastar = 0.136
+Edwards2019 kappa = 1.0
+edwards2019 gamma = 0.0
+Erosion = Off
+Eddy Viscosity = 1e-4
+
+Solver:
+T end = 50
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 3
+directory = flux_edwards2019/
+
+Topog:
+Type = Function
+Topog function = xSlope
+Topog params = (0.2)

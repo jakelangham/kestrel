@@ -7,6 +7,7 @@ tests_1d = [
    ("cap_conc", 1)
    ("cap_morpho", 1)
    ("flux_hydro", 1)
+   ("flux_edwards2019", 1)
    ("flux_morpho", 1)
 ]
 
@@ -16,6 +17,7 @@ tests_2d = [
    ("cap_conc_2d", 2)
    ("cap_morpho_2d", 2)
    ("flux_hydro_2d", 2)
+   ("flux_edwards2019_2d", 2)
    ("flux_morpho_2d", 2)
    ("flux_single_pt", 2)
 ]
