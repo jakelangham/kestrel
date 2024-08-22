@@ -353,6 +353,15 @@ contains
          write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
          write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
          write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+      case ("Edwards2019")
+         write (101, fmt="(a)") "Drag = Edwards2019"
+         write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
+         write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
+         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+         write (101, fmt="(a,G0)") "Pouliquen intermediate = ", RunParams%PouliquenIntermediateSlope
+         write (101, fmt="(a,G0)") "Edwards2019 betastar = ", RunParams%Edwards2019betastar
+         write (101, fmt="(a,G0)") "Edwards2019 kappa = ", RunParams%Edwards2019kappa
+         write (101, fmt="(a,G0)") "Edwards2019 gamma = ", RunParams%Edwards2019Gamma
       case ("Variable")
          write (101, fmt="(a)") "Drag = Variable"
          write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
