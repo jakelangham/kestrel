@@ -10,8 +10,13 @@ There are two **required** settings in the *Parameters* block:
     :code:`drag = chezy`
 
     This sets the basal drag closure function :math:`\tau_b`, which we assume to
-    be of the form :math:`\tau_b = \frac{\bar{\rho}
-    \bar{\mathbf{u}}}{\mathbf{u}}\mathcal{F}`, where (as detailed in
+    be of the form
+
+    .. math::
+
+        {\tau_b}_{x} = \mathcal{F} \bar{\rho}\bar{u}/|\bar{\mathbf{u}}|, \qquad {\tau_b}_{y} = \mathcal{F} \bar{\rho}\bar{v}/|\bar{\mathbf{u}}|,
+        
+    where (as detailed in
     :ref:`physical_model`) :math:`\mathcal{F}` is a friction function that may
     depend on the local flow variables and any conditionally optional parameters
     relevant to the selected drag law. Options are:
@@ -52,7 +57,7 @@ There are two **required** settings in the *Parameters* block:
 
             Sets the Manning drag law
             
-                :math:`\mathcal{F} = \frac{g_\perp n^2}{H^{1/3}}`,
+                :math:`\mathcal{F} = \dfrac{g_\perp n^2}{H^{1/3}}`,
 
             where :math:`g_\perp` is gravitational acceleration resolved
             perpendicular to the local slope.
@@ -79,7 +84,7 @@ There are two **required** settings in the *Parameters* block:
             sediment diameter, which may be set via the ``solid diameter``
             option.) The friction coefficient is given by
 
-                :math:`\mu(I) = \mu_1 + \frac{\mu_2 - \mu_1}{1 + \beta / I}`
+                :math:`\mu(I) = \mu_1 + \dfrac{\mu_2 - \mu_1}{1 + \beta / I}`
 
             The following **conditionally optional** settings are used to set
             the various empirical coefficients in this model:
@@ -108,11 +113,11 @@ There are two **required** settings in the *Parameters* block:
             perpendicular to the local slope, :math:`Fr = |\mathbf{u}|/\sqrt{g_\perp H}` 
             is the local Froude number and the friction function is defined as
 
-                :math:`\mu(Fr, H) = \mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(Fr + \Gamma))}`,
+                :math:`\mu(Fr, H) = \mu_1 + \dfrac{\mu_2 - \mu_1}{1 + H \beta / (L(Fr + \Gamma))}`,
 
             when :math:`Fr > \beta_*` and
 
-                :math:`\mu(Fr, H) = \left(\frac{Fr}{\beta_*}\right)^\kappa \left\{\mu_1 + \frac{\mu_2 - \mu_1}{1 + H \beta / (L(\beta_* + \Gamma))} - \mu_{\mathrm{start}(H)}\right\} + \mu_{\mathrm{start}(H)}`
+                :math:`\mu(Fr, H) = \left(\dfrac{Fr}{\beta_*}\right)^\kappa \left\{\mu_1 + \dfrac{\mu_2 - \mu_1}{1 + H \beta / (L(\beta_* + \Gamma))} - \mu_{\mathrm{start}(H)}\right\} + \mu_{\mathrm{start}(H)}`
 
             when :math:`Fr \leq \beta_*`, with :math:`\mu_{\mathrm{start}(H)} =
             \mu_3 + (\mu_2 - \mu_1) / (1 + H / L)`.
@@ -158,7 +163,7 @@ There are two **required** settings in the *Parameters* block:
 
             where :math:`f` is a switching function, equal to
 
-                :math:`f(\bar{\psi})=\frac{1}{2}[1+\tanh(V_R(\bar{\psi}-\psi^*))]`.
+                :math:`f(\bar{\psi})=\tfrac{1}{2}[1+\tanh(V_R(\bar{\psi}-\psi^*))]`.
 
             Its parameters may be set via the **conditionally optional**
             statements
@@ -200,7 +205,7 @@ There are two **required** settings in the *Parameters* block:
             Erosion occurs when :math:`\theta` exceeds the critical value
             :math:`\theta_c`, determined by the empirical closure
 
-                :math:`\theta_c = \frac{0.3}{1 + 1.2 R} + 0.055[1-\exp(-0.02R)]`,
+                :math:`\theta_c = \dfrac{0.3}{1 + 1.2 R} + 0.055[1-e^{-0.02R}]`,
 
             where :math:`R = d [g (\rho_s/\rho_f - 1) / \nu_w^2]^{1/3}` and
             :math:`\nu_w = 1.2\times 10^{-6}\textrm{m}^2/\textrm{s}` is the
@@ -234,8 +239,8 @@ There are two **required** settings in the *Parameters* block:
             where :math:`\mu(I)` is Pouliquen's friction coefficient (see the
             :code:`drag` discussion above) and 
 
-                :math:`\mu_n = \mu_1 + \frac{\mu_s - \mu_1}{1 +
-                \left(\frac{H}{25d}\right)^2}`
+                :math:`\mu_n = \mu_1 + \dfrac{\mu_s - \mu_1}{1 +
+                \left(H/25d\right)^2}`
 
             with :math:`\mu_s = [\mu_1 + \tan(1^\circ)] / [1 - \mu_1
             \tan(1^\circ)]` (:math:`\mu_1` is set by :code:`pouliquen min`).
@@ -320,7 +325,7 @@ below:
                     using an empirical law based on the solid diameter
                     :math:`d`:
 
-                        :math:`w_s = \frac{\nu_w}{d}\left\{\sqrt{10.36^2 + 1.048R} - 10.36\right\}`,
+                        :math:`w_s = \dfrac{\nu_w}{d}\left\{\sqrt{10.36^2 + 1.048R} - 10.36\right\}`,
 
                     where (as above) :math:`R = d [g (\rho_s/\rho_f - 1) / \nu_w^2]^{1/3}` and
                     :math:`\nu_w = 1.2\times 10^{-6}\textrm{m}^2/\textrm{s}` is the
@@ -342,7 +347,7 @@ below:
                 formulae :math:`a = 2.7 - 0.15 n` and :math:`b = 0.62n - 1.46`
                 where
 
-                    :math:`n = \frac{4.7 + 0.41 (u_p d / \nu_w)^{3/4}}{1 + 0.175
+                    :math:`n = \dfrac{4.7 + 0.41 (u_p d / \nu_w)^{3/4}}{1 + 0.175
                     (u_p d / \nu_w)^{3/4}}`
 
                 (Rowe, P. N, *Chem. Eng. Sci*, **42**, 1987). The constants
@@ -378,9 +383,11 @@ below:
         This has options
 
             * ``off``. Sets :math:`\chi = 1`.
-            * ``rat3``. Sets :math:`\chi = 0` if :math:`H < H_c`,
-              :math:`\chi = 1` if :math:`H > 2 H_c`, :math:`\chi = (\frac{H}{H_c} - 1)^3 [(2 - \frac{H}{H_c})^{3} + (\frac{H}{H_c} - 1)]^{-1}` otherwise.
-            * ``tanh`` (default). Sets :math:`\chi = \frac{1}{2}[1 + \tanh(10
+            * ``rat3``. Sets
+                :math:`\chi = \begin{cases} 0& \text{if $H<H_{c}$,} \\ 
+                1& \text{if $H>2H_{c}$,} \\
+                (\frac{H}{H_c} - 1)^3 [(2 - \frac{H}{H_c})^{3} + (\frac{H}{H_c} - 1)]^{-1}& \text{otherwise.} \end{cases}`
+            * ``tanh`` (default). Sets :math:`\chi = \tfrac{1}{2}[1 + \tanh(10
               \log(H/H_c))]`.
 
     :code:`erosion depth = 1`
@@ -400,7 +407,7 @@ below:
         This has options
 
             * ``off``. Sets :math:`\Theta = 1`.
-            * ``smooth`` (default). Sets :math:`\Theta = \frac{1}{2}[1 +
+            * ``smooth`` (default). Sets :math:`\Theta = \tfrac{1}{2}[1 +
               \tanh(10^5(\Delta b + \Delta b_{\max}))]`.
             * ``step``. Sets :math:`\Theta = 0` if :math:`\Delta b < -\Delta
               b_{\max}`, :math:`\Theta = 1` otherwise.
