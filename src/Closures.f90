@@ -430,11 +430,7 @@ contains
 
       mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
 
-      if (modu2 > 0) then
-         friction = mu * g * Hn
-      else
-         friction = 0.0_wp
-      end if
+      friction = mu * g * Hn
    end function PouliquenDrag
 
    ! Pouliquen's intertial number dependent friction coefficient.
@@ -524,11 +520,8 @@ contains
       g = RunParams%g / gam
 
       ManningCo = RunParams%ManningCo
-      if (Hn > RunParams%heightThreshold) then
-         friction = g * ManningCo*ManningCo / (Hn**(1.0_wp/3.0_wp))
-      else
-         friction = 0.0_wp
-      end if
+
+      friction = g * ManningCo*ManningCo / (Hn**(1.0_wp/3.0_wp))
    end function ManningDrag
 
    ! Variable drag parameterization. This is a concentration-dependent
