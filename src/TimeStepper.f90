@@ -126,11 +126,7 @@ contains
 
       integer :: nTiles, nActiveTiles, nDimensions, nFlux
 
-      character(len=10) :: basePath
-
       logical :: integrating, firstStep, refineTimeStep
-
-      basePath = "./"
 
       nTiles = grid%nTiles
       nActiveTiles = grid%activeTiles%size
