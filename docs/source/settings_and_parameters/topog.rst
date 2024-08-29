@@ -139,6 +139,24 @@ functions:
             - :code:`phi2` -- the slope angle for :math:`x\to +\infty`, in degrees.  A positive value corresponds to an elevation decreasing from left to right.
             - :code:`lambda` -- the characteristic length scale of the smooth transition region.
 
+    :code:`Topog function = xTrislope`
+
+        A surface with three constant slopes connected piecewise continuously 
+        by trigonometric functions over a characteristic length scale
+        :math:`\lambda`.
+
+        :code:`Topog params = (phi1, phi2, phi3, lambda, x1, x2)`
+
+            - :code:`phi1` -- the slope angle :math:`\phi_1` for :math:`x<(x_1-\lambda/2)`, in degrees.  A positive value corresponds to an elevation decreasing from left to right.
+            - :code:`phi2` -- the slope angle :math:`\phi_2` for :math:`(x_1-\lambda/2)<x<(x_2-\lambda/2)`, in degrees.  A positive value corresponds to an elevation decreasing from left to right.
+            - :code:`phi3` -- the slope angle :math:`\phi_3` for :math:`(x_2-\lambda/2)<x`, in degrees.  A positive value corresponds to an elevation decreasing from left to right.
+            - :code:`lambda` -- the length scale :math:`\lambda` over which transitions between
+              constant slope values occur.
+            - :code:`x1` -- the point :math:`x_1` where the transition between
+              :math:`\phi_1` and :math:`\phi_2` is centred.
+            - :code:`x2` -- the point :math:`x_2` where the transition between
+              :math:`\phi_2` and :math:`\phi_3` is centred.
+
     :code:`Topog function = USGS`
 
         Parametrisation of the USGS flume.  This has slope of 31° for
@@ -152,7 +170,67 @@ functions:
         :code:`Topog params = (wallH, sigma)`
 
             - :code:`wallH` -- the height of the sidewalls of the flume.
-            - :code:`sigma` -- the width of the sidewalls of the flume.
+            - :code:`sigma` -- the characteristic lateral slope of the channel
+              banks, which are centred at :math:`y=\pm 3/2`. 
+              Note that sufficiently low :code:`sigma` values also
+              control the effective width of the channel.
+
+    :code:`Topog function = flume`
+
+        Generalised USGS flume geometry that requires six parameters to specify
+        its features. It defines a channel at slope angle :math:`\theta_0` for
+        :math:`x<0`, confined by walls for :math:`x<x_{\mathrm{wall}}` that
+        smoothly connects to an unconfined runout plane of slope angle
+        :math:`\theta_1` for :math:`x>x_1>0` (note that :math:`x_1` is
+        determined to ensure the smooth connection).
+        The confining walls are constructed by :math:`\tanh` bumps, centred at
+        :math:`y=\pm W` with characteristic width :math:`W`.
+
+        :code:`Topog params = (theta0, theta1, xwall, wallW, wallH, sigma)`
+
+            - :code:`theta0` -- the slope (in degrees) for :math:`x < 0`.
+            - :code:`theta1` -- the slope (in degrees) for :math:`x > x_1`.
+            - :code:`xwall` -- :math:`x_{\mathrm{wall}}` coordinate defining the
+              transition between confined and unconfined parts of the topography.
+            - :code:`wallW` -- the characteristic width :math:`W` of the channel.
+            - :code:`wallH` -- the height of the sidewalls of the flume.
+            - :code:`sigma` -- the characteristic lateral slope of the channel
+              banks, which are centred at :math:`y=\pm W`.
+              Note that sufficiently low :code:`sigma` values also
+              control the effective width of the channel.
+
+    :code:`Topog function = channel power law`
+    
+        Channel with constant slope in :math:`x` and banks defined by a power law as so
+
+        :math:`b(x, y) = Sx + \cos(\theta)|y/W|^\alpha`,
+
+        where :math:`S = \tan(\theta)` is the slope in :math:`x` and :math:`W`, 
+        :math:`\alpha` are parameters defining a power law cross-section.
+
+        :code:`Topog params = (slope, W, alpha)`
+
+            - :code:`slope` -- the slope :math:`S` in :math:`x`.
+            - :code:`W` -- the characteristic width :math:`W` of the power law
+              cross-section.
+            - :code:`alpha` -- index :math:`\alpha` of the power law.
+
+    :code:`Topog function = channel trapezium`
+
+        Channel with constant slope in :math:`x` and banks defined by a trapezium as so
+
+        :math:`b(x, y) = Sx + \cos(\theta)\max\{0, S_b (|y| - W/2)\}`,
+
+        where :math:`S = \tan(\theta)` is the slope in :math:`x`, :math:`W` is
+        the width of the trapezoid cross-section and :math:`S_b` is the slope of
+        the banks in a frame oriented along the channel.
+
+        :code:`Topog params = (slope, W, Sb)`
+
+            - :code:`slope` -- the slope :math:`S` in :math:`x`.
+            - :code:`W` -- the width of the channel base.
+            - :code:`Sb` -- the gradient of the banks in slope-aligned
+              coordinates.
 
     :code:`Topog function = xsinslope`
 
