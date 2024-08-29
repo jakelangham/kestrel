@@ -64,6 +64,9 @@ module closures_module
    public :: MorphoDamping
    public :: NoMorphoDamping, tanhMorphoDamping, rat3MorphoDamping
 
+   public :: DesingularizeFunc
+   public :: Desingularize_L1, Desingularize_L2, Desingularize_Linfty, Desingularize_step
+
    pointer :: GeometricCorrectionFactor
    interface
        pure function GeometricCorrectionFactor(RunParams, u) result(gam)
@@ -148,6 +151,16 @@ module closures_module
            real(kind=wp), intent(in) :: Hn
            real(kind=wp) :: damping
        end function MorphoDamping
+   end interface
+
+   pointer :: DesingularizeFunc
+   interface
+       pure function DesingularizeFunc(x,eps) result(x_recip)
+            import :: wp
+            real(kind=wp), intent(in) :: x
+            real(kind=wp), intent(in) :: eps
+            real(kind=wp) :: x_recip
+       end function DesingularizeFunc
    end interface
 
 contains
@@ -510,7 +523,7 @@ contains
       real(kind=wp), dimension(:), intent(in) :: uvect
       real(kind=wp) :: friction
 
-      real(kind=wp) :: Hn
+      real(kind=wp) :: Hn, Hn_recip
       real(kind=wp) :: gam
       real(kind=wp) :: g
       real(kind=wp) :: ManningCo
@@ -521,7 +534,9 @@ contains
 
       ManningCo = RunParams%ManningCo
 
-      friction = g * ManningCo*ManningCo / (Hn**(1.0_wp/3.0_wp))
+      Hn_recip = DesingularizeFunc(Hn, RunParams%heightThreshold*gam)
+
+      friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
    end function ManningDrag
 
    ! Variable drag parameterization. This is a concentration-dependent
@@ -906,5 +921,84 @@ contains
          f = 1.0_wp
       end if
    end function stepSwitch
+
+! -- Desingularization formulae -- 
+!    We want to compute 1/x but avoid blow-up for small x.
+!    These functions take x and a threshold, eps, as input and return
+!    a 'desingularized' value for x_recip \approx 1/x.  We should have
+!    x_recip = 1/x for x>eps, but a thresholded value for x < eps.
+!    Commonly used desingularization formulae have the form
+!    x_recip = alpha*x/(norm(x^2,max(x^2,eps^2)) for x<eps, with norm representing
+!    the p-norm, and alpha = norm(1,1)
+!    For examples:
+!       Chertock et al (2015) uses the 1-norm,
+!       Kurganov & Petrova (2007) uses the 2-norm,
+!    and this could reasonably be continued, and culminate in the infinity-norm
+!       x_recip = x/eps^2 for x<eps
+!    The naming of the desingularization formulae below is based on this,
+!    with the exception of Bollermann et al (2013) who use a step-function
+!    with x_recip = 0 for x<eps -- we call this the Desingularize_step
+    pure function Desingularize_L1(x,eps) result(x_recip)
+        ! Desingularize using the L1 norm
+        ! norm(x^2, max(x^2,eps^2)) = x^2 + max(x^2,eps^2)
+        ! Chertock et al (2015) https://doi.org/10.1002/fld.4023
+        implicit none
+        real(kind=wp), intent(in) :: x
+        real(kind=wp), intent(in) :: eps
+        real(kind=wp) :: x_recip
+        
+        real(kind=wp) :: x2
+        x2 = x * x
+
+        x_recip = 2.0_wp*x/(x2 + max(x2,eps*eps))
+        return
+    end function Desingularize_L1
+
+    pure function Desingularize_L2(x,eps) result(x_recip)
+        ! Desingularize using the L2 norm for x<eps:
+        ! norm(x^4, max(x^4,eps^4)) = sqrt(x^4 + max(x^4,eps^4))
+        ! Kurganov & Petrova (2007) http://dx.doi.org/10.4310/CMS.2007.v5.n1.a6
+        implicit none
+        real(kind=wp), intent(in) :: x
+        real(kind=wp), intent(in) :: eps
+        real(kind=wp) :: x_recip
+
+        real(kind=wp) :: x4
+        x4 = x * x * x * x
+
+        x_recip = sqrt(2.0_wp)*x/sqrt(x4 + max(x4,eps*eps*eps*eps))
+        return
+    end function Desingularize_L2
+
+    pure function Desingularize_Linfty(x,eps) result(x_recip)
+        ! Desingularize using the L-infty norm for x<eps:
+        ! norm(x^2, max(x^2,eps^2)) = max(x^2,eps^2)
+        implicit none
+        real(kind=wp), intent(in) :: x
+        real(kind=wp), intent(in) :: eps
+        real(kind=wp) :: x_recip
+        
+        x_recip = x/(max(x*x,eps*eps))
+        return
+    end function Desingularize_Linfty
+
+    pure function Desingularize_step(x,eps) result(x_recip)
+        ! Desingularize using the step function
+        ! x_recip = 1/x for x>eps, 0 otherwise
+        ! Bollermann et al. (2013) https://doi.org/10.1007/s10915-012-9677-5
+        ! It is likely that this formula will have VERY bad consequences -- when used to
+        ! calculate drag, thin layers will become drag-free...
+        implicit none
+        real(kind=wp), intent(in) :: x
+        real(kind=wp), intent(in) :: eps
+        real(kind=wp) :: x_recip
+
+        if (x>eps) then
+            x_recip = 1.0_wp/x
+        else
+            x_recip = 0.0_wp
+        end if
+        return
+    end function Desingularize_step
 
 end module Closures_module
