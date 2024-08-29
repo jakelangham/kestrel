@@ -374,12 +374,12 @@ contains
             b0(ii,:) = s1 * x(ii)
          elseif (x(ii) < x1 + 0.5_wp * lam) then
             A = 0.5_wp * (s2 - s1) * lam / pi
-            b0(ii,:) = A * sin((x(ii) - x1) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s1 + s2) * x + c2
+            b0(ii,:) = A * sin((x(ii) - x1) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s1 + s2) * x(ii) + c2
          elseif (x(ii) < x2 - 0.5_wp * lam) then
             b0(ii,:) = s2 * x(ii) + c3
          elseif (x(ii) < x2 + 0.5_wp * lam) then
             A = 0.5_wp * (s3 - s2) * lam / pi
-            b0(ii,:) = A * sin((x(ii) - x2) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s2 + s3) * x + c4
+            b0(ii,:) = A * sin((x(ii) - x2) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s2 + s3) * x(ii) + c4
          else
             b0(ii,:) = s3 * x(ii) + c5
          endif
