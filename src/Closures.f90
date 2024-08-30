@@ -484,14 +484,13 @@ contains
       real(kind=wp), dimension(:), intent(in) :: uvect
       real(kind=wp) :: friction
 
-      real(kind=wp) :: Hn, modu, gam, gperp, mu, Fr
+      real(kind=wp) :: Hn, modu, gam, gperp, gperp_Hn_recip, mu, Fr
       real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
 
       Hn = uvect(RunParams%Vars%Hn)
       gam = GeometricCorrectionFactor(RunParams, uvect)
       gperp = RunParams%g / gam
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
-      Fr = modu / sqrt(gperp * Hn)
 
       mu1 = RunParams%PouliquenMinSlope
       mu2 = RunParams%PouliquenMaxSlope
@@ -501,6 +500,9 @@ contains
       kappa = RunParams%Edwards2019kappa
       capgam = RunParams%Edwards2019Gamma
       L = RunParams%SolidDiameter
+
+      gperp_Hn_recip = gperp * DesingularizeFunc(Hn, RunParams%heightThreshold * gam)
+      Fr = modu * sqrt(gperp_Hn_recip)
 
       if (Fr > betastar) then
          friction = mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (Fr + capgam)))
