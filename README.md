@@ -72,8 +72,8 @@ started
 ## Testing ##
 
 The full test suite for Kestrel makes use of the Julia language. If you have
-this installed, it may be run by changing to the ./tests directory and issuing
-the command
+this installed, it may be run via `make check`, or by  changing to the ./tests
+directory and issuing the command
 
 > `julia runall.jl`
 

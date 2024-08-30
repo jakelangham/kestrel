@@ -1,0 +1,32 @@
+name: Build and test
+
+# Trigger the workflow on push or pull request events
+on:
+  push:
+    branches:
+      - main
+      - testing
+  pull_request:
+    branches:
+      - main
+      - testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build configure script
+        run: autoreconf -fi
+
+      - name: Run configure script
+        run: ./configure
+
+      - name: Build kestrel
+        run: make
+
+      - name: Run tests
+        run: make check
