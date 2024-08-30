@@ -33,9 +33,13 @@ jobs:
       - name: Build kestrel
         run: make
 
+  test:
+    steps:
       - name: Run tests
         run: make check
 
+  log:
+    steps:
       - name: Save logs
         uses: actions/upload-artifact@v4
         with:
