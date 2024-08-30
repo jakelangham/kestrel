@@ -22,10 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          apt-cache search libproj
-          apt-cache search gdal
-          apt-cache search netcdf
-          sudo apt-get install -y gdal libproj25 netcdf
+          sudo apt-get install -y libgdal-dev libproj22 libproj-dev netcdf-bin libnetcdff-dev
 
       - name: Build configure script
         run: autoreconf -fi
