@@ -19,6 +19,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
+      - name: Install dependencies
+        run: apt-get install -y gdal libproj25 netcdf julia
+
       - name: Build configure script
         run: autoreconf -fi
 
