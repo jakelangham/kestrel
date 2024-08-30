@@ -35,3 +35,10 @@ jobs:
 
       - name: Run tests
         run: make check
+
+      - name: Save logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: tests/*.log
+          retention-days: 30
