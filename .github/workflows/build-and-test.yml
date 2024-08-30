@@ -12,7 +12,7 @@ on:
       - testing
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,22 +33,11 @@ jobs:
       - name: Build kestrel
         run: make
 
-  test:
-    needs: build
-
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Run tests
         run: make check
 
-  log:
-    if: ${{ always() }} # run regardless of whether build/test succeeded
-    needs: [build, test]
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Save logs
+        if: ${{ always() }} # run regardless of whether build/test succeeded
         uses: actions/upload-artifact@v4
         with:
           name: test-logs
