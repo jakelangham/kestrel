@@ -34,8 +34,11 @@ kestrel_LDADD += -lstdc++fs
 endif
 
 if HAVE_JULIA
-all-local:
-	ln -sf $(JULIA) ../tests/julia
+check:
+	cd ../tests && $(JULIA) runall.jl
+else
+check:
+	echo "Error: Working Julia executable is required to run test suite" && exit 1
 endif
 
 mostlyclean-local:
