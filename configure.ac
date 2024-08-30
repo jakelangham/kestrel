@@ -11,6 +11,10 @@ AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
 AC_PROG_CXX
 
+# Detect builds on linux
+AC_CANONICAL_HOST
+AM_CONDITIONAL([LINUX], [test x$host_os = xlinux-gnu])
+
 # Check c++17, which we require.
 AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 
