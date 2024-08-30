@@ -43,6 +43,7 @@ jobs:
         run: make check
 
   log:
+    if: ${{ always() }} # run regardless of whether build/test succeeded
     needs: [build, test]
     runs-on: ubuntu-latest
 
