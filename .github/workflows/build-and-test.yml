@@ -34,11 +34,15 @@ jobs:
         run: make
 
   test:
+    runs-on: ubuntu-latest
+
     steps:
       - name: Run tests
         run: make check
 
   log:
+    runs-on: ubuntu-latest
+
     steps:
       - name: Save logs
         uses: actions/upload-artifact@v4
