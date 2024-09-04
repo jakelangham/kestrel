@@ -55,7 +55,7 @@ contains
 
       implicit none
 
-      type(RunSet), intent(out) :: RunParams
+      type(RunSet), intent(inout) :: RunParams
       logical :: FileExists
       integer :: stat ! Status of input/output
       type(varString) :: line
