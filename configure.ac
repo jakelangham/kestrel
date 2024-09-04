@@ -1,3 +1,4 @@
+AC_PREREQ([2.68])
 AC_INIT([Kestrel], 
         [m4_esyscmd_s([git describe --tags])], 
         [Mark.Woodhouse@bristol.ac.uk, J.Langham@bristol.ac.uk])
