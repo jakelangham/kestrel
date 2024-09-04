@@ -159,6 +159,8 @@ module runsettings_module
    ! the simulation. It is subdivided into sections which each have their own
    ! module for initialisation in the files *Settings.f90 and Parameters.f90. 
    type RunSet
+   ! -- Version --
+      type(varString) :: version
 
    ! -- Domain settings. --
 

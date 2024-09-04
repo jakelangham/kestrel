@@ -254,7 +254,8 @@ contains
 
       write (101, fmt="(a12,a4,a1,a2,a1,a2,a1,a4)") "# Run start = ", RunParams%RunDate%s(1:4), "-", RunParams%RunDate%s(5:6), &
          "-", RunParams%RunDate%s(7:8), " ", RunParams%RunTime%s(1:4)
-      write (101, fmt="(a18,a)") "# Input file name = ", RunParams%InputFile%s
+      write (101, fmt="(a20,a)") "# Kestrel version = ", RunParams%version%s
+      write (101, fmt="(a20,a)") "# Input file name = ", RunParams%InputFile%s
       write (101, *)
 
       write (101, fmt="(a)") "Domain:"
@@ -1033,7 +1034,8 @@ contains
       call put_nc_att(ncid, 'title', 'Kestrel: '//trim(filename))
       call put_nc_att(ncid, 'institution', 'University of Bristol')
       call put_nc_att(ncid, 'source', 'Kestrel')
-
+      call put_nc_att(ncid, 'version', RunParams%version%s)
+      
       call put_nc_att(ncid, 'Conventions', 'CF-1.11-draft')
       call put_nc_att(ncid, '_FillValue', -9999.9_wp)
 
@@ -1442,6 +1444,7 @@ contains
       call put_nc_att(ncid, 'title', 'Kestrel: Maximums')
       call put_nc_att(ncid, 'institution', 'University of Bristol')
       call put_nc_att(ncid, 'source', 'Kestrel')
+      call put_nc_att(ncid, 'version', RunParams%version%s)
 
       call put_nc_att(ncid, 'Conventions', 'CF-1.11-draft')
       call put_nc_att(ncid, '_FillValue', -9999.9_wp)

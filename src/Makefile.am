@@ -19,7 +19,7 @@ kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 \
 	SolverSettings.f90 OutputSettings.f90 TopogSettings.f90 Input.f90 Grid.f90 \
     Equations.f90 HydraulicRHS.f90 MorphodynamicRHS.f90 Redistribute.f90 \
     dem.f90 UpdateTiles.f90 SetSources.f90 NetCDFUtils.f90 \
-    Output.f90 Restart.f90 TimeStepper.f90 main.f90
+    Output.f90 Restart.f90 TimeStepper.f90 cversion.cpp version.f90 main.f90
 
 kestrel_FCFLAGS = -Wall -ffree-line-length-0 -fno-range-check -cpp $(NETCDF4_FFLAGS) $(AM_FCFLAGS) $(DEFS)
 kestrel_CXXFLAGS = -Wall $(GDAL_CFLAGS) $(PROJ_CFLAGS) $(AM_CXXFLAGS)
