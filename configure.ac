@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-m4_define([DEFAULT_VERSION], [v1.1.0])
+m4_define([DEFAULT_VERSION], [v1.1.1])
 AC_INIT([Kestrel],
         [m4_esyscmd_s([git --version > /dev/null 2>&1 && git describe --tags || echo DEFAULT_VERSION])],
         [Mark.Woodhouse@bristol.ac.uk, J.Langham@bristol.ac.uk])
