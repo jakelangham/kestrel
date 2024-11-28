@@ -633,8 +633,8 @@ contains
          v = uvect(iv)
 
          curvatureTerm = rhoHnu*u*d2bdxx + 2.0_wp*rhoHnu*v*d2bdxy + rhoHnv*v*d2bdyy
-         stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx / gam
-         stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy / gam
+         stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx / gam / gam
+         stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy / gam / gam
       end if
 
    end subroutine ExplicitSourceTerms

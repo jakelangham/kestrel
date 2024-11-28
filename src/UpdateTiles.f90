@@ -33,10 +33,10 @@ module update_tiles_module
    use runsettings_module, only: RunSet
    use grid_module, only: GridCoords, GridToPhysical, GridType, OnDomainEdge, &
       TileID, TileInBounds, TileList, TileType, EastTile, WestTile, NorthTile, SouthTile
-   use utilities_module, only: AddToOrderedVector, InVector, RemoveFromVector
+   use utilities_module, only: AddToOrderedVector, InVector, RemoveFromVector, AddToVector
    use hydraulic_rhs_module, only: CalculateFluxes, CalculateLimitedDerivs, CalculateLimitedDerivsBoundary, ComputeDesingularisedVariables, &
       CorrectSlopes, Reconstruct
-   use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, EqualiseTopographicBoundaryData
+   use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, EqualiseTopographicBoundaryData, ComputeTopographicCurvatures
    use dem_module, only: GetHeights
    use closures_module, only : Density, GeometricCorrectionFactor
 
@@ -371,6 +371,8 @@ contains
 
       call AddGhostTiles(RunParams, grid, k)
 
+      if (RunParams%curvature) call ComputeTopographicCurvatures(RunParams, grid, tileContainer, k)
+
       call ComputeInterfacialTopographicData(RunParams, grid, tileContainer, k)
       call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k)
       call Reconstruct(RunParams, grid, RunParams%iFlux, tileContainer, k)
@@ -406,8 +408,8 @@ contains
       ghostTiles => grid%ghostTiles
 
       nGhosts = 0
-      allocate (newGhostTiles(8))
-      newGhostTiles(:) = 0
+    !   allocate (newGhostTiles(8))
+    !   newGhostTiles(:) = 0
 
       ! Work out which of the surrounding tiles need to be ghost tiles.
       do i = 1, grid%dim*2 + 4*(grid%dim - 1)
@@ -434,7 +436,8 @@ contains
          else if ((.not. tileContainer(tile)%TileOn) .and. &
                   (.not. InVector(newGhostTiles, tile))) then
             nGhosts = nGhosts + 1
-            newGhostTiles(nGhosts) = tile
+            call AddToVector(newGhostTiles, tile)
+            ! newGhostTiles(nGhosts) = tile
          end if
       end do
 
@@ -476,6 +479,7 @@ contains
          ! this needs to 'see' the other new ghost tiles before running
          tile = newGhostTiles(i)
          call EqualiseTopographicBoundaryData(RunParams, grid, tile)
+         if (RunParams%curvature) call ComputeTopographicCurvatures(RunParams, grid, tileContainer, tile)
       end do
 
    end subroutine AddGhostTiles

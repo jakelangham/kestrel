@@ -58,11 +58,16 @@ module morphodynamic_rhs_module
    private
    public :: CalculateMorphodynamicRHS
    public :: ComputeCellCentredTopographicData
+   public :: ComputeTopographicCurvatures
    public :: ComputeInterfacialTopographicData
    public :: EqualiseTopographicBoundaryData
 
    interface ComputeCellCentredTopographicData
       module procedure :: ComputeCellCentredTopographicData_tileID, ComputeCellCentredTopographicData_ij
+   end interface
+
+   interface ComputeTopographicCurvatures
+      module procedure :: ComputeTopographicCurvatures_tileID, ComputeTopographicCurvatures_ij
    end interface
 
 contains
@@ -314,27 +319,25 @@ contains
       integer, intent(in) :: tID
 
       integer :: i, j, ib0, ibt, idbdx, idbdy
-      integer :: id2bdxx, id2bdyy, id2bdxy
+      integer :: nXpertile, nYpertile
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: dbdx, dbdy, b0_centre, bt_centre
-      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
 
       ib0 = RunParams%Vars%b0
       ibt = RunParams%Vars%bt
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
-      id2bdxx = RunParams%Vars%d2bdxx
-      id2bdyy = RunParams%Vars%d2bdyy
-      id2bdxy = RunParams%Vars%d2bdxy
+      
+      nXpertile = RunParams%nXpertile
+      nYpertile = RunParams%nYpertile
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
 
-      ! TODO b0 interp does not really need to be in this routine
       if (.not. RunParams%isOneD) then
-         do i = 1, RunParams%nXpertile
-            do j = 1, RunParams%nYpertile
+         do i = 1, nXpertile
+            do j = 1, nYpertile
 
                b0_centre = 0.25_wp * KahanSum([tiles(tID)%b0(i, j), tiles(tID)%b0(i+1,j), &
                   tiles(tID)%b0(i, j+1), tiles(tID)%b0(i+1, j+1)])
@@ -358,56 +361,9 @@ contains
                tiles(tID)%u(idbdy,i,j) = dbdy
             end do
          end do
-         
-         if (RunParams%curvature) then
-            do i = 1, RunParams%nXpertile
-               do j = 1, RunParams%nYpertile
-
-                  if (i==1) then
-                     d2bdxx = deltaXRecip * ( &
-                        tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i  , j  ) &
-                     )
-                  elseif (i==RunParams%nXpertile) then
-                     d2bdxx = deltaXRecip * ( &
-                        tiles(tID)%u(idbdx, i, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
-                     )
-                  else
-                     d2bdxx = 0.5_wp * deltaXRecip * ( &
-                        tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
-                     )
-                  end if
-                  tiles(tID)%u(id2bdxx,i,j) = d2bdxx
-
-                  if (j==1) then
-                     d2bdyy = deltaYRecip * ( &
-                        tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i , j) &
-                     )
-                     d2bdxy = deltaYRecip * ( &
-                        tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i , j) &
-                     )
-                  elseif (j==RunParams%nYpertile) then
-                     d2bdyy = deltaYRecip * ( &
-                        tiles(tID)%u(idbdy, i, j ) - tiles(tID)%u(idbdy, i, j-1) &
-                     )
-                     d2bdxy = deltaYRecip * ( &
-                        tiles(tID)%u(idbdx, i, j ) - tiles(tID)%u(idbdx, i , j-1) &
-                     )
-                  else
-                     d2bdyy = 0.5_wp * deltaYRecip * ( &
-                        tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i, j-1) &
-                     )  
-                     d2bdxy = deltaYRecip * ( &
-                        tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i, j-1) &
-                     )
-                  end if
-                  tiles(tID)%u(id2bdyy,i,j) = d2bdyy
-                  tiles(tID)%u(id2bdxy,i,j) = d2bdxy
-               end do
-            end do
-         end if
 
       else
-         do i = 1, RunParams%nXpertile
+         do i = 1, nXpertile
             b0_centre = 0.5_wp * (tiles(tID)%b0(i, 1) + tiles(tID)%b0(i+1, 1))
             bt_centre = 0.5_wp * (tiles(tID)%bt(i, 1) + tiles(tID)%bt(i+1, 1))
             tiles(tID)%u(ib0,i,1) = b0_centre
@@ -416,19 +372,6 @@ contains
                -tiles(tID)%b0(i  , 1), -tiles(tID)%bt(i  , 1)])
             tiles(tID)%u(idbdx,i,1) = dbdx
          end do
-
-         if (RunParams%curvature) then
-            do i = 1, RunParams%nXpertile
-               if (i==1) then
-                  d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%U(idbdx, i, 1))
-               elseif (i==RunParams%nXpertile) then
-                  d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, 1) - tiles(tID)%U(idbdx, i-1, 1))
-               else
-                  d2bdxx = 0.5_wp * deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%U(idbdx, i-1, 1))
-               end if
-               tiles(tID)%u(id2bdxx,i,1) = d2bdxx
-            end do
-         end if
       end if
 
    end subroutine ComputeCellCentredTopographicData_tileID
@@ -443,11 +386,9 @@ contains
       integer, intent(in) :: tID, i, j
 
       integer :: ibt, idbdx, idbdy
-      integer :: id2bdxx, id2bdyy, id2bdxy
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: dbdx, dbdy, bt_centre
-      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
 
       ibt = RunParams%Vars%bt
       idbdx = RunParams%Vars%dbdx
@@ -474,34 +415,12 @@ contains
             tiles(tID)%b0(i+1, j+1), tiles(tID)%bt(i+1, j+1), &
             -tiles(tID)%b0(i+1, j  ), -tiles(tID)%bt(i+1, j  )])
          tiles(tID)%u(idbdy,i,j) = dbdy
-
-         if (RunParams%curvature) then
-            d2bdxx = deltaXRecip * ( &
-               tiles(tID)%u(idbdx,i+1, j) - tiles(tID)%u(idbdx,i, j) &
-            )
-            tiles(tID)%u(id2bdxx, i, j) = d2bdxx
-
-            d2bdyy = deltaYRecip * ( &
-               tiles(tID)%u(idbdy,i, j+1) - tiles(tID)%u(idbdy,i, j) &
-            )
-            tiles(tID)%u(id2bdyy, i, j) = d2bdyy
-
-            d2bdxy = 0.5_wp * deltaYRecip * &
-               KahanSum([tiles(tID)%u(idbdx,i, j+1), -tiles(tID)%u(idbdx,i, j), &
-                  tiles(tID)%u(idbdx,i+1, j+1), -tiles(tID)%u(idbdx,i+1, j)])
-            tiles(tID)%u(id2bdxy, i, j) = d2bdxy
-         end if
       else
          bt_centre = 0.5_wp * (tiles(tID)%bt(i, 1) + tiles(tID)%bt(i+1, 1))
          tiles(tID)%u(ibt,i,1) = bt_centre
          dbdx = deltaXRecip * KahanSum([tiles(tID)%b0(i+1, 1), tiles(tID)%bt(i+1, 1), &
             -tiles(tID)%b0(i  , 1), -tiles(tID)%bt(i  , 1)])
          tiles(tID)%u(idbdx,i,1) = dbdx
-
-         if (RunParams%curvature) then
-            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i, 1))
-            tiles(tID)%u(id2bdxx,i,1) = d2bdxx
-         end if
       end if
    end subroutine ComputeCellCentredTopographicData_ij
 
@@ -666,6 +585,180 @@ contains
          tiles(tID)%uMinusX(idbdx,RunParams%nXpertile+1,1) = dbdx
       end if
    end subroutine ComputeInterfacialTopographicData
+
+   subroutine ComputeTopographicCurvatures_tileID(RunParams, grid, tiles, tID)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), intent(inout), target :: grid
+      type(tileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID
+
+      integer :: i, j, idbdx, idbdy
+      integer :: id2bdxx, id2bdyy, id2bdxy
+      integer :: nXpertile, nYpertile
+      integer :: ttW, ttE, ttS, ttN
+
+      real(kind=wp) :: deltaXRecip, deltaYRecip
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+
+      if (.not.RunParams%curvature) return
+
+      idbdx = RunParams%Vars%dbdx
+      idbdy = RunParams%Vars%dbdy
+      id2bdxx = RunParams%Vars%d2bdxx
+      id2bdyy = RunParams%Vars%d2bdyy
+      id2bdxy = RunParams%Vars%d2bdxy
+
+      nXpertile = RunParams%nXpertile
+      nYpertile = RunParams%nYpertile
+
+      deltaXRecip = grid%deltaXRecip
+      deltaYRecip = grid%deltaYRecip
+
+      ttW = tiles(tID)%West
+      ttE = tiles(tID)%East
+      if (.not. RunParams%isOneD) then
+         ttN = tiles(tID)%North
+         ttS = tiles(tID)%South
+
+         do i = 1, nXpertile
+            do j = 1, nYpertile
+
+               if (i==1) then
+                  if (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW)) then
+                     ! Compute derivative using neighbour
+                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(ttW)%u(idbdx, nXpertile, j))
+                  else
+                     ! Fall back to first order derivative -- only occurs for ghost tiles
+                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(tID)%u(idbdx, i, j))
+                  end if
+                  
+               elseif (i==RunParams%nXpertile) then
+                  if (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE)) then
+                     ! Compute derivative using neighbour
+                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, i-1, 1))
+                  else
+                     ! Fall back to first order derivative -- only occurs for ghost tiles
+                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, 1) - tiles(tID)%u(idbdx, i-1, 1))
+                  end if
+                  
+               else
+                  d2bdxx = 0.5_wp * deltaXRecip * ( &
+                     tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
+                  )
+               end if
+               tiles(tID)%u(id2bdxx,i,j) = d2bdxx
+
+               if (j==1) then
+                  if (InVector(grid%activeTiles%List, ttS) .or. IsActiveGhostTile(grid, ttS)) then
+                     ! Compute derivative using neighbour
+                     d2bdyy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdy, i, j+1) - tiles(ttS)%u(idbdy, i, nYpertile))
+                     d2bdxy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(ttS)%u(idbdx, i, nYpertile))
+                  else
+                     ! Fall back to first order derivative -- only occurs for ghost tiles
+                     d2bdyy = deltaYRecip * (tiles(tID)%u(idbdy, i, j+1) - tiles(tID)%u(idbdy, i, j))
+                     d2bdxy = deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(tID)%u(idbdx, i, j))
+                  end if
+                  
+               elseif (j==RunParams%nYpertile) then
+                  if (InVector(grid%activeTiles%List, ttN) .or. IsActiveGhostTile(grid, ttN)) then
+                     ! Compute derivative using neighbour
+                     d2bdyy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdy, i, 1) - tiles(tID)%u(idbdy, i, j-1))
+                     d2bdxy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdx, i, 1) - tiles(tID)%u(idbdx, i, j-1))
+                  else
+                     ! Fall back to first order derivative -- only occurs for ghost tiles
+                     d2bdyy = deltaYRecip * (tiles(tID)%u(idbdy, i, j) - tiles(tID)%u(idbdy, i, j-1))
+                     d2bdxy = deltaYRecip * (tiles(tID)%u(idbdx, i, j) - tiles(tID)%u(idbdx, i, j-1))
+                  end if
+
+               else
+                  d2bdyy = 0.5_wp * deltaYRecip * ( &
+                     tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i, j-1) &
+                  )  
+                  d2bdxy = deltaYRecip * ( &
+                     tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i, j-1) &
+                  )
+               end if
+               tiles(tID)%u(id2bdyy,i,j) = d2bdyy
+               tiles(tID)%u(id2bdxy,i,j) = d2bdxy
+            end do
+         end do
+      else
+
+         if (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW)) then
+            ! Compute derivative using neighbour
+            d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, 2, 1) - tiles(ttW)%u(idbdx, nXpertile, 1))
+         else
+            ! Fall back to first order derivative -- only occurs for ghost tiles
+            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, 2, 1) - tiles(tID)%u(idbdx, 1, 1))
+         end if
+         tiles(tID)%u(id2bdxx,1,1) = d2bdxx
+
+         do i = 2, nXpertile-1
+            d2bdxx = 0.5_wp * deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i-1, 1))
+            tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+         end do
+
+         if (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE)) then
+            ! Compute derivative using neighbour
+            d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, nXpertile-1, 1))
+         else
+            ! Fall back to first order derivative -- only occurs for ghost tiles
+            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, nXpertile, 1) - tiles(tID)%u(idbdx, nXpertile-1, 1))
+         end if
+         tiles(tID)%u(id2bdxx,nXpertile,1) = d2bdxx
+
+      end if
+   end subroutine ComputeTopographicCurvatures_tileID
+
+   subroutine ComputeTopographicCurvatures_ij(RunParams, grid, tiles, tID, i, j)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), intent(inout), target :: grid
+      type(tileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID, i, j
+
+      integer :: ibt, idbdx, idbdy
+      integer :: id2bdxx, id2bdyy, id2bdxy
+
+      real(kind=wp) :: deltaXRecip, deltaYRecip
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+
+      if (.not.RunParams%curvature) return
+
+      idbdx = RunParams%Vars%dbdx
+      idbdy = RunParams%Vars%dbdy
+      id2bdxx = RunParams%Vars%d2bdxx
+      id2bdyy = RunParams%Vars%d2bdyy
+      id2bdxy = RunParams%Vars%d2bdxy
+
+      deltaXRecip = grid%deltaXRecip
+      deltaYRecip = grid%deltaYRecip
+
+      if (.not. RunParams%isOneD) then
+         d2bdxx = deltaXRecip * ( &
+            tiles(tID)%u(idbdx,i+1, j) - tiles(tID)%u(idbdx,i, j) &
+         )
+         tiles(tID)%u(id2bdxx, i, j) = d2bdxx
+
+         d2bdyy = deltaYRecip * ( &
+            tiles(tID)%u(idbdy,i, j+1) - tiles(tID)%u(idbdy,i, j) &
+         )
+         tiles(tID)%u(id2bdyy, i, j) = d2bdyy
+
+         d2bdxy = 0.5_wp * deltaYRecip * &
+            KahanSum([tiles(tID)%u(idbdx,i, j+1), -tiles(tID)%u(idbdx,i, j), &
+               tiles(tID)%u(idbdx,i+1, j+1), -tiles(tID)%u(idbdx,i+1, j)])
+         tiles(tID)%u(id2bdxy, i, j) = d2bdxy
+      else
+         d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i, 1))
+         tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+      end if
+
+   end subroutine ComputeTopographicCurvatures_ij
+
 
    ! For DEMS / SRTMS etc, GetHeights returns different values of b0 at the
    ! interface depending on which tile it's called from. These O(1e-10)

@@ -125,13 +125,16 @@ contains
 
       integer :: N
 
-      N = size(vector)
-
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+      if (allocated(vector)) then
+         N = size(vector)
+         allocate(temp(N+1))
+         temp(1:N) = vector
+         temp(N+1) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(1))
+         vector(1) = val
+      end if
 
       return
 
@@ -148,13 +151,16 @@ contains
 
       integer :: N
 
-      N = size(vector)
-
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+      if (allocated(vector)) then
+         N = size(vector)
+         allocate(temp(N+1))
+         temp(1:N) = vector
+         temp(N+1) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(1))
+         vector(1) = val
+      end if
 
       return
 
@@ -219,16 +225,20 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+         Nold = size(vector)
+         Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+         allocate(temp(Nnew))
+         temp(1:Nold) = vector
+         temp(Nold+1:Nnew) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(Nval))
+         vector(:) = val(:)
+      end if
 
    end subroutine AddToVector_rvec
 
@@ -243,16 +253,20 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+         Nold = size(vector)
+         Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+         allocate(temp(Nnew))
+         temp(1:Nold) = vector
+         temp(Nold+1:Nnew) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(Nval))
+         vector(:) = val(:)
+      end if
 
    end subroutine AddToVector_ivec
 

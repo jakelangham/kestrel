@@ -941,7 +941,8 @@ contains
       integer :: crs_id
       integer :: w_id, Hn_id, u_id, v_id, spd_id, psi_id
       integer :: rho_id, rhoHnu_id, rhoHnv_id, Hnpsi_id
-      integer :: b0_id, bt_id, dbdx_id, dbdy_id
+      integer :: b0_id, bt_id, dbdx_id, dbdy_id, gamma_id
+      integer :: d2bdxx_id, d2bdxy_id, d2bdyy_id
 
       integer :: x_vertex_id, y_vertex_id
       integer :: B0_vertex_id, Bt_vertex_id
@@ -968,7 +969,7 @@ contains
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
 
-      real(kind=wp), dimension(:, :), allocatable :: spd
+      real(kind=wp), dimension(:, :), allocatable :: spd, gam
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
@@ -1073,7 +1074,7 @@ contains
       dimids = [x_dim_id, y_dim_id]
       vertex_dim_ids = [x_vertex_dim_id, y_vertex_dim_id]
 
-      allocate (spd(nXpertile, nYpertile))
+      allocate (spd(nXpertile, nYpertile), gam(nXpertile, nYpertile))
 
       
 
@@ -1174,6 +1175,36 @@ contains
                               units='1', &
                               coordinates='x y', &
                               grid_mapping='crs')
+      
+      call define_nc_var_real(ncid, "gamma", dimids, gamma_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='geometric factor', &
+                              standard_name='gamma', &
+                              units='1', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+      
+      if (RunParams%curvature) then
+         call define_nc_var_real(ncid, "d2bdxx", dimids, d2bdxx_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='d2bdxx', &
+                              standard_name='d2bdxx', &
+                              units='1', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+         
+         call define_nc_var_real(ncid, "d2bdxy", dimids, d2bdxy_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='d2bdxy', &
+                              standard_name='d2bdxy', &
+                              units='1', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+         
+         call define_nc_var_real(ncid, "d2bdyy", dimids, d2bdyy_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='d2bdyy', &
+                              standard_name='d2bdyy', &
+                              units='1', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+      end if
 
       call define_nc_var_real(ncid, "B0_vertex", vertex_dim_ids, B0_vertex_id, &
                               fill_value=-9999.9_wp, deflate=1, &
@@ -1222,6 +1253,7 @@ contains
          do i = 1, RunParams%nXpertile
             do j = 1, RunParams%nYpertile
                spd(i, j) = sqrt(FlowSquaredSpeedSlopeAligned(Runparams, grid%tileContainer(ttk)%u(:, i, j)))
+               gam(i, j) = GeometricCorrectionFactor(RunParams, grid%tileContainer(ttk)%u(:, i, j))
             end do
          end do
 
@@ -1240,6 +1272,14 @@ contains
 
          call put_nc_var(ncid, dbdx_id, grid%tileContainer(ttk)%u(RunParams%Vars%dbdx, :, :), start=xy_start, count=nXYpertile)
          call put_nc_var(ncid, dbdy_id, grid%tileContainer(ttk)%u(RunParams%Vars%dbdy, :, :), start=xy_start, count=nXYpertile)
+
+         call put_nc_var(ncid, gamma_id, gam(:, :), start=xy_start, count=nXYpertile)
+
+         if (RunParams%curvature) then
+            call put_nc_var(ncid, d2bdxx_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdxx, :, :), start=xy_start, count=nXYpertile)
+            call put_nc_var(ncid, d2bdxy_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdxy, :, :), start=xy_start, count=nXYpertile)
+            call put_nc_var(ncid, d2bdyy_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdyy, :, :), start=xy_start, count=nXYpertile)
+         end if
 
          call put_nc_var(ncid, x_vertex_id, grid%tileContainer(ttk)%x_vertex(:), start=[x_vertex_start], count=[nX_vertex_pertile])
          call put_nc_var(ncid, y_vertex_id, grid%tileContainer(ttk)%y_vertex(:), start=[y_vertex_start], count=[nY_vertex_pertile])

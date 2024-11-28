@@ -1269,13 +1269,13 @@ contains
                     !     (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d),  &
                     !     tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)]) * deltaYRecip
 
-                        STF(d) = KahanSum([ &
-                            (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
-                            (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
-                            (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
-                            (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
-                            (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
-                            (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
+                    STF(d) = KahanSum([ &
+                        (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
+                        (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
+                        (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
+                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
+                        (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
+                        (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
 
                   end if
                end do

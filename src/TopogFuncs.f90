@@ -74,6 +74,7 @@ module topog_funcs_module
    public :: xtanh ! one-dimensional tanh on a flat topography
    public :: xparab ! one-dimensional parabola
    public :: xyparab ! two-dimensional parabola
+   public :: xtanhbowl ! one-dimensional tanh-sided bowl
 
    pointer :: TopogFunc
    interface
@@ -575,5 +576,30 @@ contains
       end do
       return
    end subroutine xyparab
+
+   ! one-dimensional tanh sided bowl
+   ! b = A*(1 - 0.5*( tanh((x+x0)/L) - tanh((x-x0)/L)) )
+   ! Three parameters required:
+   !  A -- height of sidewalls; passed in RunParams%TopogFuncParams(1)
+   !  x0 -- half-width of bowl; passed in RunParams%TopogFuncParams(2)
+   !  L -- length scale of transition; passed in RunParams%TopogFuncParams(3)
+   pure subroutine xtanhbowl(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, x0, L
+      integer :: ii
+
+      A = RunParams%TopogFuncParams(1)
+      x0 = RunParams%TopogFuncParams(2)
+      L = RunParams%TopogFuncParams(3)
+
+      do ii=1,size(x)
+         b0(ii,:) = A*(1.0_wp - 0.5_wp*( tanh((x(ii)+x0)/L) - tanh((x(ii)-x0)/L) ))
+      end do
+      return
+   end subroutine xtanhbowl
 
 end module topog_funcs_module

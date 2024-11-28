@@ -333,6 +333,14 @@ contains
                end if
                TopogFunc => xyparab
 
+            case ('xtanhbowl')
+               if (size(RunParams%TopogFuncParams) < 3) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " three 'Topog params' are needed for 'Type = xtanhbowl'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xtanhbowl
+
             case default
                call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " the 'Topog function = "// TopogFuncStr%s //"' is not recognized.")
