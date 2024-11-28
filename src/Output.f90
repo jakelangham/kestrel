@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -254,7 +254,8 @@ contains
 
       write (101, fmt="(a12,a4,a1,a2,a1,a2,a1,a4)") "# Run start = ", RunParams%RunDate%s(1:4), "-", RunParams%RunDate%s(5:6), &
          "-", RunParams%RunDate%s(7:8), " ", RunParams%RunTime%s(1:4)
-      write (101, fmt="(a18,a)") "# Input file name = ", RunParams%InputFile%s
+      write (101, fmt="(a20,a)") "# Kestrel version = ", RunParams%version%s
+      write (101, fmt="(a20,a)") "# Input file name = ", RunParams%InputFile%s
       write (101, *)
 
       write (101, fmt="(a)") "Domain:"
@@ -353,6 +354,15 @@ contains
          write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
          write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
          write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+      case ("Edwards2019")
+         write (101, fmt="(a)") "Drag = Edwards2019"
+         write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
+         write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
+         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
+         write (101, fmt="(a,G0)") "Pouliquen intermediate = ", RunParams%PouliquenIntermediateSlope
+         write (101, fmt="(a,G0)") "Edwards2019 betastar = ", RunParams%Edwards2019betastar
+         write (101, fmt="(a,G0)") "Edwards2019 kappa = ", RunParams%Edwards2019kappa
+         write (101, fmt="(a,G0)") "Edwards2019 gamma = ", RunParams%Edwards2019Gamma
       case ("Variable")
          write (101, fmt="(a)") "Drag = Variable"
          write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
@@ -1025,7 +1035,8 @@ contains
       call put_nc_att(ncid, 'title', 'Kestrel: '//trim(filename))
       call put_nc_att(ncid, 'institution', 'University of Bristol')
       call put_nc_att(ncid, 'source', 'Kestrel')
-
+      call put_nc_att(ncid, 'version', RunParams%version%s)
+      
       call put_nc_att(ncid, 'Conventions', 'CF-1.11-draft')
       call put_nc_att(ncid, '_FillValue', -9999.9_wp)
 
@@ -1473,6 +1484,7 @@ contains
       call put_nc_att(ncid, 'title', 'Kestrel: Maximums')
       call put_nc_att(ncid, 'institution', 'University of Bristol')
       call put_nc_att(ncid, 'source', 'Kestrel')
+      call put_nc_att(ncid, 'version', RunParams%version%s)
 
       call put_nc_att(ncid, 'Conventions', 'CF-1.11-draft')
       call put_nc_att(ncid, '_FillValue', -9999.9_wp)
@@ -2099,6 +2111,14 @@ contains
             call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)
             call put_nc_att(ncid, "Pouliquen maximum slope", RunParams%PouliquenMaxSlope)
             call put_nc_att(ncid, "Pouliquen beta", RunParams%PouliquenBeta)
+         case ("Edwards2019")
+            call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)
+            call put_nc_att(ncid, "Pouliquen maximum slope", RunParams%PouliquenMaxSlope)
+            call put_nc_att(ncid, "Pouliquen beta", RunParams%PouliquenBeta)
+            call put_nc_att(ncid, "Pouliquen intermediate", RunParams%PouliquenIntermediateSlope)
+            call put_nc_att(ncid, "Edwards2019 betastar", RunParams%Edwards2019betastar)
+            call put_nc_att(ncid, "Edwards2019 kappa", RunParams%Edwards2019kappa)
+            call put_nc_att(ncid, "Edwards2019 gamma", RunParams%Edwards2019Gamma)
          case ("Variable")
             call put_nc_att(ncid, "Chezy coefficient", RunParams%ChezyCo)
             call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)

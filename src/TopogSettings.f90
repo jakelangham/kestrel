@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -260,23 +260,23 @@ contains
                       // " six 'Topog params' are needed for 'Type = Flume'; received " // Int2String(size(RunParams%TopogFuncParams)))
                 end if
                 TopogFunc => flume
-            
-            case ('quadratic flume')
-                if (size(RunParams%TopogFuncParams) < 4) then
-                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
-                      trim(RunParams%InputFile%s) // new_line('A') &
-                      // " four 'Topog params' are needed for 'Type = Quadratic flume'; received " // Int2String(size(RunParams%TopogFuncParams)))
-                end if
-                TopogFunc => quadratic_flume
 
-            case ('trapezoidal channel')
-                if (size(RunParams%TopogFuncParams) < 4) then
+            case ('channel power law')
+                if (size(RunParams%TopogFuncParams) < 3) then
                    call FatalErrorMessage("In the 'Topog' block in the input file " // &
                       trim(RunParams%InputFile%s) // new_line('A') &
-                      // " four 'Topog params' are needed for 'Type = Trapezoidal channel'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                      // " three 'Topog params' are needed for 'Type = Channel power law'; received " // Int2String(size(RunParams%TopogFuncParams)))
                 end if
-                TopogFunc => trapezoidal_channel
-            
+                TopogFunc => channel_powerlaw
+
+            case ('channel trapezium')
+                if (size(RunParams%TopogFuncParams) < 3) then
+                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                      trim(RunParams%InputFile%s) // new_line('A') &
+                      // " three 'Topog params' are needed for 'Type = Channel trapezium'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                end if
+                TopogFunc => channel_trapezium
+
             case ('xbislope')
                if (size(RunParams%TopogFuncParams) < 3) then
                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
@@ -284,6 +284,14 @@ contains
                      // " three 'Topog params' are needed for 'Type = xbislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
                end if
                TopogFunc => xbislope            
+
+            case ('xtrislope')
+               if (size(RunParams%TopogFuncParams) < 6) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                     trim(RunParams%InputFile%s) // new_line('A') &
+                     // " six 'Topog params' are needed for 'Type = xtrislope'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xtrislope 
 
             case ('xsinslope')
                if (size(RunParams%TopogFuncParams) < 1) then
@@ -383,7 +391,7 @@ contains
             RunParams%UTM_zone_letter = "N"
          end if
          RunParams%utmEPSG = LatLonToUtmEpsg(RunParams%Lat, RunParams%Lon)
-         RunParams%projTransformer = proj_transformer(RunParams%utmEPSG)
+         call new(RunParams%projTransformer, RunParams%utmEPSG)
          RunParams%centerUTM = RunParams%projTransformer%wgs84_to_utm(RunParams%Lat, RunParams%Lon)
       end if
 

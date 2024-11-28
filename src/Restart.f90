@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -368,6 +368,8 @@ contains
 
       real(kind=wp), dimension(:), allocatable :: x, y
 
+      character(len=:), allocatable :: ICversion
+
       tileContainer => grid%tileContainer
       activeTiles => grid%activeTiles
 
@@ -385,10 +387,16 @@ contains
       call get_nc_att(ncid, 'nYpertile', nYpertile)
       call get_nc_att(ncid, 'nXtiles', nXtiles)
       call get_nc_att(ncid, 'nYtiles', nYtiles)
+      call get_nc_att(ncid, 'version', ICversion)
+
+      if (ICversion /= RunParams%version) call WarningMessage("Results file " // resultfile // " made with different Kestrel version to current installation")
 
       if (RunParams%Georeference) then
         call get_nc_att(ncid, 'central_easting', central_easting)
         call get_nc_att(ncid, 'central_northing', central_northing)
+      else
+         central_easting = 0.0_wp
+         central_northing = 0.0_wp
       end if
 
       nX = nXtiles*nXpertile
@@ -563,6 +571,8 @@ contains
       integer :: LastFile
       real(kind=wp) :: FileTimeStep, tstart
 
+      type(varString) :: InfoVersion ! Get version string reported in InfoFile
+
       logical :: found_filetimestep
       logical :: found_lastfile
       logical :: found_tstart
@@ -593,6 +603,11 @@ contains
             if (line%contains("=")) then ! ignore that are not in keyword = value format
                call line%split("=", label, remain=val)
                label = label%to_lower()
+               if (label%contains("Kestrel version")) then
+                  InfoVersion = val
+               else
+                  InfoVersion = varString("Unknown")
+               end if
                if (label%contains("time step between outputs")) then
                   FileTimeStep = val%to_real()
                   found_filetimestep = .true.
@@ -613,6 +628,8 @@ contains
       if (.not. found_filetimestep) call FatalErrorMessage("Could not find 'Time step between outputs' in RunInfo.txt file")
       if (.not. found_lastfile) call FatalErrorMessage("Could not find 'Last output file' in RunInfo.txt file")
       if (.not. found_tstart) call FatalErrorMessage("Could not find 't start' in RunInfo.txt file")
+
+      if (InfoVersion /= RunParams%version) call WarningMessage("Results associated with RunInfo.txt were made using a different Kestrel version to your current installation")
 
       RunParams%FirstOut = LastFile
       RunParams%DeltaT = FileTimeStep

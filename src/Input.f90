@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -55,7 +55,7 @@ contains
 
       implicit none
 
-      type(RunSet), intent(out) :: RunParams
+      type(RunSet), intent(inout) :: RunParams
       logical :: FileExists
       integer :: stat ! Status of input/output
       type(varString) :: line

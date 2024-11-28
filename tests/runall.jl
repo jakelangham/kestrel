@@ -7,6 +7,7 @@ tests_1d = [
    ("cap_conc", 1)
    ("cap_morpho", 1)
    ("flux_hydro", 1)
+   ("flux_edwards2019", 1)
    ("flux_morpho", 1)
 ]
 
@@ -16,6 +17,7 @@ tests_2d = [
    ("cap_conc_2d", 2)
    ("cap_morpho_2d", 2)
    ("flux_hydro_2d", 2)
+   ("flux_edwards2019_2d", 2)
    ("flux_morpho_2d", 2)
    ("flux_single_pt", 2)
 ]
@@ -145,9 +147,19 @@ function run_all()
       numpassed += run_netcdf()
    end
   
+   report_pass_rate_and_exit(numpassed, numtests)
+end
+
+function report_pass_rate_and_exit(numpassed, numtests)
    ratio = 100 * numpassed / numtests
    @printf "Results: %i/%i passed" numpassed numtests
    @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
+
+   if numpassed == numtests
+      exit()
+   else
+      exit(1)
+   end
 end
 
 # Print a list of available test categories.
@@ -190,11 +202,11 @@ else
    end
 
    if numtests >= 1
-      ratio = 100 * numpassed / numtests
-      @printf "Results: %i/%i passed" numpassed numtests
-      @printf "%s (%.1f%c)\n" (numpassed == numtests ? "!" : "") ratio '%'
+      report_pass_rate_and_exit(numpassed, numtests)
    else
       println("No valid tests selected.")
       print_options()
    end
 end
+
+exit(1) # default is to return error

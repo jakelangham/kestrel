@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -160,6 +160,8 @@ module runsettings_module
    ! the simulation. It is subdivided into sections which each have their own
    ! module for initialisation in the files *Settings.f90 and Parameters.f90. 
    type RunSet
+   ! -- Version --
+      type(varString) :: version
 
    ! -- Domain settings. --
 
@@ -226,7 +228,11 @@ module runsettings_module
       real(kind=wp) :: CoulombCo ! Coulomb coefficient
       real(kind=wp) :: PouliquenMinSlope ! Minimum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenMaxSlope ! Maximum slope angle for steady flow with Pouliquen friction
+      real(kind=wp) :: PouliquenIntermediateSlope ! Intermediate slope angle for Pouliquen friction
       real(kind=wp) :: PouliquenBeta ! beta parameter in Pouliquen friction
+      real(kind=wp) :: Edwards2019betastar ! beta* parameter in Edwards' 2019 JFM friction model
+      real(kind=wp) :: Edwards2019kappa ! smoothing power in Edwards' 2019 JFM friction model
+      real(kind=wp) :: Edwards2019Gamma ! Gamma parameter in Edwards' 2019 JFM friction model
       real(kind=wp) :: VoellmySwitchRate ! Steepness of transition in Voellmy drag
       real(kind=wp) :: VoellmySwitchValue ! Centre value of transition in Voellmy drag
       ! Morphodynamic parameters.

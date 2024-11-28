@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -188,6 +188,12 @@ module varstring_module
       procedure, pass(this) :: equal_varstring_left ! test equality of varString and character string
       procedure, pass(this) :: equal_varstring_right ! test equality of character string and varString
       generic, public :: operator(==) => equal_varstring, equal_varstring_left, equal_varstring_right ! Overload == comparison operator for varStrings
+
+      ! check non-equality (/=)
+      procedure, pass(this) :: not_equal_varstring ! test non-equality of  two varStrings
+      procedure, pass(this) :: not_equal_varstring_left ! test non-equality of varString and character string
+      procedure, pass(this) :: not_equal_varstring_right ! test non-equality of character string and varString
+      generic, public :: operator(/=) => not_equal_varstring, not_equal_varstring_left, not_equal_varstring_right ! Overload /= comparison operator for varStrings
 
       ! Methods:
 
@@ -407,6 +413,36 @@ contains
 
       isequal = (this%s == txt)
    end function equal_varstring_right
+
+   ! Private method to compare this varString with varString txt
+   !  notisequal = this /= txt
+   pure function not_equal_varstring(this, txt) result(isnotequal)
+      class(varString), intent(in) :: this
+      type(varString), intent(in) :: txt
+      logical isnotequal
+
+      isnotequal = (this%s /= txt%s)
+   end function not_equal_varstring
+
+   ! Private method to compare this varString with character string txt
+   !  notisequal = this /= txt
+   pure function not_equal_varstring_left(this, txt) result(notisequal)
+      class(varString), intent(in) :: this
+      character(len=*), intent(in) :: txt
+      logical notisequal
+
+      notisequal = (this%s /= txt)
+   end function not_equal_varstring_left
+
+   ! Private method to compare character string txt with this varString
+   !  isequal = this == txt
+   pure function not_equal_varstring_right(txt, this) result(isnotequal)
+      character(len=*), intent(in) :: txt
+      class(varString), intent(in) :: this
+      logical isnotequal
+
+      isnotequal = (this%s /= txt)
+   end function not_equal_varstring_right
 
    ! Determine the length of the string in this%s
    ! Called as N = this%len()

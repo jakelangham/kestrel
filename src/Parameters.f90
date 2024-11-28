@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -50,7 +50,11 @@ module parameters_module
    real(kind=wp), parameter :: coulombco_d = 0.1_wp
    real(kind=wp), parameter :: pouliquenMinSlope_d = 0.1_wp
    real(kind=wp), parameter :: pouliquenMaxSlope_d = 0.4_wp
+   real(kind=wp), parameter :: pouliquenIntermediateSlope_d = 0.2_wp
    real(kind=wp), parameter :: pouliquen_beta_d=0.136_wp
+   real(kind=wp), parameter :: edwards2019_betastar_d=0.136_wp
+   real(kind=wp), parameter :: edwards2019_kappa_d=1.0_wp
+   real(kind=wp), parameter :: edwards2019_Gamma_d=0.0_wp
    real(kind=wp), parameter :: EroRate_d = 0.001_wp
    real(kind=wp), parameter :: EroRateGranular_d = 4.0_wp
    real(kind=wp), parameter :: EroDepth_d = 1.0_wp
@@ -103,8 +107,12 @@ contains
       logical :: set_coulombco
       logical :: set_pouliquenMinSlope
       logical :: set_pouliquenMaxSlope
+      logical :: set_pouliquenIntermediateSlope
       logical :: set_pouliquen_beta
       logical :: set_pouliquen_L
+      logical :: set_edwards2019_betastar
+      logical :: set_edwards2019_kappa
+      logical :: set_edwards2019_Gamma
       logical :: set_deposition
       logical :: set_erosion
       logical :: set_EroRate
@@ -137,8 +145,12 @@ contains
       set_coulombco=.FALSE.
       set_pouliquenMinSlope=.FALSE.
       set_pouliquenMaxSlope=.FALSE.
+      set_pouliquenIntermediateSlope=.FALSE.
       set_pouliquen_beta=.FALSE.
       set_pouliquen_L=.FALSE.
+      set_edwards2019_betastar=.FALSE.
+      set_edwards2019_kappa=.FALSE.
+      set_edwards2019_Gamma=.FALSE.
       set_deposition=.FALSE.
       set_erosion=.FALSE.
       set_EroRate=.FALSE.
@@ -285,6 +297,9 @@ contains
                   case ('pouliquen')
                      RunParams%DragChoice = varString('Pouliquen')
                      DragClosure => PouliquenDrag
+                  case ('edwards2019')
+                     RunParams%DragChoice = varString('Edwards2019')
+                     DragClosure => Edwards2019Drag
                   case ('variable')
                      RunParams%DragChoice = varString('Variable')
                      DragClosure => VariableDrag
@@ -322,10 +337,29 @@ contains
                RunParams%PouliquenMaxSlope = ParamValues(J)%to_real()
                if (RunParams%PouliquenMaxSlope<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen Max")
           
+            case ('pouliquen intermediate')
+               set_pouliquenIntermediateSlope=.TRUE.
+               RunParams%PouliquenIntermediateSlope = ParamValues(J)%to_real()
+               if (RunParams%PouliquenIntermediateSlope<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen Intermediate")
+
             case ('pouliquen beta')
                set_pouliquen_beta=.TRUE.
                RunParams%PouliquenBeta = ParamValues(J)%to_real()
                if (RunParams%PouliquenBeta<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen beta")
+
+            case ('edwards2019 betastar')
+               set_edwards2019_betastar=.TRUE.
+               RunParams%Edwards2019betastar = ParamValues(J)%to_real()
+               if (RunParams%Edwards2019betastar<=0) call FatalError_Positive(RunParams%InputFile%s,"Edwards2019 betastar")
+
+            case ('edwards2019 kappa')
+               set_edwards2019_kappa=.TRUE.
+               RunParams%Edwards2019kappa = ParamValues(J)%to_real()
+               if (RunParams%Edwards2019kappa<=0) call FatalError_Positive(RunParams%InputFile%s,"Edwards2019 kappa")
+
+            case ('edwards2019 gamma')
+               set_edwards2019_gamma=.TRUE.
+               RunParams%Edwards2019gamma = ParamValues(J)%to_real()
           
             case ('voellmy switch rate')
                set_VoellmySwitchRate=.TRUE.
@@ -506,7 +540,7 @@ contains
          end if
       end if
 
-      if ((RunParams%DragChoice%s=="Pouliquen").or.(RunParams%DragChoice%s=="Variable")) then
+      if ((RunParams%DragChoice%s=="Pouliquen").or.(RunParams%DragChoice%s=="Variable").or.(RunParams%DragChoice%s=="Edwards2019")) then
          if (.not.set_pouliquenMinSlope) then
             RunParams%PouliquenMinSlope = pouliquenMinSlope_d
             call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Min",RunParams%pouliquenMinSlope)
@@ -518,6 +552,24 @@ contains
          if (.not.set_pouliquen_beta) then
             RunParams%PouliquenBeta = pouliquen_beta_d
             call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Beta",RunParams%PouliquenBeta)
+         end if
+      end if
+      if (RunParams%DragChoice%s=="Edwards2019") then
+         if (.not.set_pouliquenIntermediateSlope) then
+            RunParams%PouliquenIntermediateSlope = pouliquenIntermediateSlope_d
+            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Intermediate",RunParams%pouliquenIntermediateSlope)
+         end if
+         if (.not.set_edwards2019_betastar) then
+            RunParams%Edwards2019betastar = edwards2019_betastar_d
+            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 betastar",RunParams%Edwards2019betastar)
+         end if
+         if (.not.set_edwards2019_kappa) then
+            RunParams%Edwards2019kappa = edwards2019_kappa_d
+            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 kappa",RunParams%Edwards2019kappa)
+         end if
+         if (.not.set_edwards2019_gamma) then
+            RunParams%Edwards2019gamma = edwards2019_gamma_d
+            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 Gamma",RunParams%Edwards2019Gamma)
          end if
       end if
 

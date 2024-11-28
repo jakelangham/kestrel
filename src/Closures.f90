@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -54,7 +54,8 @@ module closures_module
    public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
 
    public :: DragClosure
-   public :: ChezyDrag, CoulombDrag, VoellmyDrag, PouliquenDrag, ManningDrag, VariableDrag
+   public :: ChezyDrag, CoulombDrag, VoellmyDrag, PouliquenDrag, Edwards2019Drag
+   public :: ManningDrag, VariableDrag
 
    public :: fswitch
    public :: tanhSwitch, rat3Switch, cosSwitch
@@ -474,6 +475,48 @@ contains
          mu = mu1
       end if
    end function PouliquenFrictionCoefficient
+
+   ! Extended 'Pouliquen'-like law featuring velocity-weakening behaviour at 
+   ! low Froude number.
+   ! See Edwards, Russell, Johnson, Gray, J. Fluid Mech. (2019).
+   ! N.B. The Fr = 0 is omitted, since stopped regions require special 
+   ! attention and this is difficult to implement in Kestrel currently.
+   pure function Edwards2019Drag(RunParams, uvect) result(friction)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp) :: friction
+
+      real(kind=wp) :: Hn, modu, gam, gperp, mu, Fr
+      real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
+
+      Hn = uvect(RunParams%Vars%Hn)
+      gam = GeometricCorrectionFactor(RunParams, uvect)
+      gperp = RunParams%g / gam
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      Fr = modu / sqrt(gperp * Hn)
+
+      mu1 = RunParams%PouliquenMinSlope
+      mu2 = RunParams%PouliquenMaxSlope
+      mu3 = RunParams%PouliquenIntermediateSlope
+      beta = RunParams%Pouliquenbeta
+      betastar = RunParams%Edwards2019betastar
+      kappa = RunParams%Edwards2019kappa
+      capgam = RunParams%Edwards2019Gamma
+      L = RunParams%SolidDiameter
+
+      if (Fr > betastar) then
+         friction = mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (Fr + capgam)))
+      else
+         friction = ((Fr / betastar)**kappa) * &
+             (mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (betastar + capgam))) - &
+             mu3 - (mu2 - mu1) / (1.0_wp + Hn / L)) + &
+             mu3 + (mu2 - mu1) / (1.0_wp + Hn / L)
+      end if
+
+      friction = friction * gperp * Hn
+   end function Edwards2019Drag
 
    ! Manning drag has friction function F = g * n^2 / (Hn^{1/3}) where n is the
    ! Manning coefficient.

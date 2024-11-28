@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -1217,7 +1217,8 @@ contains
             spd = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, tile%u(:, ii, jj)))
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
-               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // Int2String(ii) //',' // Int2String(jj) // ' : spd = ', spd)
+               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
+                   Int2String(ii) // ',' // Int2String(jj) // ' : spd = ', spd)
 #if DEBUG_SPD==2
                call exit(1)
 #endif

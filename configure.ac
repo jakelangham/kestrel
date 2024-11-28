@@ -1,4 +1,8 @@
-AC_INIT([Kestrel], [1.0], [Mark.Woodhouse@bristol.ac.uk, J.Langham@bristol.ac.uk])
+AC_PREREQ([2.68])
+m4_define([DEFAULT_VERSION], [v1.1.1])
+AC_INIT([Kestrel],
+        [m4_esyscmd_s([git --version > /dev/null 2>&1 && git describe --tags || echo DEFAULT_VERSION])],
+        [Mark.Woodhouse@bristol.ac.uk, J.Langham@bristol.ac.uk])
 AC_CONFIG_SRCDIR([src/TimeStepper.f90])
 AC_CONFIG_MACRO_DIRS([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
@@ -10,6 +14,10 @@ AC_PREFIX_DEFAULT([..])
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
 AC_PROG_CXX
+
+# Detect builds on linux
+AC_CANONICAL_HOST
+AM_CONDITIONAL([LINUX], [test x$host_os = xlinux-gnu])
 
 # Check c++17, which we require.
 AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])

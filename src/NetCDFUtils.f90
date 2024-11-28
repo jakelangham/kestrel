@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -87,7 +87,8 @@ module netcdf_utils_module
 
    interface get_nc_att
       module procedure :: get_nc_att_int, get_nc_att_real, &
-         get_nc_att_int_vec, get_nc_att_real_vec
+         get_nc_att_int_vec, get_nc_att_real_vec, &
+         get_nc_att_str
    end interface
 
 contains
@@ -887,6 +888,27 @@ contains
       val = real(nc_val, kind=wp)
       return
    end subroutine get_nc_att_real_vec
+
+   subroutine get_nc_att_str(ncid, att_name, val)
+    integer, intent(in) :: ncid
+    character(len=*), intent(in) :: att_name
+    character(len=:), allocatable, intent(out) :: val
+
+    integer :: nc_status
+    integer :: length
+
+    nc_status = nf90_inquire_attribute(ncid, NF90_GLOBAL, att_name, len=length)
+    if (nc_status /= NF90_NOERR) then
+        val = "Unknown"
+        return
+    end if
+
+    allocate(character(len=length) :: val)
+
+    nc_status = nf90_get_att(ncid, NF90_GLOBAL, att_name, val)
+    if (nc_status /= NF90_NOERR) call handle_err(nc_status, ' nf90_get_att '//att_name)
+    return
+ end subroutine get_nc_att_str
 
    subroutine handle_err(status, extra)
       integer, intent(in) :: status

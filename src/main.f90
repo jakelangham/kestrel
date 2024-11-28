@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -48,7 +48,9 @@ program Kestrel
    use restart_module, only: LoadInitialCondition
    use dem_module, only: LoadDEM
    use timestepper_module, only: Run
-   use output_module, only: CreateOutDir 
+   use output_module, only: CreateOutDir
+   use varstring_module, only: varString
+   use version_module, only: GetVersion 
 
    implicit none
 
@@ -59,6 +61,12 @@ program Kestrel
    ! Likewise, this contains all the data related to the numerical grid, 
    ! including the solution fields (see Grid.f90).
    type(GridType) :: grid
+
+   character(len=:), allocatable :: version
+
+   ! Set version
+   version = GetVersion()
+   RunParams%version = varString(trim(version))
 
    ! The following block indexes the fields that are explicitly stored during 
    ! the simulation. There are four primary flow variables (1-4). 
@@ -98,7 +106,7 @@ program Kestrel
    RunParams%nDimensions = 16
 
    write (stdout, *)
-   write (stdout, *) "Starting Kestrel."
+   write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"
    write (stdout, *)
 
    ! Read input file and populate the type(RunSet) :: RunParams object

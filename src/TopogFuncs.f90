@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -38,7 +38,10 @@
 !   x2slopes - Two slopes connected by a circular arc
 !   usgs - Parameterization of the USGS flume
 !   flume - General flume based on the USGS flume
+!   channel_powerlaw - Slope along x, power law cross section in y
+!   channel_trapezium - Slope along x, trapezium cross section in y
 !   xbislope - Two slopes with smooth transition
+!   xtrislope - Three slopes with piecewise continuous transition
 !   flat - Flat topography
 !   xslope - Uniform slope along x
 !   yslope - Uniform slope along y
@@ -61,9 +64,10 @@ module topog_funcs_module
    public :: x2slopes ! Two slopes connected by a circular arc
    public :: usgs ! Parameterization of the USGS flume
    public :: flume ! General flume based on the USGS flume
-   public :: quadratic_flume ! Flume with runout and quadratic cross-section
-   public :: trapezoidal_channel ! inclined channel (along x) with inclined sides (along y)
+   public :: channel_powerlaw ! Slope along x, power law cross section in y
+   public :: channel_trapezium ! Slope along x, trapezium cross section in y
    public :: xbislope ! Two slopes with smooth transition
+   public :: xtrislope ! Three slopes with piecewise continuous transition
    public :: flat ! Flat topography
    public :: xslope ! Uniform slope along x
    public :: yslope ! Uniform slope along y
@@ -238,102 +242,71 @@ contains
       return
    end subroutine flume
 
-   ! Parameterization of a quadratic flume
-   ! This has slope theta0 for x<0, and slope theta1 for x>x1>0
-   ! that are connected by a smooth cosh curve section.
-   ! Note x1 is determined to ensure smooth connection.
-   ! The channel cross-section is quadratic b(x,y) = -theta0*x + a*y^2
+   ! Channel with constant slope in x and banks defined by a power law as so
+   !
+   ! b(x, y) = x * slope + cos(theta) * (|y| / W)^alpha
+   !
+   ! where theta is the slope angle and accounts for the rotation of the banks
+   ! to the Earth-centred system.
+   ! Note that 2*W sets the approximate width of the channel.
    !  parameters required:
-   !  theta0 -- slope (in degrees) for x<0; passed in RunParams%TopogFuncParams(1)
-   !  theta1 -- slope (in degrees) for x>x1; passed in RunParams%TopogFuncParams(2)
-   !  xwall -- x coordinate for end of wall; passed in RunParams%TopogFuncParams(3)
-   !  a -- quadratic coefficient; passed in RunParams%TopogFuncParams(4)
-   pure subroutine quadratic_flume(RunParams, x, y, b0)
+   !  slope  -- slope in x.
+   !  W      -- characteristic width of power law channel cross section.
+   !  alpha  -- index of the power law.
+   pure subroutine channel_powerlaw(RunParams, x, y, b0)
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: x
       real(kind=wp), dimension(:), intent(in) :: y
       real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
 
-      real(kind=wp) :: theta0, theta1, xwall, a
-      real(kind=wp) :: alpha, xc0, zc0, x1
       integer :: ii, jj
+      real(kind=wp) :: slope, W, alpha, costheta
 
-      ! Get parameters
-      theta0 = RunParams%TopogFuncParams(1)
-      theta1 = RunParams%TopogFuncParams(2)
-      xwall = RunParams%TopogFuncParams(3)
-      a = RunParams%TopogFuncParams(4)
-      
-      ! Set parameters
-      alpha = 8.5_wp/(asinh(-tan(4.0_wp*pi/180_wp))-asinh(-tan(theta0*pi/180_wp)))
-      xc0 = - alpha*asinh(-tan(theta0*pi/180.0_wp))
-      zc0 = -alpha*cosh((-xc0)/alpha)
-      x1 = xc0 + alpha*asinh(-tan(theta1*pi/180.0_wp))
-      
-      ! Build topography along x
-      do ii=1,size(x)
-         if (x(ii)<0.0_wp) then
-            b0(ii,:) = -tan(theta0*pi/180.0_wp)*x(ii)
-         elseif (x(ii)>x1) then
-            b0(ii,:) = zc0 + alpha*cosh((x1-xc0)/alpha) - tan(theta1*pi/180.0_wp)*(x(ii)-x1)
-         else
-            b0(ii,:) = zc0 + alpha*cosh((x(ii)-xc0)/alpha)
-         end if
-      end do
+      slope = RunParams%TopogFuncParams(1)
+      W = RunParams%TopogFuncParams(2)
+      alpha = RunParams%TopogFuncParams(3)
 
-      ! Add confining walls
-      do ii=1,size(x)
-         if (x(ii)<xwall) then
-            do jj=1,size(y)
-               b0(ii,jj) = b0(ii,jj) + a*y(jj)*y(jj)
-            end do
-         end if
-      end do
-      return
-   end subroutine quadratic_flume
-
-   ! Parameterization of a trapezoidal channel
-   ! This has slope theta0 along x
-   ! Along y there are planar slopes with slope theta1, at position y = +/- y0
-   !  parameters required:
-   !  theta0 -- slope (in degrees) for x<0; passed in RunParams%TopogFuncParams(1)
-   !  theta1 -- slope (in degrees) for x>x1; passed in RunParams%TopogFuncParams(2)
-   !  y0 -- y coordinate for y slopes; passed in RunParams%TopogFuncParams(3)
-   !  L -- lengthscale of tanh transitions between slopes; passed in RunParams%TopogFuncParams(4)
-   !       Transitions from the flat start at y \approx \pm (y0-L/2)
-   !       and the new slope is established by y \approx \pm (y0+L/2)
-   pure subroutine trapezoidal_channel(RunParams, x, y, b0)
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: x
-      real(kind=wp), dimension(:), intent(in) :: y
-      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
-
-      real(kind=wp) :: theta0, theta1, y0, L
-      real(kind=wp) :: tan_x, lam, R
-      integer :: ii, jj
-
-      ! Get parameters
-      theta0 = RunParams%TopogFuncParams(1)
-      theta1 = RunParams%TopogFuncParams(2)
-      y0 = RunParams%TopogFuncParams(3)
-      L = RunParams%TopogFuncParams(4)
-
-      tan_x = tan(theta0*pi/180.0_wp)
-
-      lam = tan(theta1*pi/180.0_wp)
-
-      R = 1.0_wp/(cosh(y0*4.0_wp/L)**2) ! normalizing factor
+      costheta = cos(atan(slope))
    
-      ! Build topography
-      do ii=1,size(x)
-        b0(ii,:) = -tan_x*x(ii)
-        do jj=1,size(y)
-            b0(ii,jj) = b0(ii,jj) + 0.125_wp*L*lam*log(cosh((y(jj)-y0)*4.0_wp/L)*cosh((y(jj)+y0)*4.0_wp/L)*R)
-        end do
+      do ii = 1, size(x)
+         do jj = 1, size(y)
+            b0(ii, jj) = slope * x(ii) + costheta * (abs(y(jj)) / W)**alpha
+         end do
       end do
+      
+   end subroutine channel_powerlaw
 
-      return
-   end subroutine trapezoidal_channel
+   ! Channel with constant slope in x and banks defined by a trapezium as so
+   !
+   ! b(x, y) = x * slope + cos(theta) * max{0, Sb (|y| - W/2)}
+   !
+   ! where theta is the slope angle and accounts for the rotation of the banks
+   ! to the Earth-centred system.
+   !  parameters required:
+   !  slope  -- slope in x.
+   !  W      -- width of trapezium base.
+   !  Sb     -- gradient of the banks in slope-aligned coordinates.
+   pure subroutine channel_trapezium(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      integer :: ii, jj
+      real(kind=wp) :: slope, W, Sb, costheta
+
+      slope = RunParams%TopogFuncParams(1)
+      W = RunParams%TopogFuncParams(2)
+      Sb = RunParams%TopogFuncParams(3)
+
+      costheta = cos(atan(slope))
+
+      do ii = 1, size(x)
+         do jj = 1, size(y)
+            b0(ii, jj) = slope * x(ii) + costheta * max(0.0_wp, Sb * (abs(y(jj)) - 0.5_wp * W))
+         end do
+      end do
+   end subroutine channel_trapezium
 
    ! Two slopes with smooth transition
    ! Three parameters required:
@@ -363,6 +336,57 @@ contains
       end do
    return
    end subroutine xbislope
+
+   ! Three constant slopes in x connected via piecewise continuous transitions 
+   ! via cosine functions at at x = x1, x2 with slopes s1, s2, s3.
+   ! Six parameters required:
+   !  phi1, phi2, phi3 -- angle of slopes 1,2,3 in degrees
+   !  lam -- length scale of connecting sine curves
+   !  x1, x2 -- locations of the two transition points x = x1 (connecting 
+   !            slopes 1 & 2), x2 (connecting slopes 2 & 3)
+   pure subroutine xtrislope(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: phi1, phi2, phi3, lam, s1, s2, s3, x1, x2
+      real(kind=wp) :: c2, c3, c4, c5, A
+      integer :: ii
+
+      phi1 = RunParams%TopogFuncParams(1) * pi / 180.0_wp
+      phi2 = RunParams%TopogFuncParams(2) * pi / 180.0_wp
+      phi3 = RunParams%TopogFuncParams(3) * pi / 180.0_wp
+      lam = RunParams%TopogFuncParams(4)
+      x1 = RunParams%TopogFuncParams(5)
+      x2 = RunParams%TopogFuncParams(6)
+      s1 = tan(phi1)
+      s2 = tan(phi2)
+      s3 = tan(phi3)
+
+      c2 = (x1 - 0.5_wp * lam) * 0.5_wp * (s1 - s2)
+      c3 = (x1 + 0.5_wp * lam) * 0.5_wp * (s1 - s2) + c2
+      c4 = (x2 - 0.5_wp * lam) * 0.5_wp * (s2 - s3) + c3
+      c5 = (x2 + 0.5_wp * lam) * 0.5_wp * (s2 - s3) + c4
+
+      ! Build topography
+      do ii = 1, size(x)
+         if (x(ii) < x1 - 0.5_wp * lam) then
+            b0(ii,:) = s1 * x(ii)
+         elseif (x(ii) < x1 + 0.5_wp * lam) then
+            A = 0.5_wp * (s2 - s1) * lam / pi
+            b0(ii,:) = A * sin((x(ii) - x1) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s1 + s2) * x(ii) + c2
+         elseif (x(ii) < x2 - 0.5_wp * lam) then
+            b0(ii,:) = s2 * x(ii) + c3
+         elseif (x(ii) < x2 + 0.5_wp * lam) then
+            A = 0.5_wp * (s3 - s2) * lam / pi
+            b0(ii,:) = A * sin((x(ii) - x2) * pi / lam - 0.5_wp * pi) + 0.5_wp * (s2 + s3) * x(ii) + c4
+         else
+            b0(ii,:) = s3 * x(ii) + c5
+         endif
+      end do
+
+   end subroutine xtrislope
 
    ! Flat topography
    pure subroutine flat(RunParams, x, y, b0)

@@ -1,7 +1,7 @@
 // This file is part of the Kestrel software for simulations
 // of sediment-laden Earth surface flows.
 //
-// Version 1.0
+// Version v1.1.1
 //
 // Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 //
@@ -64,19 +64,25 @@ proj_transformer::proj_transformer(int utm_code) {
     proj_destroy(P);
     P = norm;
 }
-// C constructor
-PT* proj_transformer__new(int utm_code) {
-    return new proj_transformer(utm_code);
-}
 
 /* Destructor */
 proj_transformer::~proj_transformer() {
     proj_destroy(P);
     proj_context_destroy(C);
 }
+
+extern "C" {
+
+// C constructor
+PT* proj_transformer__new(int utm_code) {
+    return new proj_transformer(utm_code);
+}
+
 // C destructor
 void proj_transformer__delete(PT* self) {
     delete self;
+}
+
 }
 
 /* Method: transform wgs84 latitude--longitude to UTM Easting--Northing*/
