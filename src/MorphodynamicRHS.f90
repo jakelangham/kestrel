@@ -637,10 +637,10 @@ contains
                elseif (i==RunParams%nXpertile) then
                   if (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE)) then
                      ! Compute derivative using neighbour
-                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, i-1, 1))
+                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, j) - tiles(tID)%u(idbdx, i-1, j))
                   else
                      ! Fall back to first order derivative -- only occurs for ghost tiles
-                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, 1) - tiles(tID)%u(idbdx, i-1, 1))
+                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, j) - tiles(tID)%u(idbdx, i-1, j))
                   end if
                   
                else
