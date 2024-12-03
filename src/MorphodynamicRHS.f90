@@ -622,7 +622,7 @@ contains
       ttE = tiles(tID)%East
 
       nW = (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW))
-      nW = (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE))
+      nE = (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE))
 
       if (.not. RunParams%isOneD) then
          ttN = tiles(tID)%North
