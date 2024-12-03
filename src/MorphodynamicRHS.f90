@@ -602,6 +602,8 @@ contains
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
 
+      logical :: nW, nE, nN, nS
+
       if (.not.RunParams%curvature) return
 
       idbdx = RunParams%Vars%dbdx
@@ -618,15 +620,22 @@ contains
 
       ttW = tiles(tID)%West
       ttE = tiles(tID)%East
+
+      nW = (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW))
+      nW = (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE))
+
       if (.not. RunParams%isOneD) then
          ttN = tiles(tID)%North
          ttS = tiles(tID)%South
+
+         nS = (InVector(grid%activeTiles%List, ttS) .or. IsActiveGhostTile(grid, ttS))
+         nN = (InVector(grid%activeTiles%List, ttN) .or. IsActiveGhostTile(grid, ttN))
 
          do i = 1, nXpertile
             do j = 1, nYpertile
 
                if (i==1) then
-                  if (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW)) then
+                  if (nW) then
                      ! Compute derivative using neighbour
                      d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(ttW)%u(idbdx, nXpertile, j))
                   else
@@ -634,8 +643,8 @@ contains
                      d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(tID)%u(idbdx, i, j))
                   end if
                   
-               elseif (i==RunParams%nXpertile) then
-                  if (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE)) then
+               elseif (i==nXpertile) then
+                  if (nE) then
                      ! Compute derivative using neighbour
                      d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, j) - tiles(tID)%u(idbdx, i-1, j))
                   else
@@ -651,7 +660,7 @@ contains
                tiles(tID)%u(id2bdxx,i,j) = d2bdxx
 
                if (j==1) then
-                  if (InVector(grid%activeTiles%List, ttS) .or. IsActiveGhostTile(grid, ttS)) then
+                  if (nS) then
                      ! Compute derivative using neighbour
                      d2bdyy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdy, i, j+1) - tiles(ttS)%u(idbdy, i, nYpertile))
                      d2bdxy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(ttS)%u(idbdx, i, nYpertile))
@@ -661,8 +670,8 @@ contains
                      d2bdxy = deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(tID)%u(idbdx, i, j))
                   end if
                   
-               elseif (j==RunParams%nYpertile) then
-                  if (InVector(grid%activeTiles%List, ttN) .or. IsActiveGhostTile(grid, ttN)) then
+               elseif (j==nYpertile) then
+                  if (nN) then
                      ! Compute derivative using neighbour
                      d2bdyy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdy, i, 1) - tiles(tID)%u(idbdy, i, j-1))
                      d2bdxy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdx, i, 1) - tiles(tID)%u(idbdx, i, j-1))
@@ -675,8 +684,8 @@ contains
                else
                   d2bdyy = 0.5_wp * deltaYRecip * ( &
                      tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i, j-1) &
-                  )  
-                  d2bdxy = deltaYRecip * ( &
+                  )
+                  d2bdxy = 0.5_wp * deltaYRecip * ( &
                      tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i, j-1) &
                   )
                end if
@@ -686,7 +695,7 @@ contains
          end do
       else
 
-         if (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW)) then
+         if (nW) then
             ! Compute derivative using neighbour
             d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, 2, 1) - tiles(ttW)%u(idbdx, nXpertile, 1))
          else
@@ -700,7 +709,7 @@ contains
             tiles(tID)%u(id2bdxx,i,1) = d2bdxx
          end do
 
-         if (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE)) then
+         if (nE) then
             ! Compute derivative using neighbour
             d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, nXpertile-1, 1))
          else

@@ -22,6 +22,7 @@ Parameters:
 Drag = Chezy
 Chezy Co = 0.04
 Erosion = Off
+Curvature = On
 
 Solver:
 T end = 10.0

@@ -29,6 +29,7 @@ Edwards2019 kappa = 1.0
 edwards2019 gamma = 0.0
 Erosion = Off
 Eddy Viscosity = 1e-4
+Curvature = On
 
 Solver:
 T end = 50

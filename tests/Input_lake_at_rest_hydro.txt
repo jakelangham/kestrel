@@ -23,6 +23,7 @@ Drag = Chezy
 Chezy Co = 0.04
 Erosion = Off
 Eddy Viscosity = 0
+Curvature = On
 
 Solver:
 T end = 1000.

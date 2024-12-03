@@ -26,6 +26,7 @@ Pouliquen Max = 0.4
 Pouliquen beta = 0.126
 Erosion = Off
 Eddy Viscosity = 0
+Curvature = On
 
 Solver:
 T end = 100.0
