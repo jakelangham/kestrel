@@ -334,10 +334,10 @@ contains
                TopogFunc => xparab
             
             case ('xyparab')
-               if (size(RunParams%TopogFuncParams) < 2) then
+               if (size(RunParams%TopogFuncParams) < 3) then
                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
                   trim(RunParams%InputFile%s) // new_line('A') &
-                  // " two 'Topog params' are needed for 'Type = xyparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                  // " three 'Topog params' are needed for 'Type = xyparab'; received " // Int2String(size(RunParams%TopogFuncParams)))
                end if
                TopogFunc => xyparab
 
@@ -348,6 +348,14 @@ contains
                   // " three 'Topog params' are needed for 'Type = xtanhbowl'; received " // Int2String(size(RunParams%TopogFuncParams)))
                end if
                TopogFunc => xtanhbowl
+
+            case ('xytanhbowl')
+                if (size(RunParams%TopogFuncParams) < 3) then
+                   call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                   trim(RunParams%InputFile%s) // new_line('A') &
+                   // " three 'Topog params' are needed for 'Type = xtanhbowl'; received " // Int2String(size(RunParams%TopogFuncParams)))
+                end if
+                TopogFunc => xytanhbowl
 
             case default
                call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &

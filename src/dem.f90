@@ -134,7 +134,7 @@ contains
       logical(kind=C_BOOL) :: raster
 
       type(varString) :: geotif
-      character(len=1,kind=c_char) :: cgeotif(len_trim(trim(RunParams%demPath%s))+1+len_trim(RunParams%RasterFile%s) + 1)
+      character(len=1,kind=c_char) :: cgeotif(len_trim(trim(RunParams%demPath%s))+len_trim(RunParams%RasterFile%s) + 1)
       logical :: FileExists
       logical :: dem_exists, good_dem
 
@@ -364,11 +364,13 @@ contains
       type(GridType), intent(inout) :: grid
       integer, intent(in) :: tID
 
-      real(kind=wp), dimension(:,:) :: b0(RunParams%nXpertile+1,RunParams%nYpertile+1)
+      real(kind=wp), dimension(:,:), allocatable :: b0
 
       integer :: i, ib0
 
       ib0 = RunParams%Vars%b0
+
+      allocate(b0(RunParams%nXpertile+1,RunParams%nYpertile+1))
 
       call GetTileHeights(RunParams, grid%deltaX, grid%deltaY, &
          grid%tileContainer(tID)%x_vertex, grid%tileContainer(tID)%y_vertex, b0)
@@ -390,6 +392,8 @@ contains
          grid%tileContainer(tID)%uPlusX(ib0,:,1) = b0(:,1)
          grid%tileContainer(tID)%uMinusX(ib0,:,1) = b0(:,1)
       end if
+      deallocate(b0)
+      return
    end subroutine GetHeights
 
    subroutine GetTileHeights(RunParams, deltaX, deltaY, x, y, b0)

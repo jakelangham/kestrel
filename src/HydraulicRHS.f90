@@ -1213,7 +1213,7 @@ contains
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: Friction, gam, dbdx, dbdy
 
-      real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STI(RunParams%nDimensions), STE(RunParams%nDimensions) !, flux_source(RunParams%nDimensions), gravity_source(RunParams%nDimensions)
+      real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STE(RunParams%nDimensions), STI(RunParams%nDimensions)
       real(kind=wp), dimension(:) :: gX_prefactors(RunParams%nDimensions), gY_prefactors(RunParams%nDimensions)
 
       nXPoints = RunParams%nXpertile
@@ -1262,31 +1262,18 @@ contains
                      STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam +  &
                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam
                   else
-                    !  STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j), &
-                    !     (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d), &
-                    !     tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)]) * deltaXRecip
-                    !  STF(d) = STF(d) + KahanSum([tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1), &
-                    !     (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d),  &
-                    !     tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)]) * deltaYRecip
-
-                    STF(d) = KahanSum([ &
-                        (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
-                        (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
-                        (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
-                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
-                        (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
-                        (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
-
+                     STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j), &
+                        (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d), &
+                        tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)]) * deltaXRecip
+                     STF(d) = STF(d) + KahanSum([tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1), &
+                        (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d),  &
+                        tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)]) * deltaYRecip
                   end if
                end do
-
-            !    tiles(tID)%ddtExplicit_Fluxes(1:nFlux,i,j) = STF(1:nFlux)
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
                                         tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE)
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
-            !    tiles(tID)%ddtExplicit_FluxSource(1:nFlux,i,j) = flux_source(1:nFlux)
-            !    tiles(tID)%ddtExplicit_GravitySource(1:nFlux,i,j) = gravity_source(1:nFlux)
 
                Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,j), Friction, STI)
@@ -1305,27 +1292,22 @@ contains
                else if (d == RunParams%Vars%Hnpsi) then
                   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) * deltaXRecip / gam
                else
-                !   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1) +  &
-                !      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam +  &
-                !      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)) * deltaXRecip
+                  STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1) +  &
+                     (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam +  &
+                     tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)) * deltaXRecip
                   STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1), &
                      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam,  &
                      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)]) * deltaXRecip
                end if
             end do
 
-            ! tiles(tID)%ddtExplicit_Fluxes(1:nFlux,i,1) = STF(1:nFlux)
-
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
                                      tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE)
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
-            ! tiles(tID)%ddtExplicit_FluxSource(1:nFlux,i,1) = flux_source(1:nFlux)
-            ! tiles(tID)%ddtExplicit_GravitySource(1:nFlux,i,1) = gravity_source(1:nFlux)
 
             Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
             call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
             tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
-
          end do
       end if
 

@@ -483,7 +483,7 @@ contains
       real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, gam, dbdx, dbdy
       real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
-      real(kind=wp) :: rhoHnu, rhoHnv, u, v
+      real(kind=wp) :: u, v
       real(kind=wp) :: curvatureTerm
 
       stvect(:) = 0.0_wp
@@ -611,31 +611,32 @@ contains
       stvect(iw) = stvect(iw) + Qt / (gam * gam)
       stvect(iHnpsi) = stvect(iHnpsi) + psiQt / gam
 
-      ! Determine the gravitational forcing and add it on to the momentum
-      ! equations.
-      g = RunParams%g
-      hp_o_gam = -uvect(ibt)
-      hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
-      hp_o_gam = hp_o_gam / gam
-      stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
-      stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
+      if (uvect(iHn) > RunParams%heightThreshold) then
 
-      if (RunParams%curvature) then
-         ! Determine the curvature terms and add it on to the momentum
-         ! equations.
-         d2bdxx = uvect(RunParams%Vars%d2bdxx)
-         d2bdyy = uvect(RunParams%Vars%d2bdyy)
-         d2bdxy = uvect(RunParams%Vars%d2bdxy)
+        ! Determine the gravitational forcing and add it on to the momentum
+        ! equations.
+        g = RunParams%g
+        hp_o_gam = -uvect(ibt)
+        hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
+        hp_o_gam = hp_o_gam / gam
+        stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
+        stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
 
-         rhoHnu = uvect(irhoHnu)
-         rhoHnv = uvect(irhoHnv)
-         u = uvect(iu)
-         v = uvect(iv)
+        if (RunParams%curvature) then
+           ! Determine the curvature terms and add it on to the momentum
+           ! equations.
+           d2bdxx = uvect(RunParams%Vars%d2bdxx)
+           d2bdyy = uvect(RunParams%Vars%d2bdyy)
+           d2bdxy = uvect(RunParams%Vars%d2bdxy)
 
-         curvatureTerm = rhoHnu*u*d2bdxx + 2.0_wp*rhoHnu*v*d2bdxy + rhoHnv*v*d2bdyy
-         stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx / gam / gam
-         stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy / gam / gam
-      end if
+           u = uvect(iu)
+           v = uvect(iv)
+
+           curvatureTerm = uvect(irho)*hp_o_gam*(u*u*d2bdxx + 2.0_wp*u*v*d2bdxy + v*v*d2bdyy)
+           stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx
+           stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy
+        end if
+    end if
 
    end subroutine ExplicitSourceTerms
 
@@ -655,8 +656,8 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, modu
-      real(kind=wp) :: gam, f
+      real(kind=wp) :: Hn, modu, hr
+      ! real(kind=wp) :: gam, f
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -664,15 +665,18 @@ contains
 
       Hn = uvect(iHn)
 
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      stvect(:) = 0.0_wp
 
-      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      if (Hn > RunParams%heightThreshold) then
+         
+         modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
-      ! Desingularize 1/(Hn*modu)
-      f = DesingularizeFunc(Hn*modu, 1.0e-8_wp*gam)
-
-      stvect(irhoHnu) = -friction * f
-      stvect(irhoHnv) = stvect(irhoHnu)
+         if (modu > 1.0e-8_wp) then
+            hr = 1.0_wp / Hn ! hr = 1/Hn calculated using desingularization
+            stvect(irhoHnu) = -friction * hr / modu
+            stvect(irhoHnv) = -friction * hr / modu
+         end if
+      end if
 
    end subroutine ImplicitSourceTerms
 

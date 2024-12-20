@@ -52,6 +52,7 @@ module morphodynamic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
    use closures_module, only: GeometricCorrectionFactor_gradin, DragClosure
+   use limiters_module, only: limiter
 
    implicit none
 
@@ -594,26 +595,34 @@ contains
       type(tileType), dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID
 
-      integer :: i, j, idbdx, idbdy
+      integer :: i, j
+      integer :: ib
+      integer :: idbdx, idbdy
       integer :: id2bdxx, id2bdyy, id2bdxy
-      integer :: nXpertile, nYpertile
+      integer :: nX, nY
       integer :: ttW, ttE, ttS, ttN
+      integer :: ttNW, ttNE, ttSW, ttSE
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
-      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy, d2bdyx
 
-      logical :: nW, nE, nN, nS
+      logical :: isActiveTile
 
       if (.not.RunParams%curvature) return
 
+      isActiveTile = .not. tiles(tID)%isGhostTile
+
+      if (.not. isActiveTile) return
+
+      ib = RunParams%Vars%b0
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
       id2bdxx = RunParams%Vars%d2bdxx
       id2bdyy = RunParams%Vars%d2bdyy
       id2bdxy = RunParams%Vars%d2bdxy
 
-      nXpertile = RunParams%nXpertile
-      nYpertile = RunParams%nYpertile
+      nX = RunParams%nXpertile
+      nY = RunParams%nYpertile
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
@@ -621,102 +630,254 @@ contains
       ttW = tiles(tID)%West
       ttE = tiles(tID)%East
 
-      nW = (InVector(grid%activeTiles%List, ttW) .or. IsActiveGhostTile(grid, ttW))
-      nE = (InVector(grid%activeTiles%List, ttE) .or. IsActiveGhostTile(grid, ttE))
-
       if (.not. RunParams%isOneD) then
-         ttN = tiles(tID)%North
-         ttS = tiles(tID)%South
 
-         nS = (InVector(grid%activeTiles%List, ttS) .or. IsActiveGhostTile(grid, ttS))
-         nN = (InVector(grid%activeTiles%List, ttN) .or. IsActiveGhostTile(grid, ttN))
+         ! interior
+         do i = 2, nX-1
+            do j = 2, nY-1
 
-         do i = 1, nXpertile
-            do j = 1, nYpertile
+               d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,i+1,j) - 2.0_wp*tiles(tID)%u(ib,i,j) + tiles(tID)%u(ib,i-1,j))
+               d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(tID)%u(ib,i+1,j+1) - tiles(tID)%u(ib,i+1,j-1) - tiles(tID)%u(ib,i-1,j+1) + tiles(tID)%u(ib,i-1,j-1))
+               d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,i,j+1) - 2.0_wp*tiles(tID)%u(ib,i,j) + tiles(tID)%u(ib,i,j-1))
 
-               if (i==1) then
-                  if (nW) then
-                     ! Compute derivative using neighbour
-                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(ttW)%u(idbdx, nXpertile, j))
-                  else
-                     ! Fall back to first order derivative -- only occurs for ghost tiles
-                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, j) - tiles(tID)%u(idbdx, i, j))
-                  end if
-                  
-               elseif (i==nXpertile) then
-                  if (nE) then
-                     ! Compute derivative using neighbour
-                     d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, j) - tiles(tID)%u(idbdx, i-1, j))
-                  else
-                     ! Fall back to first order derivative -- only occurs for ghost tiles
-                     d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i, j) - tiles(tID)%u(idbdx, i-1, j))
-                  end if
-                  
-               else
-                  d2bdxx = 0.5_wp * deltaXRecip * ( &
-                     tiles(tID)%u(idbdx, i+1, j  ) - tiles(tID)%u(idbdx, i-1  , j  ) &
-                  )
-               end if
-               tiles(tID)%u(id2bdxx,i,j) = d2bdxx
+               ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,i+1,j)-tiles(tID)%u(idbdx,i,j), tiles(tID)%u(idbdx,i,j)-tiles(tID)%u(idbdx,i-1,j))
+               ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,i+1,j)-tiles(tID)%u(idbdy,i,j), tiles(tID)%u(idbdy,i,j)-tiles(tID)%u(idbdy,i-1,j))
+               ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,i,j+1)-tiles(tID)%u(idbdx,i,j), tiles(tID)%u(idbdx,i,j)-tiles(tID)%u(idbdx,i,j-1))
+               ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,i,j+1)-tiles(tID)%u(idbdy,i,j), tiles(tID)%u(idbdy,i,j)-tiles(tID)%u(idbdy,i,j-1))
 
-               if (j==1) then
-                  if (nS) then
-                     ! Compute derivative using neighbour
-                     d2bdyy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdy, i, j+1) - tiles(ttS)%u(idbdy, i, nYpertile))
-                     d2bdxy = 0.5_wp*deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(ttS)%u(idbdx, i, nYpertile))
-                  else
-                     ! Fall back to first order derivative -- only occurs for ghost tiles
-                     d2bdyy = deltaYRecip * (tiles(tID)%u(idbdy, i, j+1) - tiles(tID)%u(idbdy, i, j))
-                     d2bdxy = deltaYRecip * (tiles(tID)%u(idbdx, i, j+1) - tiles(tID)%u(idbdx, i, j))
-                  end if
-                  
-               elseif (j==nYpertile) then
-                  if (nN) then
-                     ! Compute derivative using neighbour
-                     d2bdyy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdy, i, 1) - tiles(tID)%u(idbdy, i, j-1))
-                     d2bdxy = 0.5_wp*deltaYRecip * (tiles(ttN)%u(idbdx, i, 1) - tiles(tID)%u(idbdx, i, j-1))
-                  else
-                     ! Fall back to first order derivative -- only occurs for ghost tiles
-                     d2bdyy = deltaYRecip * (tiles(tID)%u(idbdy, i, j) - tiles(tID)%u(idbdy, i, j-1))
-                     d2bdxy = deltaYRecip * (tiles(tID)%u(idbdx, i, j) - tiles(tID)%u(idbdx, i, j-1))
-                  end if
-
-               else
-                  d2bdyy = 0.5_wp * deltaYRecip * ( &
-                     tiles(tID)%u(idbdy, i, j+1 ) - tiles(tID)%u(idbdy, i, j-1) &
-                  )
-                  d2bdxy = 0.5_wp * deltaYRecip * ( &
-                     tiles(tID)%u(idbdx, i, j+1 ) - tiles(tID)%u(idbdx, i, j-1) &
-                  )
-               end if
-               tiles(tID)%u(id2bdyy,i,j) = d2bdyy
-               tiles(tID)%u(id2bdxy,i,j) = d2bdxy
+               ! d2bdxx = ( tiles(tID)%u(idbdx, i+1, j+1) - tiles(tID)%u(idbdx, i-1, j+1) &
+               !          + tiles(tID)%u(idbdx, i+1, j-1) - tiles(tID)%u(idbdx, i-1, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdyx = ( tiles(tID)%u(idbdy, i+1, j+1) - tiles(tID)%u(idbdy, i-1, j+1) &
+               !          + tiles(tID)%u(idbdy, i+1, j-1) - tiles(tID)%u(idbdy, i-1, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdxy = ( tiles(tID)%u(idbdx, i+1, j+1) - tiles(tID)%u(idbdx, i+1, j-1) &
+               !          + tiles(tID)%u(idbdx, i-1, j+1) - tiles(tID)%u(idbdx, i-1, j-1) ) * 0.25_wp * deltaYRecip
+               ! d2bdyy = ( tiles(tID)%u(idbdy, i+1, j+1) - tiles(tID)%u(idbdy, i+1, j-1) &
+               !          + tiles(tID)%u(idbdy, i-1, j+1) - tiles(tID)%u(idbdy, i-1, j-1) ) * 0.25_wp * deltaYRecip
+               tiles(tID)%u(id2bdxx, i, j) = d2bdxx
+               tiles(tID)%u(id2bdxy, i, j) = d2bdxy !0.5_wp*(d2bdxy + d2bdyx)
+               tiles(tID)%u(id2bdyy, i, j) = d2bdyy
             end do
          end do
+
+         ! computations on edges/corners
+         ttS = tiles(tID)%South
+         ttN = tiles(tID)%North
+         ttSW = tiles(tID)%SouthWest
+         ttSE = tiles(tID)%SouthEast
+         ttNW = tiles(tID)%NorthWest
+         ttNE = tiles(tID)%NorthEast
+
+         do j = 2, nY-1
+            ! west bdry: i = 1
+            d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,2,j) - 2.0_wp*tiles(tID)%u(ib,1,j) + tiles(ttW)%u(ib,nX,j))
+            d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(tID)%u(ib,2,j+1) - tiles(tID)%u(ib,2,j-1) - tiles(ttW)%u(ib,nX,j+1) + tiles(ttW)%u(ib,nX,j-1))
+            d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,1,j+1) - 2.0_wp*tiles(tID)%u(ib,1,j) + tiles(tID)%u(ib,1,j-1))
+
+               ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,2,j)-tiles(tID)%u(idbdx,1,j), tiles(tID)%u(idbdx,1,j)-tiles(ttW)%u(idbdx,nX,j))
+               ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,2,j)-tiles(tID)%u(idbdy,1,j), tiles(tID)%u(idbdy,1,j)-tiles(ttW)%u(idbdy,nX,j))
+               ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,1,j+1)-tiles(tID)%u(idbdx,1,j), tiles(tID)%u(idbdx,1,j)-tiles(tID)%u(idbdx,1,j-1))
+               ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,1,j+1)-tiles(tID)%u(idbdy,1,j), tiles(tID)%u(idbdy,1,j)-tiles(tID)%u(idbdy,1,j-1))
+
+               ! d2bdxx = ( tiles(tID)%u(idbdx, 2, j+1) - tiles(ttW)%u(idbdx, nX, j+1) &
+               !          + tiles(tID)%u(idbdx, 2, j-1) - tiles(ttW)%u(idbdx, nX, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdyx = ( tiles(tID)%u(idbdy, 2, j+1) - tiles(ttW)%u(idbdy, nX, j+1) &
+               !          + tiles(tID)%u(idbdy, 2, j-1) - tiles(ttW)%u(idbdy, nX, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdxy = ( tiles(tID)%u(idbdx,  2, j+1) - tiles(tID)%u(idbdx,  2, j-1) &
+               !          + tiles(ttW)%u(idbdx, nX, j+1) - tiles(ttW)%u(idbdx, nX, j-1) ) * 0.25_wp * deltaYRecip
+               ! d2bdyy = ( tiles(tID)%u(idbdy,  2, j+1) - tiles(tID)%u(idbdy,  2, j-1) &
+               !          + tiles(ttW)%u(idbdy, nX, j+1) - tiles(ttW)%u(idbdy, nX, j-1) ) * 0.25_wp * deltaYRecip
+            
+            tiles(tID)%u(id2bdxx, 1, j) = d2bdxx
+            tiles(tID)%u(id2bdxy, 1, j) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+            tiles(tID)%u(id2bdyy, 1, j) = d2bdyy
+
+            ! east bdry: i = nX
+            d2bdxx = deltaXRecip*deltaXRecip * (tiles(ttE)%u(ib,1,j) - 2.0_wp*tiles(tID)%u(ib,nX,j) + tiles(tID)%u(ib,nX-1,j))
+            d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(ttE)%u(ib,1,j+1) - tiles(ttE)%u(ib,1,j-1) - tiles(tID)%u(ib,nX-1,j+1) + tiles(tID)%u(ib,nX-1,j-1))
+            d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,nX,j+1) - 2.0_wp*tiles(tID)%u(ib,nX,j) + tiles(tID)%u(ib,nX,j-1))
+            
+               ! d2bdxx = deltaXRecip * limiter(tiles(ttE)%u(idbdx,1,j)-tiles(tID)%u(idbdx,nX,j), tiles(tID)%u(idbdx,nX,j)-tiles(tID)%u(idbdx,nX-1,j))
+               ! d2bdyx = deltaXRecip * limiter(tiles(ttE)%u(idbdy,1,j)-tiles(tID)%u(idbdy,nX,j), tiles(tID)%u(idbdy,nX,j)-tiles(tID)%u(idbdy,nX-1,j))
+               ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,nX,j+1)-tiles(tID)%u(idbdx,nX,j), tiles(tID)%u(idbdx,nX,j)-tiles(tID)%u(idbdx,nX,j-1))
+               ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,nX,j+1)-tiles(tID)%u(idbdy,nX,j), tiles(tID)%u(idbdy,nX,j)-tiles(tID)%u(idbdy,nX,j-1))
+
+               ! d2bdxx = ( tiles(ttE)%u(idbdx, 1, j+1) - tiles(tID)%u(idbdx, nX-1, j+1) &
+               !          + tiles(ttE)%u(idbdx, 1, j-1) - tiles(tID)%u(idbdx, nX-1, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdyx = ( tiles(ttE)%u(idbdy, 1, j+1) - tiles(tID)%u(idbdy, nX-1, j+1) &
+               !          + tiles(ttE)%u(idbdy, 1, j-1) - tiles(tID)%u(idbdy, nX-1, j-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdxy = ( tiles(ttE)%u(idbdx,    1, j+1) - tiles(ttE)%u(idbdx,    1, j-1) &
+               !          + tiles(tID)%u(idbdx, nX-1, j+1) - tiles(tID)%u(idbdx, nX-1, j-1) ) * 0.25_wp * deltaYRecip
+               ! d2bdyy = ( tiles(ttE)%u(idbdy,    1, j+1) - tiles(ttE)%u(idbdy,    1, j-1) &
+               !          + tiles(tID)%u(idbdy, nX-1, j+1) - tiles(tID)%u(idbdy, nX-1, j-1) ) * 0.25_wp * deltaYRecip
+            
+            tiles(tID)%u(id2bdxx, Nx, j) = d2bdxx
+            tiles(tID)%u(id2bdxy, Nx, j) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+            tiles(tID)%u(id2bdyy, Nx, j) = d2bdyy
+         end do
+         
+         do i = 2, nX-1
+            ! north bdry: j = nY
+            d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,i+1,nY) - 2.0_wp*tiles(tID)%u(ib,i,nY) + tiles(tID)%u(ib,i-1,nY))
+            d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(ttN)%u(ib,i+1,1) - tiles(tID)%u(ib,i+1,nY-1) - tiles(ttN)%u(ib,i-1,1) + tiles(tID)%u(ib,i-1,nY-1))
+            d2bdyy = deltaYRecip*deltaYRecip * (tiles(ttN)%u(ib,i,1) - 2.0_wp*tiles(tID)%u(ib,i,nY) + tiles(tID)%u(ib,i,nY-1))
+            
+               ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,i+1,nY)-tiles(tID)%u(idbdx,i,nY), tiles(tID)%u(idbdx,i,nY)-tiles(tID)%u(idbdx,i-1,nY))
+               ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,i+1,nY)-tiles(tID)%u(idbdy,i,nY), tiles(tID)%u(idbdy,i,nY)-tiles(tID)%u(idbdy,i-1,nY))
+               ! d2bdxy = deltaYRecip * limiter(tiles(ttN)%u(idbdx,i,1)-tiles(tID)%u(idbdx,i,nY), tiles(tID)%u(idbdx,i,nY)-tiles(tID)%u(idbdx,i,nY-1))
+               ! d2bdyy = deltaYRecip * limiter(tiles(ttN)%u(idbdy,i,1)-tiles(tID)%u(idbdy,i,nY), tiles(tID)%u(idbdy,i,nY)-tiles(tID)%u(idbdy,i,nY-1))
+
+               ! d2bdxx = ( tiles(ttN)%u(idbdx, i+1,    1) - tiles(ttN)%u(idbdx, i-1,    1) &
+               !          + tiles(tID)%u(idbdx, i+1, nY-1) - tiles(tID)%u(idbdx, i-1, nY-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdyx = ( tiles(ttN)%u(idbdy, i+1,    1) - tiles(ttN)%u(idbdy, i-1,    1) &
+               !          + tiles(tID)%u(idbdy, i+1, nY-1) - tiles(tID)%u(idbdy, i-1, nY-1) ) * 0.25_wp * deltaXRecip
+               ! d2bdxy = ( tiles(ttN)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i+1, nY-1) &
+               !          + tiles(ttN)%u(idbdx, i-1, 1) - tiles(tID)%u(idbdx, i-1, nY-1) ) * 0.25_wp * deltaYRecip
+               ! d2bdyy = ( tiles(ttN)%u(idbdy, i+1, 1) - tiles(tID)%u(idbdy, i+1, nY-1) &
+               !          + tiles(ttN)%u(idbdy, i-1, 1) - tiles(tID)%u(idbdy, i-1, nY-1) ) * 0.25_wp * deltaYRecip
+            
+            tiles(tID)%u(id2bdxx, i, nY) = d2bdxx
+            tiles(tID)%u(id2bdxy, i, nY) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+            tiles(tID)%u(id2bdyy, i, nY) = d2bdyy
+            
+            ! south bdry: j = 1
+            d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,i+1,1) - 2.0_wp*tiles(tID)%u(ib,i,1) + tiles(tID)%u(ib,i-1,1))
+            d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(tID)%u(ib,i+1,2) - tiles(ttS)%u(ib,i+1,nY) - tiles(tID)%u(ib,i-1,2) + tiles(ttS)%u(ib,i-1,nY))
+            d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,i,2) - 2.0_wp*tiles(tID)%u(ib,i,1) + tiles(ttS)%u(ib,i,nY))
+            
+               ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,i+1,1)-tiles(tID)%u(idbdx,i,1), tiles(tID)%u(idbdx,i,1)-tiles(tID)%u(idbdx,i-1,1))
+               ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,i+1,1)-tiles(tID)%u(idbdy,i,1), tiles(tID)%u(idbdy,i,1)-tiles(tID)%u(idbdy,i-1,1))
+               ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,i,2)-tiles(tID)%u(idbdx,i,1), tiles(tID)%u(idbdx,i,1)-tiles(ttS)%u(idbdx,i,nY))
+               ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,i,2)-tiles(tID)%u(idbdy,i,1), tiles(tID)%u(idbdy,i,1)-tiles(ttS)%u(idbdy,i,nY))
+
+               ! d2bdxx = ( tiles(tID)%u(idbdx, i+1,  2) - tiles(tID)%u(idbdx, i-1,  2) &
+               !          + tiles(ttS)%u(idbdx, i+1, nY) - tiles(ttS)%u(idbdx, i-1, nY) ) * 0.25_wp * deltaXRecip
+               ! d2bdyx = ( tiles(tID)%u(idbdy, i+1,  2) - tiles(tID)%u(idbdy, i-1,  2) &
+               !          + tiles(ttS)%u(idbdy, i+1, nY) - tiles(ttS)%u(idbdy, i-1, nY) ) * 0.25_wp * deltaXRecip
+               ! d2bdxy = ( tiles(tID)%u(idbdx, i+1, 2) - tiles(ttS)%u(idbdx, i+1, nY) &
+               !          + tiles(tID)%u(idbdx, i-1, 2) - tiles(ttS)%u(idbdx, i-1, nY) ) * 0.25_wp * deltaYRecip
+               ! d2bdyy = ( tiles(tID)%u(idbdy, i+1, 2) - tiles(ttS)%u(idbdy, i+1, nY) &
+               !          + tiles(tID)%u(idbdy, i-1, 2) - tiles(ttS)%u(idbdy, i-1, nY) ) * 0.25_wp * deltaYRecip
+            
+            tiles(tID)%u(id2bdxx, i, 1) = d2bdxx
+            tiles(tID)%u(id2bdxy, i, 1) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+            tiles(tID)%u(id2bdyy, i, 1) = d2bdyy
+         end do
+         ! corners
+         ! SW: i=1, j=1
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,2,1) - 2.0_wp*tiles(tID)%u(ib,1,1) + tiles(ttW)%u(ib,nX,1))
+         d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(tID)%u(ib,2,2) - tiles(ttS)%u(ib,2,nY) - tiles(ttW)%u(ib,nX,2) + tiles(ttSW)%u(ib,nX,nY))
+         d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,1,2) - 2.0_wp*tiles(tID)%u(ib,1,1) + tiles(ttS)%u(ib,1,nY))
+         
+            ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,2,1)-tiles(tID)%u(idbdx,1,1), tiles(tID)%u(idbdx,1,1)-tiles(ttW)%u(idbdx,nX,1))
+            ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,2,1)-tiles(tID)%u(idbdy,1,1), tiles(tID)%u(idbdy,1,1)-tiles(ttW)%u(idbdy,nX,j))
+            ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,1,2)-tiles(tID)%u(idbdx,1,1), tiles(tID)%u(idbdx,1,1)-tiles(ttS)%u(idbdx,1,nY))
+            ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,1,2)-tiles(tID)%u(idbdy,1,1), tiles(tID)%u(idbdy,1,1)-tiles(ttS)%u(idbdy,1,nY))
+
+            ! d2bdxx = ( tiles(tID)%u(idbdx, 2,  2) - tiles( ttW)%u(idbdx, nX,  2) &
+            !          + tiles(ttS)%u(idbdx, 2, nY) - tiles(ttSW)%u(idbdx, nX, nY) ) * 0.25_wp * deltaXRecip
+            ! d2bdyx = ( tiles(tID)%u(idbdy, 2,  2) - tiles( ttW)%u(idbdy, nX,  2) &
+            !          + tiles(ttS)%u(idbdy, 2, nY) - tiles(ttSW)%u(idbdy, nX, nY) ) * 0.25_wp * deltaXRecip
+            ! d2bdxy = ( tiles(tID)%u(idbdx,  2, 2) - tiles( ttS)%u(idbdx,  2, nY) &
+            !          + tiles(ttW)%u(idbdx, nX, 2) - tiles(ttSW)%u(idbdx, nX, nY) ) * 0.25_wp * deltaYRecip
+            ! d2bdyy = ( tiles(tID)%u(idbdy,  2, 2) - tiles( ttS)%u(idbdy,  2, nY) &
+            !          + tiles(ttW)%u(idbdy, nX, 2) - tiles(ttSW)%u(idbdy, nX, nY) ) * 0.25_wp * deltaYRecip
+         
+         tiles(tID)%u(id2bdxx, 1, 1) = d2bdxx
+         tiles(tID)%u(id2bdxy, 1, 1) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+         tiles(tID)%u(id2bdyy, 1, 1) = d2bdyy
+
+         ! SE: i=nX, j=1
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(ttE)%u(ib,1,1) - 2.0_wp*tiles(tID)%u(ib,nX,1) + tiles(tID)%u(ib,nX-1,1))
+         d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(ttE)%u(ib,1,2) - tiles(ttSE)%u(ib,1,nY) - tiles(tID)%u(ib,nX-1,2) + tiles(ttS)%u(ib,nX-1,nY))
+         d2bdyy = deltaYRecip*deltaYRecip * (tiles(tID)%u(ib,nX,2) - 2.0_wp*tiles(tID)%u(ib,nX,1) + tiles(ttS)%u(ib,nX,nY))
+         
+            ! d2bdxx = deltaXRecip * limiter(tiles(ttE)%u(idbdx,1,1)-tiles(tID)%u(idbdx,nX,1), tiles(tID)%u(idbdx,nX,1)-tiles(tID)%u(idbdx,nX-1,1))
+            ! d2bdyx = deltaXRecip * limiter(tiles(ttE)%u(idbdy,1,1)-tiles(tID)%u(idbdy,nX,1), tiles(tID)%u(idbdy,nX,1)-tiles(tID)%u(idbdy,nX-1,1))
+            ! d2bdxy = deltaYRecip * limiter(tiles(tID)%u(idbdx,nX,2)-tiles(tID)%u(idbdx,nX,1), tiles(tID)%u(idbdx,nX,1)-tiles(ttS)%u(idbdx,nX,nY))
+            ! d2bdyy = deltaYRecip * limiter(tiles(tID)%u(idbdy,nX,2)-tiles(tID)%u(idbdy,nX,1), tiles(tID)%u(idbdy,nX,1)-tiles(ttS)%u(idbdy,nX,nY-1))
+
+            ! d2bdxx = ( tiles( ttE)%u(idbdx, 1,  2) - tiles(tID)%u(idbdx, nX-1, 2) &
+            !          + tiles(ttSE)%u(idbdx, 1, nY) - tiles(ttS)%u(idbdx, nX-1, nY) ) * 0.25_wp * deltaXRecip
+            ! d2bdyx = ( tiles( ttE)%u(idbdy, 1,  2) - tiles(tID)%u(idbdy, nX-1, 2) &
+            !          + tiles(ttSE)%u(idbdy, 1, nY) - tiles(ttS)%u(idbdy, nX-1, nY) ) * 0.25_wp * deltaXRecip
+            ! d2bdxy = ( tiles(ttE)%u(idbdx,    1, 2) - tiles(ttSE)%u(idbdx,    1, nY) &
+            !          + tiles(tID)%u(idbdx, nX-1, 2) - tiles( ttS)%u(idbdx, nX-1, nY) ) * 0.25_wp * deltaYRecip
+            ! d2bdyy = ( tiles(ttE)%u(idbdy,    1, 2) - tiles(ttSE)%u(idbdy,    1, nY) &
+            !          + tiles(tID)%u(idbdy, nX-1, 2) - tiles( ttS)%u(idbdy, nX-1, nY) ) * 0.25_wp * deltaYRecip
+         
+         tiles(tID)%u(id2bdxx, nX, 1) = d2bdxx
+         tiles(tID)%u(id2bdxy, nX, 1) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+         tiles(tID)%u(id2bdyy, nX, 1) = d2bdyy
+
+         ! NW: i=1, j=nY
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,2,nY) - 2.0_wp*tiles(tID)%u(ib,1,nY) + tiles(ttW)%u(ib,nX,nY))
+         d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(ttN)%u(ib,2,1) - tiles(tID)%u(ib,2,nY-1) - tiles(ttNW)%u(ib,nX,1) + tiles(ttW)%u(ib,nX,nY-1))
+         d2bdyy = deltaYRecip*deltaYRecip * (tiles(ttN)%u(ib,1,1) - 2.0_wp*tiles(tID)%u(ib,1,nY) + tiles(tID)%u(ib,1,nY-1))
+         
+            ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,2,nY)-tiles(tID)%u(idbdx,1,nY), tiles(tID)%u(idbdx,1,nY)-tiles(ttW)%u(idbdx,nX,nY))
+            ! d2bdyx = deltaXRecip * limiter(tiles(tID)%u(idbdy,2,nY)-tiles(tID)%u(idbdy,2,nY), tiles(tID)%u(idbdy,1,nY)-tiles(ttW)%u(idbdy,nX,nY))
+            ! d2bdxy = deltaYRecip * limiter(tiles(ttN)%u(idbdx,1,1)-tiles(tID)%u(idbdx,1,nY), tiles(tID)%u(idbdx,1,nY)-tiles(tID)%u(idbdx,1,nY-1))
+            ! d2bdyy = deltaYRecip * limiter(tiles(ttN)%u(idbdy,1,1)-tiles(tID)%u(idbdy,1,nY), tiles(tID)%u(idbdy,1,nY)-tiles(tID)%u(idbdy,1,nY-1))
+            
+            ! d2bdxx = ( tiles(ttN)%u(idbdx, 2,    1) - tiles(ttNW)%u(idbdx, nX,    1) &
+            !          + tiles(tID)%u(idbdx, 2, nY-1) - tiles( ttW)%u(idbdx, nX, nY-1) ) * 0.25_wp * deltaXRecip
+            ! d2bdyx = ( tiles(ttN)%u(idbdy, 2,    1) - tiles(ttNW)%u(idbdy, nX,    1) &
+            !          + tiles(tID)%u(idbdy, 2, nY-1) - tiles( ttW)%u(idbdy, nX, nY-1) ) * 0.25_wp * deltaXRecip
+            ! d2bdxy = ( tiles( ttN)%u(idbdx,  2, 1) - tiles(tID)%u(idbdx,  2, nY-1) &
+            !          + tiles(ttNW)%u(idbdx, nX, 1) - tiles(ttW)%u(idbdx, nX, nY-1) ) * 0.25_wp * deltaYRecip
+            ! d2bdyy = ( tiles( ttN)%u(idbdy,  2, 1) - tiles(tID)%u(idbdy,  2, nY-1) &
+            !          + tiles(ttNW)%u(idbdy, nX, 1) - tiles(ttW)%u(idbdy, nX, nY-1) ) * 0.25_wp * deltaYRecip
+         
+         tiles(tID)%u(id2bdxx, 1, nY) = d2bdxx
+         tiles(tID)%u(id2bdxy, 1, nY) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+         tiles(tID)%u(id2bdyy, 1, nY) = d2bdyy
+
+         ! NE: i=nX, j=nY
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(ttE)%u(ib,1,nY) - 2.0_wp*tiles(tID)%u(ib,nX,nY) + tiles(tID)%u(ib,nX-1,nY))
+         d2bdxy = 0.25_wp*deltaXRecip*deltaYRecip * (tiles(ttNE)%u(ib,1,1) - tiles(ttE)%u(ib,1,nY-1) - tiles(ttN)%u(ib,nX-1,1) + tiles(tID)%u(ib,nX-1,nY-1))
+         d2bdyy = deltaYRecip*deltaYRecip * (tiles(ttN)%u(ib,nX,1) - 2.0_wp*tiles(tID)%u(ib,nX,nY) + tiles(tID)%u(ib,nX,nY-1))
+         
+            ! d2bdxx = deltaXRecip * limiter(tiles(ttE)%u(idbdx,1,nY)-tiles(tID)%u(idbdx,nX,nY), tiles(tID)%u(idbdx,nX,nY)-tiles(tID)%u(idbdx,nX-1,nY))
+            ! d2bdyx = deltaXRecip * limiter(tiles(ttE)%u(idbdy,1,nY)-tiles(tID)%u(idbdy,nY,nY), tiles(tID)%u(idbdy,nX,nY)-tiles(tID)%u(idbdy,nX-1,nY))
+            ! d2bdxy = deltaYRecip * limiter(tiles(ttN)%u(idbdx,nX,1)-tiles(tID)%u(idbdx,nX,nY), tiles(tID)%u(idbdx,nX,nY)-tiles(tID)%u(idbdx,nX,nY-1))
+            ! d2bdyy = deltaYRecip * limiter(tiles(ttN)%u(idbdy,nX,1)-tiles(tID)%u(idbdy,nX,nY), tiles(tID)%u(idbdy,nX,nY)-tiles(tID)%u(idbdy,nX,nY-1))
+
+            ! d2bdxx = ( tiles(ttNE)%u(idbdx, 1,    1) - tiles(ttN)%u(idbdx, nX-1,    1) &
+            !          + tiles( ttE)%u(idbdx, 1, nY-1) - tiles(tID)%u(idbdx, nX-1, nY-1) ) * 0.25_wp * deltaXRecip
+            ! d2bdyx = ( tiles(ttNE)%u(idbdy, 1,    1) - tiles(ttN)%u(idbdy, nX-1,    1) &
+            !          + tiles( ttE)%u(idbdy, 1, nY-1) - tiles(tID)%u(idbdy, nX-1, nY-1) ) * 0.25_wp * deltaXRecip
+            ! d2bdxy = ( tiles(ttNE)%u(idbdx,    1, 1) - tiles(ttE)%u(idbdx,    1, nY-1) &
+            !          + tiles( ttN)%u(idbdx, nX-1, 1) - tiles(tID)%u(idbdx, nX-1, nY-1) ) * 0.25_wp * deltaYRecip
+            ! d2bdyy = ( tiles(ttNE)%u(idbdy,    1, 1) - tiles(ttE)%u(idbdy,    1, nY-1) &
+            !          + tiles( ttN)%u(idbdy, nX-1, 1) - tiles(tID)%u(idbdy, nX-1, nY-1) ) * 0.25_wp * deltaYRecip
+         
+         tiles(tID)%u(id2bdxx, nX, nY) = d2bdxx
+         tiles(tID)%u(id2bdxy, nX, nY) = d2bdxy !0.5_wp*(d2bdxy+d2bdyx)
+         tiles(tID)%u(id2bdyy, nX, nY) = d2bdyy
+         
       else
 
-         if (nW) then
-            ! Compute derivative using neighbour
-            d2bdxx = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, 2, 1) - tiles(ttW)%u(idbdx, nXpertile, 1))
-         else
-            ! Fall back to first order derivative -- only occurs for ghost tiles
-            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, 2, 1) - tiles(tID)%u(idbdx, 1, 1))
-         end if
-         tiles(tID)%u(id2bdxx,1,1) = d2bdxx
+         do i=2,nX-1
 
-         do i = 2, nXpertile-1
-            d2bdxx = 0.5_wp * deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i-1, 1))
-            tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+            tiles(tID)%u(id2bdxx,i,1) = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,i+1,1) - 2.0_wp*tiles(tID)%u(ib,i,1) + tiles(tID)%u(ib,i-1,1))
+
+            ! tiles(tID)%u(id2bdxx,i,1) = deltaXRecip * limiter(tiles(tID)%u(idbdx,i+1,1)-tiles(tID)%u(idbdx,i,1), tiles(tID)%u(idbdx,i,1)-tiles(tID)%u(idbdx,i-1,1))
+
+            ! tiles(tID)%u(id2bdxx,i,1) = 0.5_wp*deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i-1, 1))
          end do
 
-         if (nE) then
-            ! Compute derivative using neighbour
-            d2bdxx = 0.5_wp*deltaXRecip * (tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, nXpertile-1, 1))
-         else
-            ! Fall back to first order derivative -- only occurs for ghost tiles
-            d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, nXpertile, 1) - tiles(tID)%u(idbdx, nXpertile-1, 1))
-         end if
-         tiles(tID)%u(id2bdxx,nXpertile,1) = d2bdxx
+         ! West bndy: i=1
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(tID)%u(ib,2,1) - 2.0_wp*tiles(tID)%u(ib,1,1) + tiles(ttW)%u(ib,nX,1))
+
+            ! d2bdxx = deltaXRecip * limiter(tiles(tID)%u(idbdx,2,1)-tiles(tID)%u(idbdx,1,1), tiles(tID)%u(idbdx,1,1)-tiles(ttW)%u(idbdx,nX,1))
+            ! d2bdxx = ( tiles(tID)%u(idbdx, 2, 1) - tiles(ttW)%u(idbdx, nX, 1) ) * 0.5_wp * deltaXRecip
+         tiles(tID)%u(id2bdxx,1,1) = d2bdxx
+
+         ! East bndy: i=nX
+         d2bdxx = deltaXRecip*deltaXRecip * (tiles(ttE)%u(ib,1,1) - 2.0_wp*tiles(tID)%u(ib,nX,1) + tiles(tID)%u(ib,nX-1,1))
+            ! d2bdxx = deltaXRecip * limiter(tiles(ttE)%u(idbdx,1,1)-tiles(tID)%u(idbdx,nX,1), tiles(tID)%u(idbdx,nX,1)-tiles(tID)%u(idbdx,nX-1,1))
+            ! d2bdxx = ( tiles(ttE)%u(idbdx, 1, 1) - tiles(tID)%u(idbdx, nX-1, 1) ) * 0.5_wp * deltaXRecip
+         tiles(tID)%u(id2bdxx,nX,1) = d2bdxx
 
       end if
    end subroutine ComputeTopographicCurvatures_tileID

@@ -973,7 +973,7 @@ contains
       integer :: nXpertile, nYpertile
       integer :: ii, jj
       integer :: tt, ttk, ttN
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
+      real(kind=wp), dimension(:), allocatable :: Hn
       integer(kind=wp) :: ydist
 
       type(tileType), dimension(:), pointer :: tileContainer
@@ -987,6 +987,8 @@ contains
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
+
+      allocate(Hn(RunParams%nYpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -1024,7 +1026,7 @@ contains
       integer :: nXpertile, nYpertile
       integer :: ii, jj
       integer :: tt, ttk, ttE
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
+      real(kind=wp), dimension(:), allocatable :: Hn
       integer(kind=wp) :: xdist
 
       type(tileType), dimension(:), pointer :: tileContainer
@@ -1038,6 +1040,8 @@ contains
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
+
+      allocate(Hn(RunParams%nXpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -1075,7 +1079,7 @@ contains
       integer :: nXpertile, nYpertile
       integer :: ii, jj
       integer :: tt, ttk, ttS
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
+      real(kind=wp), dimension(:), allocatable :: Hn
       integer(kind=wp) :: ydist
 
       type(tileType), dimension(:), pointer :: tileContainer
@@ -1089,6 +1093,8 @@ contains
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
+
+      allocate(Hn(RunParams%nYpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -1126,7 +1132,7 @@ contains
       integer :: nXpertile, nYpertile
       integer :: ii, jj
       integer :: tt, ttk, ttW
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
+      real(kind=wp), dimension(:), allocatable :: Hn
       integer(kind=wp) :: xdist
 
       type(TileType), dimension(:), pointer :: tileContainer
@@ -1140,6 +1146,8 @@ contains
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
+
+      allocate(Hn(RunParams%nXpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -1218,7 +1226,8 @@ contains
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
                call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
-                   Int2String(ii) // ',' // Int2String(jj) // ' : spd = ', spd)
+                   Int2String(ii) // ',' // Int2String(jj))
+               write (*, *) '    spd = ', spd, ' : Hn above threshold? ', (tile%u(iHn, ii, jj) > RunParams%heightThreshold)
 #if DEBUG_SPD==2
                call exit(1)
 #endif

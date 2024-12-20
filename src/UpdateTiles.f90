@@ -95,16 +95,17 @@ contains
       ghostTiles => grid%ghostTiles
 
       ! Is this the first active tile?
-      if (.not. allocated(ActiveTiles%List)) then
-         allocate(ActiveTiles%List(1))
-         ActiveTiles%List(1) = k
-         ActiveTiles%Size = 1
-
+      if (.not. allocated(grid%ActiveTiles%List)) then
+         allocate(grid%ActiveTiles%List(1))
+         grid%ActiveTiles%List(1) = k
+         grid%ActiveTiles%Size = 1
+      else 
          ! Else we add only if it hasn't been added before.
-      else if (.not. InVector(ActiveTiles%List, k)) then
-         call AddToOrderedVector(ActiveTiles%List, k)
-         ActiveTiles%Size = ActiveTiles%Size + 1
-
+         if (.not. InVector(ActiveTiles%List, k)) then
+            call AddToOrderedVector(ActiveTiles%List, k)
+            ActiveTiles%Size = ActiveTiles%Size + 1
+         end if
+            
          ! If it's a ghost tile, remove it.
          if (.not. allocated(ghostTiles%List)) return
          isGhostTile = RemoveFromVector(ghostTiles%List, k)
@@ -371,7 +372,9 @@ contains
 
       call AddGhostTiles(RunParams, grid, k)
 
-      if (RunParams%curvature) call ComputeTopographicCurvatures(RunParams, grid, tileContainer, k)
+      if (RunParams%curvature) then
+        call ComputeTopographicCurvatures(RunParams, grid, tileContainer, k)
+      end if
 
       call ComputeInterfacialTopographicData(RunParams, grid, tileContainer, k)
       call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k)
@@ -479,8 +482,16 @@ contains
          ! this needs to 'see' the other new ghost tiles before running
          tile = newGhostTiles(i)
          call EqualiseTopographicBoundaryData(RunParams, grid, tile)
-         if (RunParams%curvature) call ComputeTopographicCurvatures(RunParams, grid, tileContainer, tile)
       end do
+
+    !   if (RunParams%curvature) then
+    !      do i = 1, nGhosts
+    !         tile = newGhostTiles(i)
+    !         print *, 'Computing curvature for ghost tile ', tile
+    !         call ComputeTopographicCurvatures(RunParams, grid, tileContainer, tile)
+    !      end do
+    !   end if
+
 
    end subroutine AddGhostTiles
 
@@ -518,6 +529,11 @@ contains
       tileContainer(ttk)%East => tileContainer(ttk)%neighbours(2)
       tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
       tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
+      tileContainer(ttk)%SouthWest => tileContainer(ttk)%cornertiles(1)
+      tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
+      tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
+      tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
+      
    end subroutine SetTileBoundaries
 
    ! Determine if tile is on the edge of the domain and if so, set its

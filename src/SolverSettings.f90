@@ -43,7 +43,7 @@ module solver_settings_module
    character(len=7), parameter :: limiter_d = 'MinMod2'
    procedure(limiter), pointer :: limiter_dfunc => MinMod2
    character(len=2), parameter :: desingularization_d = 'L1'
-   procedure(DesingularizeFunc), pointer :: desingularize_dfunc => Desingularize_L1
+   procedure(DesingularizeFunc), pointer :: desingularize_dfunc => Desingularize_L2
    real(kind=wp), parameter :: heightThreshold_d = 1e-6_wp
    integer, parameter :: TileBuffer_d = 1
    real(kind=wp), parameter :: cfl_1d_d = 0.5_wp

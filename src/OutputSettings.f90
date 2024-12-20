@@ -180,7 +180,7 @@ contains
                   call FatalErrorMessage('NetCDF not active')
 #endif
                 case default
-                  call WarningMessage("In the 'Output' block the value of 'Format' is not recognised.")
+                  call WarningMessage("In the 'Output' block the setting 'Format = "//outputFormat(K)%s//"' is not recognised.")
                end select
             end do
 
@@ -235,7 +235,6 @@ contains
          call WarningMessage("In the 'Output' block in the input file 'Format' is not given.  Using txt output format.")
       end if
 
-      ! Set defaults for optional settings if not set.
       if (.not.set_MaximumsFilename) then
          MaximumsFilename = varString(MaximumsFilename_d)
       end if

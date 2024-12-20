@@ -204,7 +204,8 @@ module varstring_module
       ! to_cstring [character(kind=c_char) function]
       ! converts a varString into a c-compatible string 
       ! (i.e. an array of lenth-1 character strings of type c_char)
-      procedure :: to_cstring => varString_to_cstring
+      procedure, pass(this) :: varString_to_cstring
+      generic, public :: to_cstring => varString_to_cstring
 
       ! contains [logical function]
       ! check for substring
@@ -674,7 +675,7 @@ contains
       implicit none
 
       class(varString), intent(in) :: this
-      character(len=1,kind=c_char) :: cString(this%len()+1)
+      character(len=1,kind=c_char) :: cString(len(this%s)+1)
 
       integer :: N, i
 

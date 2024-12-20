@@ -77,7 +77,7 @@ module runsettings_module
    ! rectangular base.
    type Cubes
       real(kind=wp) :: x, y
-      real(kind=wp) :: lat, lon
+      real(kind=wp) :: Lat, Lon
       real(kind=wp) :: length, width, volume, height, psi
       real(kind=wp) :: u, v
       ! Shape sets the free surface and can be flat (const flow depth) or
@@ -91,6 +91,7 @@ module runsettings_module
       type(varString), dimension(:), allocatable :: width
       type(varString), dimension(:), allocatable :: length
       type(varString), dimension(:), allocatable :: height
+      type(varString), dimension(:), allocatable :: volume
       type(varString), dimension(:), allocatable :: u, v
       type(varString), dimension(:), allocatable :: psi
       type(varString), dimension(:), allocatable :: lat, lon

@@ -299,7 +299,6 @@ contains
             write (101, fmt="(a,G0)") "cubeY = ", RunParams%CubeSources(J)%y
             write (101, fmt="(a,G0)") "cubeLength = ", RunParams%CubeSources(J)%Length
             write (101, fmt="(a,G0)") "cubeWidth = ", RunParams%CubeSources(J)%Width
-            write (101, fmt="(a,G0)") "cubeVolume = ", RunParams%CubeSources(J)%Volume
             write (101, fmt="(a,G0)") "cubeHeight = ", RunParams%CubeSources(J)%Height
             write (101, fmt="(a,G0)") "cubeConc = ", RunParams%CubeSources(J)%psi
             write (101, fmt="(a,G0)") "cubeU = ", RunParams%CubeSources(J)%U
@@ -981,6 +980,8 @@ contains
 
       real(kind=wp), dimension(:, :), allocatable :: spd, gam
 
+      if (grid%ActiveTiles%Size == 0) return
+
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
       else
@@ -997,7 +998,7 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
       nTiles = grid%ActiveTiles%Size
-
+      
       nXYpertile = [nXpertile, nYpertile]
       nX_vertex_pertile = nXpertile + 1
       nY_vertex_pertile = nYpertile + 1
@@ -1437,6 +1438,8 @@ contains
       integer :: tile_left, tile_bottom
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
+
+      if (grid%ActiveTiles%Size==0) return
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'

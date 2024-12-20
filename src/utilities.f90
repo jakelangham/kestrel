@@ -345,11 +345,16 @@ contains
 
       implicit none
 
-      real(kind=wp), dimension(:), intent(in) :: vector
+      real(kind=wp), dimension(:), allocatable, intent(in) :: vector
       real(kind=wp), intent(in) :: val
       logical :: invec
 
       integer :: N, I
+
+      if (.not. allocated(vector)) then
+        invec = .FALSE.
+        return
+     end if
 
       N = size(vector)
 
@@ -357,7 +362,7 @@ contains
       do I = 1,N
          if (vector(I) .eq. val) then
             invec = .TRUE.
-            exit
+            return
          end if
       end do
 
@@ -384,7 +389,7 @@ contains
       do I = 1,N
          if (vector(I) .eq. val) then
             invec = .TRUE.
-            exit
+            return
          end if
       end do
 
