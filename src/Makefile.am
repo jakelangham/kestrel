@@ -9,10 +9,13 @@ AM_FCFLAGS += -march=native -mtune=native
 endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
+if PARAL
+AM_FCFLAGS += -ftree-vectorize -ftree-parallelize-loops=2 -fopt-info-loop -fopenmp
+endif
 
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h
-kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 \
+kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 Blur.f90 \
 	Messages.f90 varStringClass.f90 utilities.f90 Interp2d.f90 \
 	utm.f90 RunSettings.f90 GeoTiffRead.f90 DomainSettings.f90 \
 	InitConds.f90 Closures.f90 TopogFuncs.f90 Parameters.f90 Limiters.f90 \
@@ -31,6 +34,9 @@ kestrel_LDFLAGS += $(BOOST_LDFLAGS)
 kestrel_LDADD += $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB)
 else
 kestrel_LDADD += -lstdc++fs
+endif
+if PARAL
+kestrel_LDFLAGS += -fopenmp
 endif
 
 if HAVE_JULIA

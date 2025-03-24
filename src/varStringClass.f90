@@ -670,7 +670,7 @@ contains
    ! Convert a varString to a c-compatible string
    ! Called as cstr = this%to_cstring()
    ! Returns: character(len=1, kind=c_char) :: cstr(v%len()+1)
-   function varString_to_cstring(this) result(cString)
+   pure function varString_to_cstring(this) result(cString)
 
       implicit none
 

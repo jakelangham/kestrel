@@ -61,13 +61,15 @@ module grid_module
 
       ! Navigation data.
       ! Locations of adjacent tiles, ordered: W, E, N, S
-      integer :: neighbours(4) 
+      integer :: neighbours(4)
+      logical :: activeneighbours(4)
       ! Locations of diagonal neighbours, ordered: SW, SE, NW, NE
-      integer :: cornertiles(4) 
+      integer :: cornertiles(4)
       ! Pointers to the neighbours array for easy reading when they need to be
       ! referenced individually
       integer, pointer :: North, South, East, West
       integer, pointer :: NorthWest, NorthEast, SouthWest, SouthEast
+      logical, pointer :: NorthOn, SouthOn, EastOn, WestOn
 
       ! x, y values at cell centres.
       real(kind=wp), dimension(:), allocatable :: x, y
@@ -320,7 +322,7 @@ contains
       W = tileID - 1
    end function
 
-   function OnDomainEdge(grid, tileID) result(on)
+   pure function OnDomainEdge(grid, tileID) result(on)
       implicit none
 
       type(GridType), intent(in) :: grid
@@ -337,7 +339,7 @@ contains
 
    ! Return location (x, y) in physical space of the point at
    ! (grid_i, grid_j) in grid co-ords and (tile_i, tile_j) in tile co-ords.
-   subroutine GridToPhysical(RunParams, grid, grid_i, grid_j,  &
+   pure subroutine GridToPhysical(RunParams, grid, grid_i, grid_j,  &
                              tile_i, tile_j, x, y)
       implicit none
 

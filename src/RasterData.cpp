@@ -675,6 +675,138 @@ void BuildDEMVRT_srtm(const char *path,
 	return;
 }
 
+void BuildDEM_raster(const char *path,
+				 const char *SRTMpath,
+				 const char *DEMfile,
+                 int *utmEPSG,
+				 bool *embed,
+                 bool *vrt,
+				 int *nthreads,
+				 double *minE, double *maxE, double *minN, double *maxN,
+				 double *xres, double *yres)
+{
+	fs::path OutputDir = path;
+	fs::path SRTMdir = SRTMpath;
+	fs::path DEMfullfile = DEMfile;
+    
+    fs::path OutFile = (*vrt) ? fs::path("DEM.vrt") : fs::path("DEM.tif");
+
+	fs::path OutputFile = OutputDir / OutFile;
+
+	RasterData input_dem = RasterData(DEMfile);
+	// Get info on input DEM
+	// GeoTiffInfo(DEMfile, &input_dem);
+
+    proj_transformer PT = proj_transformer(*utmEPSG);
+
+    std::string dem_to_warp;
+
+    if (*embed) {
+        // Create SRTM.vrt that gathers the required SRTM tiles
+        std::vector<std::string> InputSRTMfiles = GatherSRTMtiles(path, SRTMpath, utmEPSG, minE, maxE, minN, maxN);
+		BuildSRTMVRT(path, InputSRTMfiles);
+
+        // Name virtual file for SRTM_EPSG_{X}.vrt
+        std::string vrt_srtm_name = std::string("SRTM_EPSG_") + std::to_string(input_dem.EPSG_code) + std::string(".vrt");
+        fs::path vrt_srtm_path = OutputDir / fs::path(vrt_srtm_name);
+
+        // Warp SRTM_vrt to the same CRS as input DEM
+        std::ostringstream gdal_exec_str_SRTM_wrp;
+        gdal_exec_str_SRTM_wrp << "gdalwarp -overwrite -of VRT -et 0 -r cubic -ot Float64 "; // Start creation of warp string
+        // set resolution
+        std::ostringstream tr_str_SRTM_wrp; 
+        tr_str_SRTM_wrp.precision(17); // hold resolution at sufficient precision
+        tr_str_SRTM_wrp << std::fixed;
+        tr_str_SRTM_wrp << "-tr " << input_dem.pixel_width << " " << input_dem.pixel_height; // set resolution to match DEM file
+        gdal_exec_str_SRTM_wrp << tr_str_SRTM_wrp.str(); // Append resolution to gdal executable
+        gdal_exec_str_SRTM_wrp << " -t_srs EPSG:" << std::to_string(input_dem.EPSG_code) << " "; // set CRS to match DEM
+        gdal_exec_str_SRTM_wrp << " -q "; // Quiet gdalwarp
+        gdal_exec_str_SRTM_wrp << path << "SRTM.vrt " << vrt_srtm_path.string(); // Create warped output file
+        // Report gdal commandline statement
+        
+        // Run gdal command, report if fail
+        int gdal_ret_SRTM_wrp = system((gdal_exec_str_SRTM_wrp).str().c_str());
+        if (gdal_ret_SRTM_wrp != 0) {
+            std::cerr << "Error: could not create SRTM_utm.vrt" << std::endl;
+            std::cerr << "The failed call to gdalwarp is:" << std::endl;
+            std::cerr << gdal_exec_str_SRTM_wrp.str() << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        /// Create a temporary VRT file containing DEM, called DEM_EPSG_{X}.vrt
+	    /// We do this to ensure the settings are the same as vrt_srtm_name
+	    /// so we can mosiac and reproject
+	    std::string vrt_dem_name = fs::path(DEMfile).stem().string() + std::string(".vrt");
+        fs::path vrt_dem_path = OutputDir / fs::path(vrt_dem_name);
+	    std::vector<std::string> dem_list = {std::string(DEMfile)};
+	    BuildVRT(vrt_dem_path.c_str(), dem_list,
+	    	input_dem.SW[0], input_dem.SW[1], input_dem.NE[0], input_dem.NE[1],
+	    	NULL, NULL
+	    );
+
+        /// Now we create a VRT file containing vrt_srtm_path and vrt_dem_path
+        /// These are in the same CRS so can be mosaiced in a warp
+        std::string vrt_combined_name = std::string("DEM_EPSG_") + std::to_string(input_dem.EPSG_code) + std::string(".vrt");
+	    fs::path vrt_combined_path = OutputDir / fs::path(vrt_combined_name);
+	    std::vector<std::string> vrt_list = {vrt_srtm_path.string(), vrt_dem_path.string()};
+	    BuildVRT(vrt_combined_path.c_str(), vrt_list,
+		    *minE, *minN, *maxE, *maxN,
+		    NULL, NULL
+	    );
+
+        /// The VRT created above is the file that will be warped.
+        dem_to_warp = vrt_combined_path.string();
+
+    }
+    else {
+        /// We can directly warp the input DEM geotif file into a VRT in the required UTM coordinate system
+        dem_to_warp = DEMfullfile.string();
+    }
+
+	/// Finally, we warp the dem_to_warp file
+	/// to the required CRS and resolution.
+	/// The ouput is DEM.vrt if vrt, else DEM.tif.
+	std::ostringstream gdal_exec_str;
+	gdal_exec_str << "gdalwarp -overwrite -et 0 -r cubic -ot Float64 "; // use cubic interpolation and set output format to 64-bit float
+    if (*vrt) {
+    	gdal_exec_str << "-of VRT ";
+    } else {
+        gdal_exec_str << "-of GTiff -co COMPRESS=LZW ";
+    }
+
+	gdal_exec_str << "-wo NUM_THREADS=" << *nthreads << " ";
+
+	// set resolution
+	std::ostringstream tr_str;
+	tr_str.precision(17); // Store at sufficient resolution
+	tr_str << std::fixed;
+	tr_str << "-tr " << *xres << " " << *yres; // set resolution to match required grid resolution
+	// Set extent
+	std::ostringstream te_str;
+	te_str.precision(17); // Store at sufficient resolution
+	te_str << " -te " << *minE << " " << *minN << " " << *maxE << " " << *maxN << " "; // set extent to match required domain
+	// Append to gdal command line string
+	gdal_exec_str << tr_str.str();
+	gdal_exec_str << te_str.str();
+	gdal_exec_str << " -t_srs EPSG:" << std::to_string(*utmEPSG) << " "; // Add CRS from required utmEPSG
+    // gdal_exec_str << " -q "; // Quiet gdalwarp
+	gdal_exec_str << dem_to_warp << " "; // Add DEM file
+	gdal_exec_str << OutputFile.string(); // Set output name
+	// Execute gdal command, report if fail
+	int gdal_ret = system((gdal_exec_str).str().c_str());
+	if (gdal_ret != 0) {
+		std::cerr << "Error: could not create " << OutFile.c_str() << std::endl;
+        std::cerr << "The failed call to gdalwarp is:" << std::endl;
+        std::cerr << gdal_exec_str.str() << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	else {
+		std::cerr << "Successfully executed gdalwarp with command" << std::endl;
+		std::cerr << gdal_exec_str.str() << std::endl;
+	}
+	return;
+}
+
 bool GetSrcDstWin(DatasetProperty *psDP,
 				 double we_res, double ns_res,
 				 double minX, double minY, double maxX, double maxY,

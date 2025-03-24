@@ -31,7 +31,7 @@ module hydraulic_rhs_module
    use utilities_module, only: KahanSum
    use runsettings_module, only: RunSet
    use equations_module
-   use limiters_module, only: limiter
+   use limiters_module, only: limiter, MinMod2_elem
    use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, DesingularizeFunc
    use messages_module, only: FatalErrorMessage
    use varstring_module
@@ -105,7 +105,7 @@ contains
          ttk = ActiveTiles%List(tt)
          call ComputeDesingularisedVariables(RunParams, tileWorkspace, ttk, .true.)
       end do
-
+      
       ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -134,6 +134,7 @@ contains
          ttk = ActiveTiles%List(tt)
          call ConstructHydraulicRHS(RunParams, grid, tileWorkspace, ttk, t)
       end do
+      
    end subroutine CalculateHydraulicRHS
 
    ! This contains all the logic for computing a suitable time step, i.e. one
@@ -200,122 +201,180 @@ contains
 
       ! Over all y-points and x-points, excluding East and West boundaries,
       ! calculate limited X-derivatives.
-      do j = 1, nYPoints
-         do i = 2, nXPoints - 1
-            do k = 1, nVars
-               d = variables(k)
-               tiles(tID)%uLimX(d, i, j) = grid%deltaXRecip *  &
-                  limiter(u(d, i + 1, j) - u(d, i, j),  &
-                  u(d, i, j) - u(d, i - 1, j))
-            end do
-         end do
+      ! do j = 1, nYPoints
+      !    do i = 2, nXPoints - 1
+      !       do k = 1, nVars
+      !          d = variables(k)
+      !          tiles(tID)%uLimX(d, i, j) = grid%deltaXRecip *  &
+      !             limiter(u(d, i + 1, j) - u(d, i, j),  &
+      !             u(d, i, j) - u(d, i - 1, j))
+      !       end do
+      !    end do
+      ! end do
+      do concurrent (j = 1:nYPoints, k = 1:nVars, i = 2:nXPoints - 1)
+         d = variables(k)
+         tiles(tID)%uLimX(d, i, j) = grid%deltaXRecip *  &
+            limiter(u(d, i + 1, j) - u(d, i, j),  &
+            u(d, i, j) - u(d, i - 1, j))
       end do
 
       ! Over all x-points and y-points, excluding North and South boundaries,
       ! calculate limited Y-derivatives.
-      do j = 2, nYPoints - 1
-         do i = 1, nXPoints
-            do k = 1, nVars
-               d = variables(k)
-               tiles(tID)%uLimY(d, i, j) = grid%deltaYRecip *  &
-                  limiter(u(d, i, j + 1) - u(d, i, j),  &
-                  u(d, i, j) - u(d, i, j - 1))
-            end do
-         end do
+      ! do j = 2, nYPoints - 1
+      !    do i = 1, nXPoints
+      !       do k = 1, nVars
+      !          d = variables(k)
+      !          tiles(tID)%uLimY(d, i, j) = grid%deltaYRecip *  &
+      !             limiter(u(d, i, j + 1) - u(d, i, j),  &
+      !             u(d, i, j) - u(d, i, j - 1))
+      !       end do
+      !    end do
+      ! end do
+      do concurrent (j = 2: nYPoints - 1, i = 1: nXPoints, k = 1: nVars)
+         d = variables(k)
+         tiles(tID)%uLimY(d, i, j) = grid%deltaYRecip *  &
+            limiter(u(d, i, j + 1) - u(d, i, j),  &
+            u(d, i, j) - u(d, i, j - 1))
       end do
 
       ! Now fill in the boundaries.
       if (.not. RunParams%isOneD) then
          ! Y-derivs on South boundary
          j = 1
-         do i = 1, nXPoints
-            do k = 1, nVars
-               d = variables(k)
-               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                  tiles, tID, 'S')
-            end do
+         ! do i = 1, nXPoints
+         !    do k = 1, nVars
+         !       d = variables(k)
+         !       call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+         !          tiles, tID, 'S')
+         !    end do
+         ! end do
+         do concurrent (i = 1: nXPoints, k = 1: nVars)
+            d = variables(k)
+            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+               tiles, tID, 'S')
          end do
 
          ! Do south ghost tile too if it exists
          neighbour = grid%tileContainer(tID)%South
          if (grid%tileContainer(neighbour)%TileOn) then
             j = nYpoints
-            do i = 1, nXPoints
-               do k = 1, nVars
-                  d = variables(k)
-                  call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                     tiles, neighbour, 'N')
-               end do
+            ! do i = 1, nXPoints
+            !    do k = 1, nVars
+            !       d = variables(k)
+            !       call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+            !          tiles, neighbour, 'N')
+            !    end do
+            ! end do
+            do concurrent (i = 1: nXPoints, k = 1: nVars)
+               d = variables(k)
+               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+                  tiles, neighbour, 'N')
             end do
          end if
 
          ! Y-derivs on North boundary
          j = nYPoints
-         do i = 1, nXPoints
-            do k = 1, nVars
-               d = variables(k)
-               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                  tiles, tID, 'N')
-            end do
+         ! do i = 1, nXPoints
+         !    do k = 1, nVars
+         !       d = variables(k)
+         !       call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+         !          tiles, tID, 'N')
+         !    end do
+         ! end do
+         do concurrent (i = 1: nXPoints, k = 1: nVars)
+            d = variables(k)
+            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+               tiles, tID, 'N')
          end do
 
          ! Do north ghost tile too if it exists
          neighbour = grid%tileContainer(tID)%North
          if (grid%tileContainer(neighbour)%TileOn) then
+         !    j = 1
+         !    do i = 1, nXpoints
+         !       do k = 1, nVars
+         !          d = variables(k)
+         !          call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+         !             tiles, neighbour, 'S')
+         !       end do
+         !    end do
+         ! end if
             j = 1
-            do i = 1, nXpoints
-               do k = 1, nVars
-                  d = variables(k)
-                  call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                     tiles, neighbour, 'S')
-               end do
+            do concurrent (i = 1: nXpoints, k = 1: nVars)
+               d = variables(k)
+               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+                  tiles, neighbour, 'S')
             end do
          end if
       end if
 
       ! X-derivs on West boundary
       i = 1
-      do j = 1, nYPoints
-         do k = 1, nVars
-            d = variables(k)
-            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-               tiles, tID, 'W')
-         end do
+      ! do j = 1, nYPoints
+      !    do k = 1, nVars
+      !       d = variables(k)
+      !       call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+      !          tiles, tID, 'W')
+      !    end do
+      ! end do
+      do concurrent (j = 1: nYPoints, k = 1: nVars)
+         d = variables(k)
+         call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+            tiles, tID, 'W')
       end do
 
       ! Do West ghost tile too if it exists
       neighbour = grid%tileContainer(tID)%West
       if (grid%tileContainer(neighbour)%TileOn) then
+      !    i = nXpoints
+      !    do j = 1, nYpoints
+      !       do k = 1, nVars
+      !          d = variables(k)
+      !          call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+      !             tiles, neighbour, 'E')
+      !       end do
+      !    end do
+      ! end if
          i = nXpoints
-         do j = 1, nYpoints
-            do k = 1, nVars
-               d = variables(k)
-               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                  tiles, neighbour, 'E')
-            end do
+         do concurrent (j = 1: nYpoints, k = 1: nVars)
+            d = variables(k)
+            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+               tiles, neighbour, 'E')
          end do
       end if
 
       ! X-derivs on East boundary
       i = nXPoints
-      do j = 1, nYPoints
-         do k = 1, nVars
-            d = variables(k)
-            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-               tiles, tID, 'E')
-         end do
+      ! do j = 1, nYPoints
+      !    do k = 1, nVars
+      !       d = variables(k)
+      !       call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+      !          tiles, tID, 'E')
+      !    end do
+      ! end do
+      do concurrent (j = 1: nYPoints, k = 1: nVars)
+         d = variables(k)
+         call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+            tiles, tID, 'E')
       end do
 
       ! Do East ghost tile too if it exists
       neighbour = grid%tileContainer(tID)%East
       if (grid%tileContainer(neighbour)%TileOn) then
+      !    i = 1
+      !    do j = 1, nYpoints
+      !       do k = 1, nVars
+      !          d = variables(k)
+      !          call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+      !             tiles, neighbour, 'W')
+      !       end do
+      !    end do
+      ! end if
          i = 1
-         do j = 1, nYpoints
-            do k = 1, nVars
-               d = variables(k)
-               call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
-                  tiles, neighbour, 'W')
-            end do
+         do concurrent (j = 1: nYpoints, k = 1: nVars)
+            d = variables(k)
+            call CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j,  &
+               tiles, neighbour, 'W')
          end do
       end if
 
@@ -324,7 +383,7 @@ contains
    ! Compute the limited derivatives at the boundary of the tile (indexed by
    ! tID) for the variable d and at the (i, j)-th point. The variable bid passes 
    ! the direction of the boundary (NSEW).
-   subroutine CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j, tiles, &
+   pure subroutine CalculateLimitedDerivsBoundary(RunParams, grid, d, i, j, tiles, &
                                              tID, bid)
       implicit none
 
@@ -335,10 +394,14 @@ contains
       integer, intent(in) :: tID
       character(len=1), intent(in) :: bid
 
-      integer :: nextTile = 0, prevTile = 0
+      integer :: nextTile
+      integer :: prevTile
 
       real(kind=wp) :: uN, uS, uE, uW
       real(kind=wp) :: deltaXRecip, deltaYRecip
+
+      nextTile = 0
+      prevTile = 0
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
@@ -381,7 +444,8 @@ contains
             tiles(tID)%u(d, i, j),  &
             tiles(tID)%u(d, i, j) - uW)
        case default
-         call FatalErrorMessage('bid not recognized')
+         return
+         ! call FatalErrorMessage('bid not recognized')
       end select
 
    end subroutine CalculateLimitedDerivsBoundary
@@ -435,24 +499,33 @@ contains
 
       ! Calculate reconstructed variables at each cell edge
       prevTile = tiles(tID)%West
-      do k = 1, nd
+      nextTile = tiles(tID)%East
+      ! do k = 1, nd
+      !    d = dims(k)
+      !    tiles(tID)%uPlusX(d, 1, :) = tiles(tID)%u(d, 1, :) - &
+      !       tiles(tID)%uLimX(d, 1, :) * 0.5_wp * deltaX
+      !    tiles(tID)%uMinusX(d, 1, :) = tiles(prevTile)%u(d, nXPoints, :) + &
+      !       tiles(prevTile)%uLimX(d, nXPoints, :) * 0.5_wp * deltaX
+      ! end do
+      ! do k = 1, nd
+      !    d = dims(k)
+      !    tiles(tID)%uPlusX(d, 2:nXPoints, :) = tiles(tID)%u(d, 2:nXPoints, :) - &
+      !       tiles(tID)%uLimX(d, 2:nXPoints, :) * 0.5_wp * deltaX
+      !    tiles(tID)%uMinusX(d, 2:nXPoints, :) = tiles(tID)%u(d, 1:nXPoints-1, :) + &
+      !       tiles(tID)%uLimX(d, 1:nXPoints-1, :) * 0.5_wp * deltaX
+      ! end do
+      do concurrent (k = 1: nd)
          d = dims(k)
          tiles(tID)%uPlusX(d, 1, :) = tiles(tID)%u(d, 1, :) - &
             tiles(tID)%uLimX(d, 1, :) * 0.5_wp * deltaX
          tiles(tID)%uMinusX(d, 1, :) = tiles(prevTile)%u(d, nXPoints, :) + &
             tiles(prevTile)%uLimX(d, nXPoints, :) * 0.5_wp * deltaX
-      end do
-      do k = 1, nd
-         d = dims(k)
+      
          tiles(tID)%uPlusX(d, 2:nXPoints, :) = tiles(tID)%u(d, 2:nXPoints, :) - &
             tiles(tID)%uLimX(d, 2:nXPoints, :) * 0.5_wp * deltaX
          tiles(tID)%uMinusX(d, 2:nXPoints, :) = tiles(tID)%u(d, 1:nXPoints-1, :) + &
             tiles(tID)%uLimX(d, 1:nXPoints-1, :) * 0.5_wp * deltaX
-      end do
-
-      nextTile = tiles(tID)%East
-      do k = 1, nd
-         d = dims(k)
+      
          tiles(tID)%uPlusX(d, nXPoints+1, :) = tiles(nextTile)%u(d, 1, :) - &
             tiles(nextTile)%uLimX(d, 1, :) * 0.5_wp * deltaX
          tiles(tID)%uMinusX(d, nXPoints+1, :) = tiles(tID)%u(d, nXPoints, :) + &
@@ -461,29 +534,47 @@ contains
 
       if (.not. RunParams%isOneD) then
          prevTile = tiles(tID)%South
-         do k = 1, nd
+         nextTile = tiles(tID)%North
+         ! do k = 1, nd
+         !    d = dims(k)
+         !    tiles(tID)%uPlusY(d, :, 1) = tiles(tID)%u(d, :, 1) - &
+         !       tiles(tID)%uLimY(d, :, 1) * 0.5_wp * deltaY
+         !    tiles(tID)%uMinusY(d, :, 1) = tiles(prevTile)%u(d, :, nYPoints) + &
+         !       tiles(prevTile)%uLimY(d, :, nYPoints) * 0.5_wp * deltaY
+         ! end do
+         ! do k = 1, nd
+         !    d = dims(k)
+         !    tiles(tID)%uPlusY(d, :, 2:nYPoints) = tiles(tID)%u(d, :, 2:nYPoints) - &
+         !       tiles(tID)%uLimY(d, :, 2:nYPoints) * 0.5_wp * deltaY
+         !    tiles(tID)%uMinusY(d, :, 2:nYPoints) = tiles(tID)%u(d, :, 1:nYPoints-1) + &
+         !       tiles(tID)%uLimY(d, :, 1:nYPoints-1) * 0.5_wp * deltaY
+         ! end do
+         do concurrent (k = 1: nd)
             d = dims(k)
             tiles(tID)%uPlusY(d, :, 1) = tiles(tID)%u(d, :, 1) - &
                tiles(tID)%uLimY(d, :, 1) * 0.5_wp * deltaY
             tiles(tID)%uMinusY(d, :, 1) = tiles(prevTile)%u(d, :, nYPoints) + &
                tiles(prevTile)%uLimY(d, :, nYPoints) * 0.5_wp * deltaY
-         end do
-         do k = 1, nd
-            d = dims(k)
+         
             tiles(tID)%uPlusY(d, :, 2:nYPoints) = tiles(tID)%u(d, :, 2:nYPoints) - &
                tiles(tID)%uLimY(d, :, 2:nYPoints) * 0.5_wp * deltaY
             tiles(tID)%uMinusY(d, :, 2:nYPoints) = tiles(tID)%u(d, :, 1:nYPoints-1) + &
                tiles(tID)%uLimY(d, :, 1:nYPoints-1) * 0.5_wp * deltaY
-         end do
 
-         nextTile = tiles(tID)%North
-         do k = 1, nd
-            d = dims(k)
             tiles(tID)%uPlusY(d, :, nYPoints+1) = tiles(nextTile)%u(d, :, 1) - &
                tiles(nextTile)%uLimY(d, :, 1) * 0.5_wp * deltaY
             tiles(tID)%uMinusY(d, :, nYPoints+1) = tiles(tID)%u(d, :, nYPoints) + &
                tiles(tID)%uLimY(d, :, nYPoints) * 0.5_wp * deltaY
          end do
+
+         
+         ! do k = 1, nd
+         !    d = dims(k)
+         !    tiles(tID)%uPlusY(d, :, nYPoints+1) = tiles(nextTile)%u(d, :, 1) - &
+         !       tiles(nextTile)%uLimY(d, :, 1) * 0.5_wp * deltaY
+         !    tiles(tID)%uMinusY(d, :, nYPoints+1) = tiles(tID)%u(d, :, nYPoints) + &
+         !       tiles(tID)%uLimY(d, :, nYPoints) * 0.5_wp * deltaY
+         ! end do
       end if
 
       if (all(dims(1:4) .eq. RunParams%iFlux)) then
@@ -492,28 +583,48 @@ contains
 
       ! Don't 'reconstruct' Hn - we require that hp = w - b exactly at cell
       ! vertices (as well as centres) for numerical lake at rest to work.
-      do i = 1, RunParams%nXpertile + 1
-         do j = 1, RunParams%nYpertile
-            ! n.b. uPlusX(b,i,j) = uMinusX(b,i,j), so it doesn't matter which
-            ! side gam is computed from
-            gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:,i,j))
-            tiles(tID)%uPlusX(iHn,i,j) = ComputeHn(tiles(tID)%uPlusX(iw,i,j), &
-               tiles(tID)%uPlusX(ib0,i,j), tiles(tID)%uPlusX(ibt,i,j), gam)
-            gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:,i,j))
-            tiles(tID)%uMinusX(iHn,i,j) = ComputeHn(tiles(tID)%uMinusX(iw,i,j), &
-               tiles(tID)%uMinusX(ib0,i,j), tiles(tID)%uMinusX(ibt,i,j), gam)
-         end do
+      ! do i = 1, RunParams%nXpertile + 1
+      !    do j = 1, RunParams%nYpertile
+      !       ! n.b. uPlusX(b,i,j) = uMinusX(b,i,j), so it doesn't matter which
+      !       ! side gam is computed from
+      !       gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:,i,j))
+      !       tiles(tID)%uPlusX(iHn,i,j) = ComputeHn(tiles(tID)%uPlusX(iw,i,j), &
+      !          tiles(tID)%uPlusX(ib0,i,j), tiles(tID)%uPlusX(ibt,i,j), gam)
+      !       gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:,i,j))
+      !       tiles(tID)%uMinusX(iHn,i,j) = ComputeHn(tiles(tID)%uMinusX(iw,i,j), &
+      !          tiles(tID)%uMinusX(ib0,i,j), tiles(tID)%uMinusX(ibt,i,j), gam)
+      !    end do
+      ! end do
+      ! if (.not. RunParams%isOneD) then
+      !    do i = 1, RunParams%nXpertile
+      !       do j = 1, RunParams%nYpertile + 1
+      !          gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:,i,j))
+      !          tiles(tID)%uPlusY(iHn,i,j) = ComputeHn(tiles(tID)%uPlusY(iw,i,j), &
+      !             tiles(tID)%uPlusY(ib0,i,j), tiles(tID)%uPlusY(ibt,i,j), gam)
+      !          gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:,i,j))
+      !          tiles(tID)%uMinusY(iHn,i,j) = ComputeHn(tiles(tID)%uMinusY(iw,i,j), &
+      !             tiles(tID)%uMinusY(ib0,i,j), tiles(tID)%uMinusY(ibt,i,j), gam)
+      !       end do
+      !    end do
+      ! end if
+      do concurrent (i = 1: RunParams%nXpertile + 1, j = 1: RunParams%nYpertile)
+         ! n.b. uPlusX(b,i,j) = uMinusX(b,i,j), so it doesn't matter which
+         ! side gam is computed from
+         gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:,i,j))
+         tiles(tID)%uPlusX(iHn,i,j) = ComputeHn(tiles(tID)%uPlusX(iw,i,j), &
+            tiles(tID)%uPlusX(ib0,i,j), tiles(tID)%uPlusX(ibt,i,j), gam)
+         gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:,i,j))
+         tiles(tID)%uMinusX(iHn,i,j) = ComputeHn(tiles(tID)%uMinusX(iw,i,j), &
+            tiles(tID)%uMinusX(ib0,i,j), tiles(tID)%uMinusX(ibt,i,j), gam)
       end do
       if (.not. RunParams%isOneD) then
-         do i = 1, RunParams%nXpertile
-            do j = 1, RunParams%nYpertile + 1
-               gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:,i,j))
-               tiles(tID)%uPlusY(iHn,i,j) = ComputeHn(tiles(tID)%uPlusY(iw,i,j), &
-                  tiles(tID)%uPlusY(ib0,i,j), tiles(tID)%uPlusY(ibt,i,j), gam)
-               gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:,i,j))
-               tiles(tID)%uMinusY(iHn,i,j) = ComputeHn(tiles(tID)%uMinusY(iw,i,j), &
-                  tiles(tID)%uMinusY(ib0,i,j), tiles(tID)%uMinusY(ibt,i,j), gam)
-            end do
+         do concurrent (i = 1: RunParams%nXpertile, j = 1: RunParams%nYpertile + 1)
+            gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:,i,j))
+            tiles(tID)%uPlusY(iHn,i,j) = ComputeHn(tiles(tID)%uPlusY(iw,i,j), &
+               tiles(tID)%uPlusY(ib0,i,j), tiles(tID)%uPlusY(ibt,i,j), gam)
+            gam = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:,i,j))
+            tiles(tID)%uMinusY(iHn,i,j) = ComputeHn(tiles(tID)%uMinusY(iw,i,j), &
+               tiles(tID)%uMinusY(ib0,i,j), tiles(tID)%uMinusY(ibt,i,j), gam)
          end do
       end if
 
@@ -760,7 +871,7 @@ contains
    ! morphodynamic parts of the time stepper. The computeVelocities flag exists
    ! so we can exclude u & v computation within the morphodynamic part (within
    ! which u & v are considered constant).
-   recursive subroutine ComputeDesingularisedVariables(RunParams, tiles, tID, &
+   pure subroutine ComputeDesingularisedVariables(RunParams, tiles, tID, &
       computeVelocities)
       implicit none
 
@@ -814,30 +925,6 @@ contains
 
             Hn_recip = DesingularizeFunc(Hn,Hneps_gam)
 
-#if DEBUG_NEGATIVE_DEPTH==1 || DEBUG_NEGATIVE_DEPTH==2
-            ! In principle this should never happen within the hydraulic
-            ! stepper, so the check is only needed for debugging.
-            if (Hn < 0.0_wp .and. abs(Hn) > 10.0_wp * epsilon(Hn) .and. computeVelocities) then
-               write(stderr, *) "Hn < 0", tID, i, j, Hn, tiles(tID)%u(iw,i,j), &
-                  tiles(tID)%u(ib0,i,j), tiles(tID)%u(ibt,i,j), gam
-#if DEBUG_NEGATIVE_DEPTH==2
-               call exit(1)
-#endif
-            end if
-#endif
-
-#if DEBUG_NEGATIVE_CONC==1 || DEBUG_NEGATIVE_CONC==2
-            ! Likewise, this should never happen within the hydraulic 
-            ! stepper, so the check is only needed for debugging.
-            if (Hnpsi < 0.0_wp .and. abs(Hnpsi) > 10.0_wp * epsilon(Hnpsi) .and. computeVelocities) then
-               write(stderr, *) "Hnpsi < 0", tID, i, j, Hnpsi, tiles(tID)%u(RunParams%Vars%psi,i,j), &
-                     Hn, tiles(tID)%u(iw,i,j), tiles(tID)%u(ib0,i,j) + tiles(tID)%u(ibt,i,j), gam
-#if DEBUG_NEGATIVE_CONC==2
-               call exit(1)
-#endif
-            end if
-#endif
-
             ! Within substeps of the morphodynamic operator, w & Hnpsi are 
             ! permitted to deviate s.t. Hn & psi would be computed as negative,
             ! but then later, either 1) w is 'topped up' by subsequent
@@ -853,18 +940,6 @@ contains
 
             psi = min(Hnpsi * Hn_recip, RunParams%maxPack)
             rho = Density(RunParams, psi)
-
-# if DEBUG_EXCESS_CONC==1 || DEBUG_EXCESS_CONC==2
-            if ((Hn > 0.0_wp) .and. (Hn < Hneps)) then
-               if (Hnpsi > 0.5_wp * RunParams%maxPack * Hn * (1.0_wp + Hneps * Hneps / Hn / Hn)) then
-                  write(stderr, *) "Hnpsi too big ", tID, i, j, Hnpsi, &
-                     0.5_wp * RunParams%maxPack * Hn * (1.0_wp + Hneps*Hneps / (Hn*Hn)), Hn, psi
-#if DEBUG_EXCESS_CONC==2
-                  call exit
-#endif
-               end if
-            end if
-#endif
 
             tiles(tID)%u(iHn,i,j) = Hn
             tiles(tID)%u(ipsi,i,j) = psi
@@ -958,8 +1033,12 @@ contains
 
       do j = 1,nYPoints
          do i = 1,nXPoints+1
-            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+
+            gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
+            gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
+
+            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
 #if DEBUG_SPD == 1 || DEBUG_SPD == 2
             if (tiles(tID)%uPlusX(iU, i, j) > 50.0) then
                write(stderr, *) 'High x-velocity: uPlusX = ', tiles(tID)%uPlusX(iU,i, j), ' for tile ', tID, ' at cell index ', i, ', ', j
@@ -981,42 +1060,38 @@ contains
             end if
             if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
             if (wsPlus<wsMinus) then
                aNeg = wsPlus
             else
                aNeg = wsMinus
             end if
-            if (aNeg > 0.0_wp) aNeg = 0.0_wp 
+            if (aNeg > 0.0_wp) aNeg = 0.0_wp
 
             if (aPos > epsilon(aPos)) then
                ! If gamma at cell interface > gamma at cell centre, this places
                ! a restriction on the time step in order to maintain positivity.
                if (i == 1) then
                   prevTile = tiles(tID)%West
-                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, RunParams%nXpertile, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, RunParams%nXpertile, j)) / gamplus, 1.0_wp)
                else
-                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i - 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i - 1, j)) / gamplus, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / aPos, unitCFLTimeStep)
             end if
             if (abs(aNeg) > epsilon(aNeg)) then ! changed from: if (aNeg > 1.0e-16_wp) then
                if (i == RunParams%nXpertile + 1) then
                   nextTile = tiles(tID)%East
-                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, 1, j)) / gamneg, 1.0_wp)
                else
-                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                  gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / gamneg, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / abs(aNeg), unitCFLTimeStep)
             end if
 
-            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusConvectionFlux)
-            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusConvectionFlux)
+            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j), gamplus, uPlusConvectionFlux)
+            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j), gamneg, uMinusConvectionFlux)
             call XHydrostaticFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusHydrostaticFlux)
             call XHydrostaticFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusHydrostaticFlux)
             if (i == RunParams%nXpertile + 1) then
@@ -1043,8 +1118,6 @@ contains
                   ! This variable is time-stepped by proxy (through Hn*gam) and 
                   ! thus we need to use (Hn*gam)'s interfacial values for this flux
                   ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(RunParams%Vars%Hn, i, j) * gamplus - &
                        tiles(tID)%uMinusX(RunParams%Vars%Hn, i, j) * gamneg
                   hX = hX * aPos * aNeg
@@ -1054,8 +1127,6 @@ contains
                   tiles(tID)%gXFlux(d, i, j) = 0.0_wp
                   tiles(tID)%pXFlux(d, i, j) = 0.0_wp
                else if (d == RunParams%Vars%Hnpsi) then
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(d, i, j) * gamplus - tiles(tID)%uMinusX(d, i, j) * gamneg
                   hX = hX * aPos * aNeg
                   hX = hX  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1085,8 +1156,12 @@ contains
       if (.not. RunParams%isOneD) then
          do j = 1, nYPoints + 1
             do i = 1, nXPoints
-               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+
+               gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
+               gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
+
+               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus>wsMinus) then
                   aPos = wsPlus
                else
@@ -1094,23 +1169,21 @@ contains
                end if
                if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus<wsMinus) then
                   aNeg = wsPlus
                else
                   aNeg = wsMinus
                end if
-               if (aNeg > 0.0_wp) aNeg = 0.0_wp 
+               if (aNeg > 0.0_wp) aNeg = 0.0_wp
 
                if (aPos > epsilon(aPos)) then 
                   if (j == 1) then
                      prevTile = tiles(tID)%South
-                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, i, RunParams%nYpertile)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, i, RunParams%nYpertile)) / gamplus, 1.0_wp)
                   else
-                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j - 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j - 1)) / gamplus, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / aPos, unitCFLTimeStep)
                end if
@@ -1118,17 +1191,15 @@ contains
                   if (j == RunParams%nYpertile + 1) then
                      ! look elsewhere for gam
                      nextTile = tiles(tID)%North
-                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, i, 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, i, 1)) / gamneg, 1.0_wp)
                   else
-                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                     gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / gamneg, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / abs(aNeg), unitCFLTimeStep)
                end if
 
-               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusConvectionFlux)
-               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusConvectionFlux)
+               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j), gamplus, uPlusConvectionFlux)
+               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j), gamneg, uMinusConvectionFlux)
                call YHydrostaticFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusHydrostaticFlux)
                call YHydrostaticFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusHydrostaticFlux)
                if (j == RunParams%nYpertile + 1) then
@@ -1155,8 +1226,6 @@ contains
                      ! This variable is time-stepped by proxy (through Hn*gam) and 
                      ! thus we need to use (Hn*gam)'s interfacial values for this flux
                      ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(RunParams%Vars%Hn, i, j) * gamplus - &
                           tiles(tID)%uMinusY(RunParams%Vars%Hn, i, j) * gamneg
                      hY = hY * aPos * aNeg
@@ -1166,8 +1235,6 @@ contains
                      tiles(tID)%gYFlux(d, i, j) = 0.0_wp
                      tiles(tID)%pYFlux(d, i, j) = 0.0_wp
                   else if (d == RunParams%Vars%Hnpsi) then
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(d, i, j) * gamplus - tiles(tID)%uMinusY(d, i, j) * gamneg
                      hY = hY * aPos * aNeg
                      hY = hY  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1256,11 +1323,13 @@ contains
                   if (d == RunParams%Vars%w) then
                      ! Divide by gamma to convert Hn back to hp again! (see also comment
                      ! in Equations.f90)
-                     STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / (gam * gam) +  &
-                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / (gam * gam)
+                     STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip +  &
+                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip
+                     STF(d) = STF(d) / (gam * gam)
                   else if (d == RunParams%Vars%Hnpsi) then
-                     STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam +  &
-                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam
+                     STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip +  &
+                        (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip
+                     STF(d) = STF(d) / gam
                   else
                      STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j), &
                         (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d), &
@@ -1272,10 +1341,10 @@ contains
                end do
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
-                                        tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE)
+                                        tiles(tID)%u(:,i,j), gam, tiles(tID)%containsSource, STE)
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
-               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
+               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j), gam)
                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,j), Friction, STI)
                tiles(tID)%ddtImplicit(1:nFlux,i,j) = STI(1:nFlux)
             end do
@@ -1302,10 +1371,10 @@ contains
             end do
 
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
-                                     tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE)
+                                     tiles(tID)%u(:,i,1), gam, tiles(tID)%containsSource, STE)
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
-            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
+            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1), gam)
             call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
             tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
          end do

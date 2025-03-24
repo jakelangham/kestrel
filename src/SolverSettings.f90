@@ -27,6 +27,7 @@
 ! limiter functions to specific implementations.  See Limiters.f90
 module solver_settings_module
 
+   use iso_c_binding, only: c_int
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use limiters_module
@@ -51,6 +52,8 @@ module solver_settings_module
    real(kind=wp), parameter :: maxdt_d = HUGE(1.0_wp)
    real(kind=wp), parameter :: tstart_d = 0.0_wp
    real(kind=wp), parameter :: SpongeStrength_d = 0.2_wp
+   integer(kind=c_int), parameter :: nBlur_d = 0
+   integer(kind=c_int), parameter :: BlurPixelWidth_d = 1
    logical, parameter :: Restart_d = .FALSE.
 
 contains
@@ -82,6 +85,8 @@ contains
       logical :: set_tend
       logical :: set_Restart
       logical :: set_InitialCondition
+      logical :: set_nBlur
+      logical :: set_BlurWidth
 
       N = size(SolverValues)
 
@@ -96,6 +101,8 @@ contains
       set_tend=.FALSE.
       set_Restart=.FALSE.
       set_InitialCondition=.FALSE.
+      set_nBlur = .FALSE.
+      set_BlurWidth = .FALSE.
 
       do J=1,N
          label = SolverLabels(J)%to_lower()
@@ -194,6 +201,15 @@ contains
             case ('initial condition')
                set_InitialCondition = .true.
                RunParams%InitialCondition = SolverValues(J)
+
+            
+            case ('curvature blur iterates')
+                set_nBlur = .TRUE.
+                RunParams%nBlur = SolverValues(J)%to_int()
+
+            case ('curvature blur width')
+                  set_BlurWidth = .TRUE.
+                  RunParams%BlurPixelWidth = SolverValues(J)%to_int()
           
             case default
                call InputLabelUnrecognized(SolverLabels(J)%s)
@@ -240,6 +256,10 @@ contains
          // " The block variable 't end' must be greater than the block variable 't start'.")
         
       if (.not. set_Restart) RunParams%Restart = Restart_d
+
+      if (.not. set_nBlur) RunParams%nBlur = nBlur_d
+
+      if (.not. set_BlurWidth) RunParams%BlurPixelWidth = BlurPixelWidth_d
 
       ! Validate Solver settings
 
@@ -293,6 +313,18 @@ contains
       if (RunParams%SpongeLayer) then
          if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " The block variable 'Sponge Strength' must be positive.")
+      end if
+
+      ! nBlur >= 0
+      if (RunParams%nBlur < 0) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'curvature blur iterates' must be a non-negative integer.")
+      end if
+
+      ! BlurPixelWidth >= 1
+      if (RunParams%BlurPixelWidth < 1) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'curvature blur width' must be a positive integer.")
       end if
 
    end subroutine Solver_Set

@@ -285,6 +285,40 @@ extern "C"
                  int *utmEPSG,
 				 double *minx, double *maxx, double *miny, double *maxy,
 				 double *xres, double *yres);
+
+    /**
+     * @brief Create a tif file containing a DEM and (optionally) SRTM tiles for required domain and resolution in WGS84/UTM coordinates
+     * 
+     * @param path Full path of directory that will contain the output files
+     * @param SRTMpath Full path of directory containing the SRTM files
+     * @param DEMfile Full path of the DEM file
+     * @param utmEPSG EPSG code of the WGS84/UTM zone. This should be a five digit integer of the form 326** for northern hemisphere and 367** for southern hemisphere
+     * @param embed Should the DEM file be embedded within SRTM data?  If true, an SRTM archive containing the required tiles is needed and SRTM.vrt is created to hold the SRTM data.
+     * @param minx Minimum Easting (i.e. most westerly point) of the domain extent in WGS84/UTM coordinates corresponding to utmEPSG
+     * @param maxx Maximum Easting (i.e. most easterly point) of the domain extent in WGS84/UTM coordinates corresponding to utmEPSG
+     * @param miny Minimum Northing (i.e. most southerly point) of the domain extent in WGS84/UTM coordinates corresponding to utmEPSG
+     * @param maxy Maximum Northing (i.e. most northerly point) of the domain extent in WGS84/UTM coordinates corresponding to utmEPSG
+     * @param xres Resolution in Easting
+     * @param yres Resolution in Northing
+     * 
+     * @note BuildDEM_raster attempts to create the file DEM.tif in directory path.
+     * @note If required to embed DEM in SRTM tiles (i.e. embed = true) then a number of other vrt files are created that hold SRTM data
+     * @note at intermediate steps.
+     * @note The files are created using system calls to gdalwarp.  If these fail, this is a fatal error and the program exits with reports of
+     * @note the failed gdalwarp call reported to std_err.
+     * 
+     * @cite https://gdal.org/programs/gdalwarp.html
+     * @cite https://spatialreference.org/
+     */
+    void BuildDEM_raster(const char *path,
+				 const char *SRTMpath,
+				 const char *DEMfile,
+                 int *utmEPSG,
+				 bool *embed,
+                 bool *vrt,
+                 int *nthreads,
+				 double *minx, double *maxx, double *miny, double *maxy,
+				 double *xres, double *yres);
 }
 
 /**

@@ -54,7 +54,7 @@ module limiters_module
 
    public :: limiter
    public :: MinMod1
-   public :: MinMod2
+   public :: MinMod2, MinMod2_elem
    public :: vanAlbada
    public :: WENO
    public :: LimiterNone
@@ -118,6 +118,23 @@ contains
       end if
 
    end function MinMod2
+
+   elemental function MinMod2_elem(a, b) result(c)
+      real(kind=wp), intent(in) :: a, b
+      real(kind=wp) :: c
+      real(kind=wp), parameter :: theta = 1.3_wp
+
+      if (a*b<=0.0_wp) then ! either (i) a>0, b<0; (ii) a<0, b>0; (iii) a and/or b = 0
+         c = 0.0_wp
+      else
+         if (a > 0.0_wp) then ! a>0, b>0
+            c = min(theta * a, min(theta * b, 0.5_wp * (a + b)))
+         else  ! a<0 so b<0
+            c = max(theta * a, max(theta * b, 0.5_wp * (a + b)))
+         end if
+      end if
+
+   end function MinMod2_elem
 
    ! no limiter
    ! Use central approximation c = (a + b)/2

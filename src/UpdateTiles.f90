@@ -33,7 +33,7 @@ module update_tiles_module
    use runsettings_module, only: RunSet
    use grid_module, only: GridCoords, GridToPhysical, GridType, OnDomainEdge, &
       TileID, TileInBounds, TileList, TileType, EastTile, WestTile, NorthTile, SouthTile
-   use utilities_module, only: AddToOrderedVector, InVector, RemoveFromVector, AddToVector
+   use utilities_module, only: AddToOrderedVector, InVector, RemoveFromVector, AddToVector, WrapIndex
    use hydraulic_rhs_module, only: CalculateFluxes, CalculateLimitedDerivs, CalculateLimitedDerivsBoundary, ComputeDesingularisedVariables, &
       CorrectSlopes, Reconstruct
    use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, EqualiseTopographicBoundaryData, ComputeTopographicCurvatures
@@ -57,7 +57,7 @@ contains
       type(GridType), target, intent(inout) :: grid
       integer, intent(in) :: tile
       type(RunSet), intent(in) :: RunParams
-
+      
       if (.not. TileInBounds(grid, tile) .or. &
          (OnDomainEdge(grid, tile) .and. RunParams%bcs%s /= "periodic")) then
          if (RunParams%bcs%s == "halt") then
@@ -66,11 +66,14 @@ contains
          else ! if boundary conditions are not 'halt' this routine fails silently
             return
          end if
+         return
       end if
 
       call AddToActiveTiles(grid, tile)
       call AllocateTile(RunParams, grid, tile)
       call ActivateTile(RunParams, grid, tile)
+      call SetTileBoundaries(RunParams, grid, tile)
+      call UpdateNeighbourTiles(grid, tile)
       grid%xmin = min(grid%tileContainer(tile)%xmin, grid%xmin)
       grid%xmax = max(grid%tileContainer(tile)%xmax, grid%xmax)
       grid%ymin = min(grid%tileContainer(tile)%ymin, grid%ymin)
@@ -78,7 +81,7 @@ contains
    end subroutine AddTile
 
    ! Add tile to ActiveTiles list
-   subroutine AddToActiveTiles(grid, k)
+   pure subroutine AddToActiveTiles(grid, k)
 
       implicit none
 
@@ -108,7 +111,7 @@ contains
             
          ! If it's a ghost tile, remove it.
          if (.not. allocated(ghostTiles%List)) return
-         isGhostTile = RemoveFromVector(ghostTiles%List, k)
+         call RemoveFromVector(ghostTiles%List, k, isGhostTile)
          if (isGhostTile) then
             ghostTiles%size = ghostTiles%size - 1
             tileContainer(k)%isGhostTile = .false.
@@ -219,7 +222,7 @@ contains
 
    end subroutine AllocateTile
 
-   subroutine AllocateU(RunParams, grid, k)
+   pure subroutine AllocateU(RunParams, grid, k)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -269,7 +272,7 @@ contains
       end if
    end subroutine AllocateU
 
-   subroutine AllocateTopographicData(RunParams, grid, k)
+   pure subroutine AllocateTopographicData(RunParams, grid, k)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -290,7 +293,11 @@ contains
 
       if (.not. allocated(tileContainer(k)%x)) then
          allocate (tileContainer(k)%x(nXpertile))
-         do ii = 1, nXpertile
+         ! do ii = 1, nXpertile
+         !    call GridToPhysical(RunParams, grid, grid_i, grid_j, ii, 1, x, y)
+         !    tileContainer(k)%x(ii) = x
+         ! end do
+         do concurrent (ii = 1: nXpertile)
             call GridToPhysical(RunParams, grid, grid_i, grid_j, ii, 1, x, y)
             tileContainer(k)%x(ii) = x
          end do
@@ -299,7 +306,11 @@ contains
       end if
       if (.not. allocated(tileContainer(k)%y)) then
          allocate (tileContainer(k)%y(nYpertile))
-         do jj = 1, nYpertile
+         ! do jj = 1, nYpertile
+         !    call GridToPhysical(RunParams, grid, grid_i, grid_j, 1, jj, x, y)
+         !    tileContainer(k)%y(jj) = y
+         ! end do
+         do concurrent (jj = 1: nYpertile)
             call GridToPhysical(RunParams, grid, grid_i, grid_j, 1, jj, x, y)
             tileContainer(k)%y(jj) = y
          end do
@@ -308,7 +319,11 @@ contains
       end if
       if (.not. allocated(tileContainer(k)%x_vertex)) then
          allocate (tileContainer(k)%x_vertex(nXpertile + 1))
-         do ii = 1, nXpertile
+         ! do ii = 1, nXpertile
+         !    tileContainer(k)%x_vertex(ii) = &
+         !       tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
+         ! end do
+         do concurrent (ii = 1: nXpertile)
             tileContainer(k)%x_vertex(ii) = &
                tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
          end do
@@ -317,7 +332,11 @@ contains
       end if
       if (.not. allocated(tileContainer(k)%y_vertex)) then
          allocate (tileContainer(k)%y_vertex(nYpertile + 1))
-         do jj = 1, nYpertile
+         ! do jj = 1, nYpertile
+         !    tileContainer(k)%y_vertex(jj) = &
+         !       tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
+         ! end do
+         do concurrent (jj = 1: nYpertile)
             tileContainer(k)%y_vertex(jj) = &
                tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
          end do
@@ -484,22 +503,13 @@ contains
          call EqualiseTopographicBoundaryData(RunParams, grid, tile)
       end do
 
-    !   if (RunParams%curvature) then
-    !      do i = 1, nGhosts
-    !         tile = newGhostTiles(i)
-    !         print *, 'Computing curvature for ghost tile ', tile
-    !         call ComputeTopographicCurvatures(RunParams, grid, tileContainer, tile)
-    !      end do
-    !   end if
-
-
    end subroutine AddGhostTiles
 
    ! Set the boundary data for the tile - i.e. coordinates needed for
    ! navigating the grid and boundary condition types.
    ! N.B. For now, this is a quick paste-in of code that used to be in
    ! ActivateTile so that it can be used for ghost tiles too.
-   subroutine SetTileBoundaries(RunParams, grid, ttk)
+   pure subroutine SetTileBoundaries(RunParams, grid, ttk)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -533,56 +543,59 @@ contains
       tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
       tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
       tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
-      
+
+      call UpdateNeighbourTiles(grid, ttk)
+
    end subroutine SetTileBoundaries
+
+   ! For a tile in the get, workout if the neigbour tiles are active
+   pure subroutine UpdateNeighbourTiles(grid, ttk)
+      implicit none
+      type(GridType), target, intent(inout) :: grid
+      integer, intent(in) :: ttk
+
+      type(tileType), dimension(:), pointer :: tileContainer
+
+      tileContainer => grid%tileContainer
+
+      tileContainer(ttk)%WestOn => tileContainer(tileContainer(ttk)%West)%TileOn
+      tileContainer(ttk)%EastOn => tileContainer(tileContainer(ttk)%East)%TileOn
+      tileContainer(ttk)%NorthOn => tileContainer(tileContainer(ttk)%North)%TileOn
+      tileContainer(ttk)%SouthOn => tileContainer(tileContainer(ttk)%South)%TileOn
+   end subroutine UpdateNeighbourTiles
 
    ! Determine if tile is on the edge of the domain and if so, set its
    ! neighbours to wrap around.
-   subroutine SetPeriodicBoundaryConds(grid, k)
+   pure subroutine SetPeriodicBoundaryConds(grid, k)
       implicit none
 
       type(GridType), target, intent(inout) :: grid
       integer, intent(in) :: k
 
       integer :: grid_i, grid_j
+      integer :: grid_i_plus, grid_i_minus
+      integer :: grid_j_plus, grid_j_minus
 
       type(tileType), dimension(:), pointer :: tileContainer
 
       tileContainer => grid%tileContainer
       call GridCoords(k, grid, grid_i, grid_j)
 
-      if (grid_i == 1) then
-         tileContainer(k)%neighbours(1) = TileID(grid, grid%nXtiles, grid_j)
-         if (grid_j > 1 .and. grid_j < grid%nYtiles) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid_j - 1)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, grid_j + 1)
-         else if (grid_j == 1) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid%nYtiles)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, grid_j + 1)
-         else if (grid_j == grid%nYtiles) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid_j - 1)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, 1)
-         end if
-      end if
-      if (grid_i == grid%nXtiles) then
-         tileContainer(k)%neighbours(2) = TileID(grid, 1, grid_j)
-         if (grid_j > 1 .and. grid_j < grid%nYtiles) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid_j - 1)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, grid_j + 1)
-         else if (grid_j == 1) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid%nYtiles)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, grid_j + 1)
-         else if (grid_j == grid%nYtiles) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid_j - 1)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, 1)
-         end if
-      end if
-      if (grid_j == 1) then
-         tileContainer(k)%neighbours(4) = TileID(grid, grid_i, grid%nYtiles)
-      end if
-      if (grid_j == grid%nYtiles) then
-         tileContainer(k)%neighbours(3) = TileID(grid, grid_i, 1)
-      end if
+      grid_i_plus  = WrapIndex(grid_i+1, grid%nXtiles)
+      grid_i_minus = WrapIndex(grid_i-1, grid%nXtiles)
+      grid_j_plus  = WrapIndex(grid_j+1, grid%nYtiles)
+      grid_j_minus = WrapIndex(grid_j-1, grid%nYtiles)
+
+      tileContainer(k)%neighbours(1) = TileID(grid, grid_i_minus, grid_j) ! W
+      tileContainer(k)%neighbours(2) = TileID(grid, grid_i_plus, grid_j)  ! E
+      tileContainer(k)%neighbours(3) = TileID(grid, grid_i, grid_j_plus)  ! N
+      tileContainer(k)%neighbours(4) = TileID(grid, grid_i, grid_j_minus) ! S
+
+      tileContainer(k)%cornertiles(1) = TileID(grid, grid_i_minus, grid_j_minus) ! SW
+      tileContainer(k)%cornertiles(2) = TileID(grid, grid_i_plus, grid_j_minus) ! SE
+      tileContainer(k)%cornertiles(3) = TileID(grid, grid_i_minus, grid_j_plus) ! NW
+      tileContainer(k)%cornertiles(4) = TileID(grid, grid_i_plus, grid_j_plus) ! NE
+
    end subroutine SetPeriodicBoundaryConds
 
    ! Update the u-values for a ghost tile.
@@ -708,7 +721,11 @@ contains
 
       if (TileInBounds(grid, neighbour)) then
          if (tiles(neighbour)%TileOn) then
-            do j = 1, nYpertile
+            ! do j = 1, nYpertile
+            !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
+            !                                        1, j, tiles, tID, 'W')
+            ! end do
+            do concurrent (j = 1: nYpertile)
                call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                    1, j, tiles, tID, 'W')
             end do
@@ -723,7 +740,11 @@ contains
       neighbour = grid%tileContainer(tID)%East
       if (TileInBounds(grid, neighbour)) then
          if (tiles(neighbour)%TileOn) then
-            do j = 1, nYpertile
+            ! do j = 1, nYpertile
+            !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
+            !                                        nXpertile, j, tiles, tID, 'E')
+            ! end do
+            do concurrent (j = 1: nYpertile)
                call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                    nXpertile, j, tiles, tID, 'E')
             end do
@@ -740,7 +761,11 @@ contains
 
          if (TileInBounds(grid, neighbour)) then
             if (tiles(neighbour)%TileOn) then
-               do i = 1, nXpertile
+               ! do i = 1, nXpertile
+               !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
+               !                                        i, 1, tiles, tID, 'S')
+               ! end do
+               do concurrent (i = 1: nXpertile)
                   call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                       i, 1, tiles, tID, 'S')
                end do
@@ -755,7 +780,11 @@ contains
          neighbour = grid%tileContainer(tID)%North
          if (TileInBounds(grid, neighbour)) then
             if (tiles(neighbour)%TileOn) then
-               do i = 1, nXpertile
+               ! do i = 1, nXpertile
+               !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
+               !                                        i, nYpertile, tiles, tID, 'N')
+               ! end do
+               do concurrent (i = 1: nXpertile)
                   call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                       i, nYpertile, tiles, tID, 'N')
                end do

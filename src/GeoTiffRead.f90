@@ -37,6 +37,7 @@ module geotiffread_module
    public :: RasterInfo
    public :: GetRasterSection
    public :: BuildDEMVRT_raster
+   public :: BuildDEM_raster
    public :: BuildDEMVRT_srtm
 
 ! Interfaces to access C memory allocation from Fortran
@@ -104,6 +105,24 @@ module geotiffread_module
         real(kind=c_double), intent(in) :: xres
         real(kind=c_double), intent(in) :: yres
      end subroutine BuildDEMVRT_srtm
+
+     subroutine BuildDEM_raster(cpath, csrtmpath, cgeotifname, utmEPSG, embed, vrt, nthreads, minE, maxE, minN, maxN, xres, yres) bind(C,name="BuildDEM_raster")
+        use iso_C_binding
+        implicit none
+        character(len=1,kind=c_char), intent(in) :: cpath(*)
+        character(len=1,kind=c_char), intent(in) :: csrtmpath(*)
+        character(len=1,kind=c_char), intent(in) :: cgeotifname(*)
+        integer(kind=c_int), intent(in) :: utmEPSG
+        logical(kind=c_bool), intent(in) :: embed
+        logical(kind=c_bool), intent(in) :: vrt
+        integer(kind=c_int), intent(in) :: nthreads
+        real(kind=c_double), intent(in) :: minE
+        real(kind=c_double), intent(in) :: maxE
+        real(kind=c_double), intent(in) :: minN
+        real(kind=c_double), intent(in) :: maxN
+        real(kind=c_double), intent(in) :: xres
+        real(kind=c_double), intent(in) :: yres
+     end subroutine BuildDEM_raster
 
    end interface
 

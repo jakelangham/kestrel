@@ -24,7 +24,7 @@
 ! Some input validation is performed, producing Warning or FatalError messages.
 module topog_settings_module
 
-   use iso_c_binding, only: c_bool
+   use iso_c_binding, only: c_bool, c_int
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use varstring_module, only: varString
@@ -40,7 +40,9 @@ module topog_settings_module
 
    ! default values
    logical(kind=c_bool), parameter :: EmbedRaster_d = .FALSE.
+   logical(kind=c_bool), parameter :: VRTfile_d = .TRUE.
    logical, parameter :: RebuildDEM_d = .TRUE.
+   integer(kind=c_int), parameter :: GdalThreads_d = 1
 
 contains
 
@@ -63,6 +65,8 @@ contains
       type(varString) :: TopogFuncStr
       type(varString) :: SRTMPath
       type(varString) :: EmbedRaster
+      type(varString) :: VRT
+      type(varString) :: GdalThreads
       type(varString) :: RebuildDEM
 
       integer :: J, N
@@ -74,6 +78,8 @@ contains
       logical :: set_Topog_params
       logical :: set_RasterFile
       logical :: set_EmbedRaster
+      logical :: set_vrt
+      logical :: set_GdalThreads
       logical :: set_RebuildDEM
 
       character(len=4096) :: cwd
@@ -87,6 +93,8 @@ contains
       set_TopogFunc=.FALSE.
       set_Topog_params=.FALSE.
       set_EmbedRaster=.FALSE.
+      set_vrt=.FALSE.
+      set_GdalThreads=.FALSE.
       set_RebuildDEM=.FALSE.
 
       do J=1,N
@@ -113,6 +121,12 @@ contains
             case ('embed raster')
                set_EmbedRaster=.TRUE.
                EmbedRaster = TopogValues(J)%to_lower()
+            case ('vrt file')
+                set_vrt=.TRUE.
+                VRT = TopogValues(J)%to_lower()
+            case ('gdal threads')
+                set_GdalThreads=.TRUE.
+                GdalThreads = TopogValues(J)
             case ('rebuild dem')
                set_RebuildDEM=.TRUE.
                RebuildDEM = TopogValues(J)%to_lower()
@@ -180,6 +194,27 @@ contains
                   // " 'SRTM directory' is not given.")
             end if
             RunParams%SRTMPath = PathTrail(SRTMPath)
+         end if
+
+         ! Check VRT is set
+         if (.not.set_vrt) then
+            RunParams%VRTfile = VRTfile_d
+         else
+            select case (VRT%s)
+               case ('on','yes')
+                  RunParams%VRTfile = .TRUE.
+               case ('off','no')
+                  RunParams%VRTfile = .FALSE.
+               case default
+                  RunParams%VRTfile = VRTfile_d
+            end select
+         end if
+
+         ! Check GdalThreads is set
+         if (.not.set_GdalThreads) then
+            RunParams%GdalThreads = GdalThreads_d
+         else
+            RunParams%GdalThreads = GdalThreads%to_int()
          end if
 
          RunParams%Georeference = .TRUE.

@@ -288,6 +288,8 @@ module runsettings_module
       ! Settings for 'sponge layer' to damp out flow near domain edge.
       logical :: SpongeLayer
       real(kind=wp) :: SpongeStrength
+      integer :: nBlur ! number of box blur iterations for smoothing second derivative computation of topography (= 0 for no blur)
+      integer :: BlurPixelWidth ! width of the blur in pixels
 
    ! -- Output settings. --
       ! Various output file names.
@@ -327,6 +329,8 @@ module runsettings_module
       real(kind=wp), dimension(:), allocatable :: TopogFuncParams
       type(FortranRasterData) :: SRTMtiles
       logical(kind=c_bool) :: EmbedRaster
+      logical(kind=c_bool) :: VRTfile
+      integer(kind=c_int) :: GdalThreads
       logical :: RebuildDEM
       logical :: Georeference ! Georeference only if using a DEM or SRTM
 

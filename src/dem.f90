@@ -34,7 +34,7 @@ module dem_module
    use messages_module, only: InfoMessage, WarningMessage, FatalErrorMessage
    use varstring_module, only: varString
    use interpolate_2d_module, only: Bicubic
-   use geotiffread_module, only: RasterInfo, GetRasterSection, BuildDEMVRT_srtm, BuildDEMVRT_raster
+   use geotiffread_module, only: RasterInfo, GetRasterSection, BuildDEMVRT_srtm, BuildDEMVRT_raster, BuildDEM_raster
    use topog_funcs_module, only: TopogFunc
 
    implicit none
@@ -45,20 +45,27 @@ module dem_module
 
 contains
 
-   function CheckDEMvrtExists(RunParams) result(exists)
+   function CheckDEMExists(RunParams) result(exists)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       logical :: exists
 
       type(varString) :: dem_file
+      type(varString) :: ext
 
-      dem_file = RunParams%out_path + 'DEM.vrt'
+      if (RunParams%VRTfile) then
+         ext = varString('.vrt')
+      else
+         ext = varString('.tif')
+      end if
+
+      dem_file = RunParams%out_path + 'DEM' + ext
       exists = CheckFileExists(dem_file)
 
       return
 
-   end function CheckDEMvrtExists
+   end function CheckDEMExists
 
    function CheckDEMProperties(RunParams, deltaX, deltaY, dem_path, dem_file) result(good_dem)
       implicit none
@@ -134,9 +141,11 @@ contains
       logical(kind=C_BOOL) :: raster
 
       type(varString) :: geotif
+      type(varString) :: demfile
       character(len=1,kind=c_char) :: cgeotif(len_trim(trim(RunParams%demPath%s))+len_trim(RunParams%RasterFile%s) + 1)
       logical :: FileExists
       logical :: dem_exists, good_dem
+      
 
       if (present(interp_flag_in)) interp_flag = interp_flag_in
 
@@ -145,24 +154,29 @@ contains
 
       call DomainExtent(RunParams, deltaX, deltaY, minE, maxE, minN, maxN, res, pad=.True.)
 
-      dem_exists = CheckDEMvrtExists(RunParams)
+      dem_exists = CheckDEMExists(RunParams)
 
       if (.not. RunParams%RebuildDEM) then
-         ! Requested to use existing DEM.vrt file.  Check this exists
+         ! Requested to use existing DEM file.  Check this exists
+         if (RunParams%VRTfile) then
+            demfile = varString("DEM.vrt")
+         else
+            demfile = varString("DEM.tif")
+         end if
          if (dem_exists) then
-            ! DEM.vrt exists, so check it covers the domain and has the correct resolution
-            good_dem = CheckDEMProperties(RunParams, deltaX, deltaY, RunParams%out_path, varString("DEM.vrt"))
+            ! DEM exists, so check it covers the domain and has the correct resolution
+            good_dem = CheckDEMProperties(RunParams, deltaX, deltaY, RunParams%out_path, demfile)
             if (good_dem) then
-               ! DEM.vrt is good -- report and return
+               ! DEM is good -- report and return
                call InfoMessage("Using existing DEM.vrt file.")
                return
             else
-               ! DEM.vrt is not good -- warn and move on to rebuild
-               call WarningMessage("DEM.vrt is not compatible with domain extent and/or resolution. Rebuilding DEM.")
+               ! DEM is not good -- warn and move on to rebuild
+               call WarningMessage(demfile%s // " is not compatible with domain extent and/or resolution. Rebuilding DEM.")
             end if
          else
             ! DEM.vrt does not exist, so warn and move on to rebuild.
-            call WarningMessage("DEM.vrt not found in "//RunParams%out_path%s// ". Building DEM.")
+            call WarningMessage(demfile%s // " not found in "//RunParams%out_path%s// ". Building DEM.")
          end if
       end if
 
@@ -186,11 +200,21 @@ contains
          end if
          raster = .TRUE.
 
-         call BuildDEMVRT_raster(cpath, &
+         ! call BuildDEMVRT_raster(cpath, &
+         !                  csrtmpath, &
+         !                  cgeotif, &
+         !                  RunParams%utmEPSG, &
+         !                  RunParams%EmbedRaster, &
+         !                  minE, maxE, minN, maxN, &
+         !                  real(res%first, kind=c_double), real(res%second, kind=c_double))
+
+         call BuildDEM_raster(cpath, &
                           csrtmpath, &
                           cgeotif, &
                           RunParams%utmEPSG, &
                           RunParams%EmbedRaster, &
+                          RunParams%VRTfile, &
+                          RunParams%GdalThreads, &
                           minE, maxE, minN, maxN, &
                           real(res%first, kind=c_double), real(res%second, kind=c_double))
 
@@ -295,7 +319,11 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
-      fname = varString("DEM.vrt")
+      if (RunParams%VRTfile) then
+         fname = varString("DEM.vrt")
+      else
+         fname = varString("DEM.tif")
+      end if
 
       inquire(file=RunParams%out_path%s // fname%s, exist=FileExists)
       if (.not.FileExists) then
@@ -309,11 +337,11 @@ contains
       rasterOX = rasterFull%originX
       rasterOY = rasterFull%originY
 
-      tileNW%first  = RunParams%centerUTM%first + (xtile(1) - 0.5 * deltaX)
-      tileNW%second = RunParams%centerUTM%second + (ytile(nYpertile+1) + 0.5 * deltaY)
+      tileNW%first  = RunParams%centerUTM%first + (xtile(1) - 0.5_wp * deltaX)
+      tileNW%second = RunParams%centerUTM%second + (ytile(nYpertile+1) + 0.5_wp * deltaY)
 
-      tileSE%first  = RunParams%centerUTM%first + (xtile(nXpertile+1) + 0.5 * deltaX)
-      tileSE%second = RunParams%centerUTM%second + (ytile(1) - 0.5 * deltaY)
+      tileSE%first  = RunParams%centerUTM%first + (xtile(nXpertile+1) + 0.5_wp * deltaX)
+      tileSE%second = RunParams%centerUTM%second + (ytile(1) - 0.5_wp * deltaY)
 
       call GetRasterData(path=RunParams%out_path, filename=fname, tileNW=tileNW, tileSE=tileSE, rdata=rasterFull, &
          defaultValue=0.0_wp, &
@@ -343,11 +371,7 @@ contains
          end do
       else
 
-         do i=1,nXpertile+1
-            do j=1,nYpertile+1
-               b0(i,j) = -999_wp
-            end do
-         end do
+        b0(:,:) = -999_wp
 
       end if
 
@@ -443,11 +467,11 @@ contains
 
       ! Get domain box NW point -- if pad==True add an additional tile buffer on each side
       if (pad_domain) then
-         distxy%first  = (-0.5_wp*(RunParams%nXtiles+2)*RunParams%Xtilesize - 0.5_wp*deltaX)
-         distxy%second = (0.5_wp*(RunParams%nYtiles+2)*RunParams%Ytilesize + 0.5_wp*deltaY)
+         distxy%first  = -0.5_wp * ((RunParams%nXtiles+2)*RunParams%Xtilesize + deltaX)
+         distxy%second =  0.5_wp * ((RunParams%nYtiles+2)*RunParams%Ytilesize + deltaY)
       else
-         distxy%first =  RunParams%centerUTM%first  + (-0.5_wp*(RunParams%nXtiles)*RunParams%Xtilesize - 0.5_wp*deltaX)
-         distxy%second = RunParams%centerUTM%second + (0.5_wp*(RunParams%nYtiles)*RunParams%Ytilesize + 0.5_wp*deltaY)
+         distxy%first =  RunParams%centerUTM%first  - 0.5_wp * ((RunParams%nXtiles)*RunParams%Xtilesize + deltaX)
+         distxy%second = RunParams%centerUTM%second + 0.5_wp * ((RunParams%nYtiles)*RunParams%Ytilesize + deltaY)
       end if
 
       minE  = RunParams%centerUTM%first + distxy%first
@@ -455,11 +479,11 @@ contains
 
       ! Get domain box SE point -- if pad==True add an additional tile buffer
       if (pad_domain) then
-         distxy%first = (0.5_wp*(RunParams%nXtiles+2)*RunParams%Xtilesize + 0.5_wp*deltaX)
-         distxy%second = (-0.5_wp*(RunParams%nYtiles+2)*RunParams%Ytilesize - 0.5_wp*deltaY)
+         distxy%first  =  0.5_wp * ((RunParams%nXtiles+2)*RunParams%Xtilesize + deltaX)
+         distxy%second = -0.5_wp * ((RunParams%nYtiles+2)*RunParams%Ytilesize + deltaY)
       else
-         distxy%first = (0.5_wp*(RunParams%nXtiles)*RunParams%Xtilesize + 0.5_wp*deltaX)
-         distxy%second = (-0.5_wp*(RunParams%nYtiles)*RunParams%Ytilesize - 0.5_wp*deltaY)
+         distxy%first  =  0.5_wp * ((RunParams%nXtiles)*RunParams%Xtilesize + deltaX)
+         distxy%second = -0.5_wp * ((RunParams%nYtiles)*RunParams%Ytilesize + deltaY)
       end if
 
       maxE  = RunParams%centerUTM%first + distxy%first

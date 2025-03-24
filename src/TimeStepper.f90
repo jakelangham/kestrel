@@ -370,7 +370,23 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+
+      !    call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed0, .false.)
+
+      !    do k = 1, nFlux
+      !       var = RunParams%iFlux(k)
+      !       if (RunParams%ImplicitStep(var)) then
+      !          intermed1(ttk)%u(var,:,:) = (intermed0(ttk)%u(var,:,:) + &
+      !             thisdt * intermed0(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed0(ttk)%ddtImplicit(var,:,:))
+      !       else
+      !          intermed1(ttk)%u(var, :, :) = intermed0(ttk)%u(var, :, :) + &
+      !             thisdt * intermed0(ttk)%ddtExplicit(var, :, :)
+      !       end if
+      !    end do
+      ! end do ! end first substep
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
 
          call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed0, .false.)
@@ -406,7 +422,45 @@ contains
       end if
 
       ! Compute second substep.
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+
+      !    call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed1, .false.)
+
+      !    do k = 1, nFlux
+      !       var = RunParams%iFlux(k)
+      !       if (RunParams%ImplicitStep(var)) then
+      !          intermed2(ttk)%u(var,:,:) = &
+      !             0.75_wp * intermed0(ttk)%u(var,:,:) + &
+      !             0.25_wp * (intermed1(ttk)%u(var,:,:) + &
+      !             thisdt * intermed1(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed1(ttk)%ddtImplicit(var,:,:))
+      !       else if (var == RunParams%Vars%w) then
+      !          ! This way of doing the explicit update for w makes sure that
+      !          ! if hp = 0 (for intermed{0,1}) and ddtExplicit1 = 0 then
+      !          ! there is no update. Otherwise, finite precision errors when
+      !          ! splitting up the expression can lead to (small) negative depths
+      !          ! when flow is very shallow. Same for the intermed3 update below.
+      !          hp_old = -intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+      !          hp_old = hp_old + (intermed0(ttk)%u(RunParams%Vars%w, :, :) - &
+      !                             intermed0(ttk)%u(RunParams%Vars%b0, :, :))
+      !          hp_new = -intermed1(ttk)%u(RunParams%Vars%bt, :, :)
+      !          hp_new = hp_new + (intermed1(ttk)%u(RunParams%Vars%w, :, :) - &
+      !                             intermed1(ttk)%u(RunParams%Vars%b0, :, :))
+      !          w_update = intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+      !          w_update = w_update + 0.25_wp * hp_new
+      !          w_update = w_update + 0.75_wp * hp_old
+      !          w_update = w_update + 0.25_wp * thisdt * intermed1(ttk)%ddtExplicit(var, :, :)
+      !          w_update = w_update + intermed0(ttk)%u(RunParams%Vars%b0, :, :)
+      !          intermed2(ttk)%u(var, :, :) = w_update
+      !       else
+      !          intermed2(ttk)%u(var,:,:) = &
+      !             0.75_wp * intermed0(ttk)%u(var,:,:) + &
+      !             0.25_wp * (intermed1(ttk)%u(var,:,:) + &
+      !             thisdt * intermed1(ttk)%ddtExplicit(var,:,:))
+      !       end if
+      !    end do
+      ! end do ! end second substep
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
 
          call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed1, .false.)
@@ -465,7 +519,40 @@ contains
       end if
 
       ! Compute third substep.
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+
+      !    call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed2, .false.)
+
+      !    do k = 1, nFlux
+      !       var = RunParams%iFlux(k)
+      !       if (RunParams%ImplicitStep(var)) then
+      !          intermed3(ttk)%u(var,:,:) = &
+      !             (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
+      !             (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
+      !             thisdt * intermed2(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed2(ttk)%ddtImplicit(var,:,:))
+      !       else if (var == RunParams%Vars%w) then
+      !          hp_old = -intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+      !          hp_old = hp_old + (intermed0(ttk)%u(RunParams%Vars%w, :, :) - &
+      !                             intermed0(ttk)%u(RunParams%Vars%b0, :, :))
+      !          hp_new = -intermed2(ttk)%u(RunParams%Vars%bt, :, :)
+      !          hp_new = hp_new + (intermed2(ttk)%u(RunParams%Vars%w, :, :) - &
+      !                             intermed2(ttk)%u(RunParams%Vars%b0, :, :))
+      !          w_update = intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+      !          w_update = w_update + (1.0_wp/3.0_wp) * hp_old
+      !          w_update = w_update + (2.0_wp/3.0_wp) * hp_new
+      !          w_update = w_update + (2.0_wp/3.0_wp) * thisdt * intermed2(ttk)%ddtExplicit(var, :, :)
+      !          w_update = w_update + intermed0(ttk)%u(RunParams%Vars%b0, :, :)
+      !          intermed3(ttk)%u(var, :, :) = w_update
+      !       else
+      !          intermed3(ttk)%u(var,:,:) = &
+      !             (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
+      !             (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
+      !             thisdt * intermed2(ttk)%ddtExplicit(var,:,:))
+      !       end if
+      !    end do
+      ! end do ! end third substep
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
 
          call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed2, .false.)
@@ -499,11 +586,34 @@ contains
          end do
       end do ! end third substep
 
+
       ! Compute new RHS from third substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+
+      !    call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed3, .false.)
+
+      !    do k = 1, nFlux
+      !       var = RunParams%iFlux(k)
+      !       if (RunParams%ImplicitStep(var)) then
+      !          intermed3(ttk)%u(var,:,:) = &
+      !             (intermed3(ttk)%u(var,:,:) - &
+      !             thisdt * thisdt * intermed3(ttk)%ddtExplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:)) / &
+      !             (1.0_wp + thisdt * thisdt * intermed3(ttk)%ddtImplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:))
+      !       end if
+      !    end do
+
+      !    call ComputeDesingularisedVariables(RunParams, tileContainer, ttk, .true.)
+      !    call UpdateMaximumHeights(RunParams, tileContainer(ttk), nextT)
+      !    call UpdateMaximumSpeeds(RunParams, tileContainer(ttk), nextT)
+      !    call UpdateMaximumErosion(RunParams, tileContainer(ttk), nextT)
+      !    call UpdateMaximumDeposit(RunParams, tileContainer(ttk), nextT)
+      !    call UpdateMaximumSolidsFraction(RunParams, tileContainer(ttk), nextT)
+      ! end do ! end final implicit substep
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
 
          call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed3, .false.)
@@ -793,14 +903,28 @@ contains
       integer :: tt, ttk
 
       ! Copy data over to the intermediate time stepping arrays
-      do tt = 1, nActiveTiles
+      ! do tt = 1, nActiveTiles
+      !    ttk = grid%activeTiles%List(tt)
+      !    grid%intermed0(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed1(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed2(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed3(ttk) = grid%tileContainer(ttk)
+      ! end do
+      ! do tt = 1, grid%ghostTiles%size
+      !    ttk = grid%ghostTiles%List(tt)
+      !    grid%intermed0(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed1(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed2(ttk) = grid%tileContainer(ttk)
+      !    grid%intermed3(ttk) = grid%tileContainer(ttk)
+      ! end do
+      do concurrent (tt = 1: nActiveTiles)
          ttk = grid%activeTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
          grid%intermed1(ttk) = grid%tileContainer(ttk)
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
-      do tt = 1, grid%ghostTiles%size
+      do concurrent (tt = 1: grid%ghostTiles%size)
          ttk = grid%ghostTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
          grid%intermed1(ttk) = grid%tileContainer(ttk)
@@ -825,7 +949,16 @@ contains
 
       call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
 
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+      !    tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
+      !    tilesto(ttk)%ddtExplicit(:, :, :) = tilesfrom(ttk)%ddtExplicit(:, :, :)
+      !    tilesto(ttk)%ddtImplicit(:, :, :) = tilesfrom(ttk)%ddtImplicit(:, :, :)
+      !    if (RunParams%MorphodynamicsOn) then
+      !       tilesto(ttk)%ddtExplicitBt(:, :) = tilesfrom(ttk)%ddtExplicitBt(:, :)
+      !    end if
+      ! end do
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
          tilesto(ttk)%ddtExplicit(:, :, :) = tilesfrom(ttk)%ddtExplicit(:, :, :)
@@ -850,7 +983,46 @@ contains
 
       activeTiles => grid%activeTiles
 
-      do tt = 1, ActiveTiles%Size
+      ! do tt = 1, ActiveTiles%Size
+      !    ttk = ActiveTiles%List(tt)
+      !    tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
+      !    tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
+      !    tilesto(ttk)%u(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxx, :, :)
+      !    tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
+
+      !    tilesto(ttk)%uPlusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%bt, :, :)
+      !    tilesto(ttk)%uMinusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%bt, :, :)
+      !    tilesto(ttk)%uPlusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdx, :, :)
+      !    tilesto(ttk)%uMinusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdx, :, :)
+      !    tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :)
+      !    tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :)
+      !    if (.not. RunParams%isOneD) then
+      !       tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
+      !       tilesto(ttk)%u(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdyy, :, :)
+      !       tilesto(ttk)%u(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxy, :, :)
+
+      !       tilesto(ttk)%uPlusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdy, :, :)
+      !       tilesto(ttk)%uMinusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdy, :, :)
+      !       tilesto(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :)
+      !       tilesto(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :)
+      !       tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :)
+      !       tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :)
+
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%bt, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%bt, :, :)
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdx, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdx, :, :)
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdy, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :)
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :)
+      !       tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :)
+      !       tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :)
+      !    end if
+      ! end do
+      do concurrent (tt = 1: ActiveTiles%Size)
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
          tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
@@ -893,7 +1065,7 @@ contains
 
    ! Sponge layer modifications to explicit time stepping terms.
    ! morpho_flag = are we in the morphodynamic operator or not?
-   subroutine ApplySpongeLayer(RunParams, ttk, tileContainer, intermed, morpho_flag)
+   pure subroutine ApplySpongeLayer(RunParams, ttk, tileContainer, intermed, morpho_flag)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -971,10 +1143,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttN
-      real(kind=wp), dimension(:), allocatable :: Hn
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -985,31 +1156,25 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
-      allocate(Hn(RunParams%nYpertile))
+      allocate(Hn(nXpertile, buffer))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttN = tileContainer(ttk)%North 
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttN > 0 .and. (.not. tileContainer(ttN)%TileOn)) then
-            ydist = 0
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = nYpertile, 1, -1
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist > (RunParams%nYpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttN, RunParams)
-                  exit
-               end if
-            end do
+         if (.not. tileContainer(ttk)%NorthOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, (nYpertile - buffer + 1):nYpertile)
+
+            if (any(Hn > RunParams%heightThreshold)) then
+               ttN = tileContainer(ttk)%North 
+               call AddTile(grid, ttN, RunParams)
+            end if
          end if
       end do
 
@@ -1024,10 +1189,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttE
-      real(kind=wp), dimension(:), allocatable :: Hn
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1038,31 +1202,25 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
-      allocate(Hn(RunParams%nXpertile))
+      allocate(Hn(buffer, nYpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttE = tileContainer(ttk)%East
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttE > 0 .and. (.not. tileContainer(ttE)%TileOn)) then
-            xdist = 0
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = nXpertile, 1, -1
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist > (RunParams%nXpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttE, RunParams)
-                  exit
-               end if
-            end do
+         if (.not. tileContainer(ttk)%EastOn) then
+            
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, (nXpertile-buffer+1):nXpertile, :)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+               ttE = tileContainer(ttk)%East
+               call AddTile(grid, ttE, RunParams)
+            end if
          end if
       end do
 
@@ -1077,10 +1235,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttS
-      real(kind=wp), dimension(:), allocatable :: Hn
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1091,31 +1248,25 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
-      allocate(Hn(RunParams%nYpertile))
+      allocate(Hn(nXpertile, buffer))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttS = tileContainer(ttk)%South
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttS > 0 .and. (.not. tileContainer(ttS)%TileOn)) then
-            ydist = nYpertile
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = 1, nYpertile
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttS, RunParams)
-                  exit
-               end if
-            end do
+         if (.not. tileContainer(ttk)%SouthOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, 1:buffer)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+               ttS = tileContainer(ttk)%South
+               call AddTile(grid, ttS, RunParams)
+            end if
          end if
       end do
 
@@ -1130,10 +1281,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttW
-      real(kind=wp), dimension(:), allocatable :: Hn
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1144,40 +1294,34 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
-      allocate(Hn(RunParams%nXpertile))
+      allocate(Hn(buffer,nYpertile))
 
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttW = tileContainer(ttk)%West
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttW > 0 .and. (.not. tileContainer(ttW)%TileOn)) then
-            xdist = nXpertile
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = 1, nXpertile
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttW, RunParams)
-                  exit
-               end if
-            end do
+         if (.not. tileContainer(ttk)%WestOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, 1:buffer, :)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+               ttW = tileContainer(ttk)%West
+               call AddTile(grid, ttW, RunParams)
+            end if
          end if
       end do
-
+      
    end subroutine NearWestBoundary
 
 ! The remaining routines below are used for updating data the tracts the maximum
 ! values of various observables over the length of the simulation. 
 
-   subroutine UpdateMaximumHeights(RunParams, tile, t)
+   pure subroutine UpdateMaximumHeights(RunParams, tile, t)
 
       implicit none
 
@@ -1206,7 +1350,7 @@ contains
 
    end subroutine UpdateMaximumHeights
 
-   subroutine UpdateMaximumSpeeds(RunParams, tile, t)
+   pure subroutine UpdateMaximumSpeeds(RunParams, tile, t)
 
       implicit none
 
@@ -1220,30 +1364,38 @@ contains
 
       iHn = RunParams%Vars%Hn
 
-      do jj = 1, RunParams%nYpertile
-         do ii = 1, RunParams%nXpertile
+!       do jj = 1, RunParams%nYpertile
+!          do ii = 1, RunParams%nXpertile
+!             spd = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, tile%u(:, ii, jj)))
+! #if DEBUG_SPD==1 || DEBUG_SPD==2
+!             if (spd > 50.0_wp) then
+!                call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
+!                    Int2String(ii) // ',' // Int2String(jj))
+!                write (*, *) '    spd = ', spd, ' : Hn above threshold? ', (tile%u(iHn, ii, jj) > RunParams%heightThreshold)
+! #if DEBUG_SPD==2
+!                call exit(1)
+! #endif
+!             end if
+! #endif
+!             if ((spd > tile%umax(ii, jj, 1)) .and. &
+!                 (tile%u(iHn, ii, jj) > RunParams%heightThreshold)) then
+!                tile%umax(ii, jj, 1) = spd
+!                tile%umax(ii, jj, 2) = t
+!             end if
+!          end do
+!       end do
+      do concurrent (jj = 1: RunParams%nYpertile, ii = 1: RunParams%nXpertile)
             spd = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, tile%u(:, ii, jj)))
-#if DEBUG_SPD==1 || DEBUG_SPD==2
-            if (spd > 50.0_wp) then
-               call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
-                   Int2String(ii) // ',' // Int2String(jj))
-               write (*, *) '    spd = ', spd, ' : Hn above threshold? ', (tile%u(iHn, ii, jj) > RunParams%heightThreshold)
-#if DEBUG_SPD==2
-               call exit(1)
-#endif
-            end if
-#endif
             if ((spd > tile%umax(ii, jj, 1)) .and. &
                 (tile%u(iHn, ii, jj) > RunParams%heightThreshold)) then
                tile%umax(ii, jj, 1) = spd
                tile%umax(ii, jj, 2) = t
             end if
-         end do
       end do
 
    end subroutine UpdateMaximumSpeeds
 
-   subroutine UpdateMaximumErosion(RunParams, tile, t)
+   pure subroutine UpdateMaximumErosion(RunParams, tile, t)
 
       implicit none
 
@@ -1257,21 +1409,30 @@ contains
 
       ibt = RunParams%Vars%bt
 
-      do jj = 1, RunParams%nYpertile
-         do ii = 1, RunParams%nXpertile
-            bt = tile%u(ibt, ii, jj)
-            if (bt < 0) then
-               if (-bt > tile%emax(ii, jj, 1)) then
-                  tile%emax(ii, jj, 1) = -bt
-                  tile%emax(ii, jj, 2) = t
-               end if
+      ! do jj = 1, RunParams%nYpertile
+      !    do ii = 1, RunParams%nXpertile
+      !       bt = tile%u(ibt, ii, jj)
+      !       if (bt < 0) then
+      !          if (-bt > tile%emax(ii, jj, 1)) then
+      !             tile%emax(ii, jj, 1) = -bt
+      !             tile%emax(ii, jj, 2) = t
+      !          end if
+      !       end if
+      !    end do
+      ! end do
+      do concurrent (jj = 1: RunParams%nYpertile, ii = 1: RunParams%nXpertile)
+         bt = tile%u(ibt, ii, jj)
+         if (bt < 0) then
+            if (-bt > tile%emax(ii, jj, 1)) then
+               tile%emax(ii, jj, 1) = -bt
+               tile%emax(ii, jj, 2) = t
             end if
-         end do
+         end if
       end do
 
    end subroutine UpdateMaximumErosion
 
-   subroutine UpdateMaximumDeposit(RunParams, tile, t)
+   pure subroutine UpdateMaximumDeposit(RunParams, tile, t)
 
       implicit none
 
@@ -1285,21 +1446,30 @@ contains
 
       ibt = RunParams%Vars%bt
 
-      do jj = 1, RunParams%nYpertile
-         do ii = 1, RunParams%nXpertile
-            bt = tile%u(ibt, ii, jj)
-            if (bt > 0) then
-               if (bt > tile%dmax(ii, jj, 1)) then
-                  tile%dmax(ii, jj, 1) = bt
-                  tile%dmax(ii, jj, 2) = t
-               end if
+      ! do jj = 1, RunParams%nYpertile
+      !    do ii = 1, RunParams%nXpertile
+      !       bt = tile%u(ibt, ii, jj)
+      !       if (bt > 0) then
+      !          if (bt > tile%dmax(ii, jj, 1)) then
+      !             tile%dmax(ii, jj, 1) = bt
+      !             tile%dmax(ii, jj, 2) = t
+      !          end if
+      !       end if
+      !    end do
+      ! end do
+      do concurrent (jj = 1: RunParams%nYpertile, ii = 1: RunParams%nXpertile)
+         bt = tile%u(ibt, ii, jj)
+         if (bt > 0) then
+            if (bt > tile%dmax(ii, jj, 1)) then
+               tile%dmax(ii, jj, 1) = bt
+               tile%dmax(ii, jj, 2) = t
             end if
-         end do
+         end if
       end do
 
    end subroutine UpdateMaximumDeposit
 
-   subroutine UpdateMaximumSolidsFraction(RunParams, tile, t)
+   pure subroutine UpdateMaximumSolidsFraction(RunParams, tile, t)
 
       implicit none
 
@@ -1314,16 +1484,25 @@ contains
       iHn = RunParams%Vars%Hn
       ipsi = RunParams%Vars%psi
 
-      do jj = 1, RunParams%nYpertile
-         do ii = 1, RunParams%nXpertile
-            psi = tile%u(ipsi, ii, jj)
-            if (tile%u(iHn, ii, jj) > RunParams%heightThreshold) then
-               if (psi > tile%psimax(ii, jj, 1)) then
-                  tile%psimax(ii, jj, 1) = psi
-                  tile%psimax(ii, jj, 2) = t
-               end if
+      ! do jj = 1, RunParams%nYpertile
+      !    do ii = 1, RunParams%nXpertile
+      !       psi = tile%u(ipsi, ii, jj)
+      !       if (tile%u(iHn, ii, jj) > RunParams%heightThreshold) then
+      !          if (psi > tile%psimax(ii, jj, 1)) then
+      !             tile%psimax(ii, jj, 1) = psi
+      !             tile%psimax(ii, jj, 2) = t
+      !          end if
+      !       end if
+      !    end do
+      ! end do
+      do concurrent (jj = 1: RunParams%nYpertile, ii = 1: RunParams%nXpertile)
+         psi = tile%u(ipsi, ii, jj)
+         if (tile%u(iHn, ii, jj) > RunParams%heightThreshold) then
+            if (psi > tile%psimax(ii, jj, 1)) then
+               tile%psimax(ii, jj, 1) = psi
+               tile%psimax(ii, jj, 2) = t
             end if
-         end do
+         end if
       end do
 
    end subroutine UpdateMaximumSolidsFraction

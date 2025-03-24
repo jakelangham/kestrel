@@ -33,24 +33,54 @@ module equations_module
 
    private
    public :: XConvectionFlux
+   private :: XConvectionFlux_with_gam, XConvectionFlux_without_gam
    public :: YConvectionFlux
+   private :: YConvectionFlux_with_gam, YConvectionFlux_without_gam
    public :: XHydrostaticFlux
    public :: YHydrostaticFlux
    public :: XDiffusionFlux
    public :: YDiffusionFlux
    public :: XMaxWaveSpeeds
+   private :: XMaxWaveSpeeds_with_gam, XMaxWaveSpeeds_without_gam
    public :: XMinWaveSpeeds
+   private :: XMinWaveSpeeds_with_gam, XMinWaveSpeeds_without_gam
    public :: YMaxWaveSpeeds
+   private :: YMaxWaveSpeeds_with_gam, YMaxWaveSpeeds_without_gam
    public :: YMinWaveSpeeds
+   private :: YMinWaveSpeeds_with_gam, YMinWaveSpeeds_without_gam
    public :: ErosionDepositionTerms
    public :: ExplicitSourceTerms
    public :: ImplicitSourceTerms
+
+   interface XConvectionFlux
+      module procedure :: XConvectionFlux_with_gam, XConvectionFlux_without_gam
+   end interface
+
+   interface YConvectionFlux
+      module procedure :: YConvectionFlux_with_gam, YConvectionFlux_without_gam
+   end interface
+
+   interface XMaxWaveSpeeds
+      module procedure :: XMaxWaveSpeeds_with_gam, XMaxWaveSpeeds_without_gam
+   end interface
+
+   interface XMinWaveSpeeds
+      module procedure :: XMinWaveSpeeds_with_gam, XMinWaveSpeeds_without_gam
+   end interface
+
+   interface YMaxWaveSpeeds
+      module procedure :: YMaxWaveSpeeds_with_gam, YMaxWaveSpeeds_without_gam
+   end interface
+
+   interface YMinWaveSpeeds
+      module procedure :: YMinWaveSpeeds_with_gam, YMinWaveSpeeds_without_gam
+   end interface
 
 contains
 
    ! Compute convection fluxes in the x direction for each of the governing
    ! equations and store in the vector xFlux.
-   pure subroutine XConvectionFlux(RunParams, u, xFlux)
+   pure subroutine XConvectionFlux_without_gam(RunParams, u, xFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -58,7 +88,7 @@ contains
       real(kind=wp), dimension(:), intent(out) :: xFlux(size(RunParams%iFlux))
 
       integer :: iw, iu, irhoHnu, irhoHnv, iHnpsi, iHn, irho
-      real(kind=wp) :: gam
+      real(kind=wp) :: gam, ugam
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -69,16 +99,45 @@ contains
       irho = RunParams%Vars%rho
 
       gam = GeometricCorrectionFactor(RunParams, u)
-      xFlux(iw) = u(iHn) * u(iu) * gam
-      xFlux(iHnpsi) = u(iHnpsi) * u(iu) * gam
+      ugam = u(iu) * gam
+      xFlux(iw) = u(iHn) * ugam
+      xFlux(iHnpsi) = u(iHnpsi) * ugam
       xFlux(irhoHnu) = u(irhoHnu) * u(iu)
       xFlux(irhoHnv) = u(irhoHnv) * u(iu)
 
-   end subroutine XConvectionFlux
+   end subroutine XConvectionFlux_without_gam
+
+   pure subroutine XConvectionFlux_with_gam(RunParams, u, gam, xFlux)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: u
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp), dimension(:), intent(out) :: xFlux(size(RunParams%iFlux))
+
+      integer :: iw, iu, irhoHnu, irhoHnv, iHnpsi, iHn, irho
+      real(kind=wp) :: ugam
+
+      iw = RunParams%Vars%w
+      irhoHnu = RunParams%Vars%rhoHnu
+      irhoHnv = RunParams%Vars%rhoHnv
+      iHnpsi = RunParams%Vars%Hnpsi
+      iHn = RunParams%Vars%Hn
+      iu = RunParams%Vars%u
+      irho = RunParams%Vars%rho
+
+      ugam = u(iu) * gam
+
+      xFlux(iw) = u(iHn) * ugam
+      xFlux(iHnpsi) = u(iHnpsi) * ugam
+      xFlux(irhoHnu) = u(irhoHnu) * u(iu)
+      xFlux(irhoHnv) = u(irhoHnv) * u(iu)
+
+   end subroutine XConvectionFlux_with_gam
 
    ! Compute convection fluxes in the y direction for each of the governing
    ! equations and store in the vector yFlux.
-   pure subroutine YConvectionFlux(RunParams, u, yFlux)
+   pure subroutine YConvectionFlux_without_gam(RunParams, u, yFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -86,7 +145,7 @@ contains
       real(kind=wp), dimension(:), intent(out) :: yFlux(size(RunParams%iFlux))
 
       integer :: iw, iv, irhoHnu, irhoHnv, iHnpsi, iHn, irho
-      real(kind=wp) :: gam
+      real(kind=wp) :: gam, vgam
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -97,12 +156,41 @@ contains
       irho = RunParams%Vars%rho
 
       gam = GeometricCorrectionFactor(RunParams, u)
-      yFlux(iw) = u(iHn) * u(iv) * gam
-      yFlux(iHnpsi) = u(iHnpsi) * u(iv) * gam
+      vgam = u(iv) * gam
+      yFlux(iw) = u(iHn) * vgam
+      yFlux(iHnpsi) = u(iHnpsi) * vgam
       yFlux(irhoHnu) = u(irhoHnu) * u(iv)
       yFlux(irhoHnv) = u(irhoHnv) * u(iv)
 
-   end subroutine YConvectionFlux
+   end subroutine YConvectionFlux_without_gam
+
+   pure subroutine YConvectionFlux_with_gam(RunParams, u, gam, yFlux)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: u
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp), dimension(:), intent(out) :: yFlux(size(RunParams%iFlux))
+
+      integer :: iw, iv, irhoHnu, irhoHnv, iHnpsi, iHn, irho
+      real(kind=wp) :: vgam
+      
+      iw = RunParams%Vars%w
+      irhoHnu = RunParams%Vars%rhoHnu
+      irhoHnv = RunParams%Vars%rhoHnv
+      iHnpsi = RunParams%Vars%Hnpsi
+      iHn = RunParams%Vars%Hn
+      iv = RunParams%Vars%v
+      irho = RunParams%Vars%rho
+
+      vgam = u(iv) * gam
+
+      yFlux(iw) = u(iHn) * vgam
+      yFlux(iHnpsi) = u(iHnpsi) * vgam
+      yFlux(irhoHnu) = u(irhoHnu) * u(iv)
+      yFlux(irhoHnv) = u(irhoHnv) * u(iv)
+
+   end subroutine YConvectionFlux_with_gam
 
    ! Compute hydrostatic pressure fluxes in the x direction for each of the
    ! governing equations and store in the vector xFlux.
@@ -182,6 +270,7 @@ contains
       real(kind=wp), dimension(:), intent(out) :: xFlux(size(RunParams%iFlux))
 
       real(kind=wp) :: nu
+      real(kind=wp) :: nurhoHn
 
       integer :: iw, iHn, irho, irhoHnu, irhoHnv, iHnpsi, iu, iv
 
@@ -202,8 +291,9 @@ contains
          xFlux(irhoHnv) = 0.0_wp
       else
          nu = RunParams%EddyViscosity
-         xFlux(irhoHnu) = nu*u(irho)*u(iHn)*dudx(iu)
-         xFlux(irhoHnv) = nu*u(irho)*u(iHn)*dudx(iv)
+         nurhoHn = nu*u(irho)*u(iHn)
+         xFlux(irhoHnu) = nurhoHn*dudx(iu)
+         xFlux(irhoHnv) = nurhoHn*dudx(iv)
       end if
    end subroutine XDiffusionFlux
 
@@ -219,6 +309,7 @@ contains
       real(kind=wp), dimension(:), intent(out) :: yFlux(size(RunParams%iFlux))
 
       real(kind=wp) :: nu
+      real(kind=wp) :: nurhoHn
 
       integer :: iw, iHn, irho, irhoHnu, irhoHnv, iHnpsi, iu, iv
 
@@ -239,14 +330,15 @@ contains
          yFlux(irhoHnv) = 0.0_wp
       else
          nu = RunParams%EddyViscosity
-         yFlux(irhoHnu) = nu*u(irho)*u(iHn)*dudy(iu)
-         yFlux(irhoHnv) = nu*u(irho)*u(iHn)*dudy(iv)
+         nurhoHn = nu*u(irho)*u(iHn)
+         yFlux(irhoHnu) = nurhoHn*dudy(iu)
+         yFlux(irhoHnv) = nurhoHn*dudy(iv)
       end if
    end subroutine YDiffusionFlux
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the x direction, return in xMaxWS.
-   pure function XMaxWaveSpeeds(RunParams, uvect) result(xMaxWS)
+   pure function XMaxWaveSpeeds_without_gam(RunParams, uvect) result(xMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -268,19 +360,51 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+         by = uvect(RunParams%Vars%dbdy)
          xMaxWS = u + sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
       else
          xMaxWS = u + sqrt(RunParams%g*Hn)
       end if
-   end function XMaxWaveSpeeds
+   end function XMaxWaveSpeeds_without_gam
+
+   pure function XMaxWaveSpeeds_with_gam(RunParams, uvect, gam) result(xMaxWS)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp) :: xMaxWS
+
+      real(kind=wp) :: Hn, u, by
+
+      integer :: iHn, iu
+
+      iHn = RunParams%Vars%Hn
+      iu = RunParams%Vars%u
+
+      Hn = uvect(iHn)
+
+      ! just in case
+      if (Hn <= 0.0_wp) then
+         Hn = 0.0_wp
+      end if
+
+      u = uvect(iu)
+
+      if (RunParams%geometric_factors) then
+         by = uvect(RunParams%Vars%dbdy)
+         xMaxWS = u + sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
+      else
+         xMaxWS = u + sqrt(RunParams%g*Hn)
+      end if
+   end function XMaxWaveSpeeds_with_gam
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the x direction, return in xMinWS.
-   pure function XMinWaveSpeeds(RunParams, uvect) result(xMinWS)
+   pure function XMinWaveSpeeds_without_gam(RunParams, uvect) result(xMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -302,19 +426,51 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      by = uvect(RunParams%Vars%dbdy)
-
+      
       if (RunParams%geometric_factors) then
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+         by = uvect(RunParams%Vars%dbdy)
          xMinWS = u - sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
       else
          xMinWS = u - sqrt(RunParams%g*Hn)
       end if
-   end function XMinWaveSpeeds
+   end function XMinWaveSpeeds_without_gam
+
+   pure function XMinWaveSpeeds_with_gam(RunParams, uvect, gam) result(xMinWS)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp) :: xMinWS
+
+      real(kind=wp) :: Hn, u, by
+
+      integer :: iHn, iu
+
+      iHn = RunParams%Vars%Hn
+      iu = RunParams%Vars%u
+
+      Hn = uvect(iHn)
+
+      ! just in case
+      if (Hn <= 0.0_wp) then
+         Hn = 0.0_wp
+      end if
+
+      u = uvect(iu)
+
+      if (RunParams%geometric_factors) then
+         by = uvect(RunParams%Vars%dbdy)
+         xMinWS = u - sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
+      else
+         xMinWS = u - sqrt(RunParams%g*Hn)
+      end if
+   end function XMinWaveSpeeds_with_gam
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the y direction, return in yMaxWS.
-   pure function YMaxWaveSpeeds(RunParams, uvect) result(yMaxWS)
+   pure function YMaxWaveSpeeds_without_gam(RunParams, uvect) result(yMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -336,19 +492,51 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+         bx = uvect(RunParams%Vars%dbdx)
          yMaxWS = v + sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
       else
          yMaxWS = v + sqrt(RunParams%g*Hn)
       end if
-   end function YMaxWaveSpeeds
+   end function YMaxWaveSpeeds_without_gam
+
+   pure function YMaxWaveSpeeds_with_gam(RunParams, uvect, gam) result(yMaxWS)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp) :: yMaxWS
+
+      real(kind=wp) :: Hn, v, bx
+
+      integer :: iHn, iv
+
+      iHn = RunParams%Vars%Hn
+      iv = RunParams%Vars%v
+
+      Hn = uvect(iHn)
+
+      ! just in case
+      if (Hn <= 0.0_wp) then
+         Hn = 0.0_wp
+      end if
+
+      v = uvect(iv)
+
+      if (RunParams%geometric_factors) then
+         bx = uvect(RunParams%Vars%dbdx)
+         yMaxWS = v + sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
+      else
+         yMaxWS = v + sqrt(RunParams%g*Hn)
+      end if
+   end function YMaxWaveSpeeds_with_gam
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the y direction, return in yMinWS.
-   pure function YMinWaveSpeeds(RunParams, uvect) result(yMinWS)
+   pure function YMinWaveSpeeds_without_gam(RunParams, uvect) result(yMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -370,23 +558,56 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+         bx = uvect(RunParams%Vars%dbdx)
          yMinWS = v - sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
       else
          yMinWS = v - sqrt(RunParams%g*Hn)
       end if
-   end function YMinWaveSpeeds
+   end function YMinWaveSpeeds_without_gam
 
-   ! Given a solution vector uvect, compute corresponding erosion and deposition
-   ! rates, returning in E and D respectively.
-   pure subroutine ErosionDepositionTerms(RunParams, uvect, E, D)
+   pure function YMinWaveSpeeds_with_gam(RunParams, uvect, gam) result(yMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp) :: yMinWS
+
+      real(kind=wp) :: Hn, v, bx
+
+      integer :: iHn, iv
+
+      iHn = RunParams%Vars%Hn
+      iv = RunParams%Vars%v
+
+      Hn = uvect(iHn)
+
+      ! just in case
+      if (Hn <= 0.0_wp) then
+         Hn = 0.0_wp
+      end if
+
+      v = uvect(iv)
+
+      if (RunParams%geometric_factors) then
+         bx = uvect(RunParams%Vars%dbdx)
+         yMinWS = v - sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
+      else
+         yMinWS = v - sqrt(RunParams%g*Hn)
+      end if
+   end function YMinWaveSpeeds_with_gam
+
+   ! Given a solution vector uvect, compute corresponding erosion and deposition
+   ! rates, returning in E and D respectively.
+   pure subroutine ErosionDepositionTerms(RunParams, uvect, gam, E, D)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp), intent(out) :: E
       real(kind=wp), intent(out) :: D
 
@@ -394,7 +615,7 @@ contains
 
       Hn = uvect(RunParams%Vars%Hn)
 
-      E = Erosion(RunParams, uvect)
+      E = Erosion(RunParams, uvect, gam)
       D = Deposition(RunParams, uvect)
         
       ! Damp morphodynamics at small length scales Hn ~ Hncrit (various
@@ -407,15 +628,16 @@ contains
 
    ! Given a solution vector uvect, compute the corresponding erosion rate,
    ! returning in ero.
-   pure function Erosion(RunParams, uvect) result(ero)
+   pure function Erosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       ! Get erosion rate from chosen closure.
-      ero = ErosionClosure(RunParams, uvect)
+      ero = ErosionClosure(RunParams, uvect, gam)
 
       ! Alter erosion rate with flow depth and smoothing choice.
       ero = ero * ErosionTransition(RunParams, uvect)
@@ -435,7 +657,6 @@ contains
 
       psi = uvect(RunParams%Vars%psi)
 
-      dep = 0.0_wp
       if (psi >= RunParams%maxPack) then
          alpha = 0.0_wp
       else if (psi > 0.0_wp) then
@@ -453,7 +674,7 @@ contains
    !
    ! The source terms that are time stepped explicitly are: flux sources and
    ! downslope gravitational forcing from the weight of the flow..
-   pure subroutine ExplicitSourceTerms(RunParams, grid, t, x, y, uvect, tile_has_source, stvect)
+   pure subroutine ExplicitSourceTerms(RunParams, grid, t, x, y, uvect, gam, tile_has_source, stvect)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -462,6 +683,7 @@ contains
       real(kind=wp), intent(in) :: x
       real(kind=wp), intent(in) :: y
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       logical, intent(in) :: tile_has_source
       real(kind=wp), dimension(:), intent(out) :: stvect(size(uvect))
 
@@ -473,15 +695,16 @@ contains
       real(kind=wp) :: Qt, rhoQt, psiQt, Mt
       real(kind=wp) :: Qa, Qb
       real(kind=wp) :: psia, psib, psif
-      real(kind=wp) :: ta, tb
+      real(kind=wp) :: ta, tb, tfrac
       real(kind=wp) :: rho
+      real(kind=wp) :: sourceProp
       integer :: J, K
 
       integer :: iw, irhoHnu, irhoHnv, iHnpsi, irho
       integer :: iHn, iu, iv, ib0, ibt
 
       real(kind=wp) :: heightThreshold
-      real(kind=wp) :: g, hp_o_gam, gam, dbdx, dbdy
+      real(kind=wp) :: g, hp_o_gam, dbdx, dbdy
       real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
       real(kind=wp) :: u, v
       real(kind=wp) :: curvatureTerm
@@ -572,8 +795,9 @@ contains
                               Qb = RunParams%FluxSources(J)%flux(K)
                               psib = RunParams%FluxSources(J)%psi(K)
                               tb = RunParams%FluxSources(J)%time(K)
-                              Qf(J) = Qa + (Qb - Qa) * (t - ta) / (tb - ta)
-                              psif = psia + (psib - psia) * (t - ta) / (tb - ta)
+                              tfrac = (t - ta) / (tb - ta)
+                              Qf(J) = Qa + (Qb - Qa) * tfrac
+                              psif = psia + (psib - psia) * tfrac
                               rho = Density(RunParams, psif)
                               rhoQf(J) = rho * Qf(J)
                               psiQf(J) = psif * Qf(J)
@@ -583,13 +807,15 @@ contains
                   end if
                end if
                if (RunParams%isOneD) then
-                  Qf(J) = Qf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX
-                  rhoQf(J) = rhoQf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX
-                  psiQf(J) = psiQf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX
+                  sourceProp = RunParams%FluxSources(J)%NumCellsInSrc * grid%deltaX
+                  Qf(J) = Qf(J)/sourceProp
+                  rhoQf(J) = rhoQf(J)/sourceProp
+                  psiQf(J) = psiQf(J)/sourceProp
                else
-                  Qf(J) = Qf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX/grid%deltaY
-                  rhoQf(J) = rhoQf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX/grid%deltaY
-                  psiQf(J) = psiQf(J)/RunParams%FluxSources(J)%NumCellsInSrc/grid%deltaX/grid%deltaY
+                  sourceProp = RunParams%FluxSources(J)%NumCellsInSrc * grid%deltaX * grid%deltaY
+                  Qf(J) = Qf(J)/sourceProp
+                  rhoQf(J) = rhoQf(J)/sourceProp
+                  psiQf(J) = psiQf(J)/sourceProp
                end if
             end do
             Qt = Qt + sum(Qf)
@@ -600,8 +826,6 @@ contains
          if (allocated(rhoQf)) deallocate (rhoQf)
          if (allocated(psiQf)) deallocate (psiQf)
       end if
-
-      gam = GeometricCorrectionFactor(RunParams, uvect)
 
       dbdx = uvect(RunParams%Vars%dbdx)
       dbdy = uvect(RunParams%Vars%dbdy)
@@ -657,7 +881,7 @@ contains
       integer :: irhoHnu, irhoHnv, iHn
 
       real(kind=wp) :: Hn, modu, hr
-      ! real(kind=wp) :: gam, f
+      real(kind=wp) :: rhs
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -673,8 +897,9 @@ contains
 
          if (modu > 1.0e-8_wp) then
             hr = 1.0_wp / Hn ! hr = 1/Hn calculated using desingularization
-            stvect(irhoHnu) = -friction * hr / modu
-            stvect(irhoHnv) = -friction * hr / modu
+            rhs = -friction * hr / modu
+            stvect(irhoHnu) = rhs
+            stvect(irhoHnv) = rhs
          end if
       end if
 
