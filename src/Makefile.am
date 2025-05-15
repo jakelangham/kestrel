@@ -1,8 +1,10 @@
 if DEBUG
-AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all -Wuninitialized -finit-real=snan -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
+AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all \
+             -Wuninitialized -finit-real=snan \
+             -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16 -march=native -mtune=native
+AM_FCFLAGS = -O2 -falign-loops=16 -ftree-vectorize
 if LINUX
 # These optimisation flags are only supported by gcc on linux.
 AM_FCFLAGS += -march=native -mtune=native
@@ -10,8 +12,9 @@ endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
 if PARAL
-AM_FCFLAGS += -ftree-vectorize -ftree-parallelize-loops=2 -fopt-info-loop -fopenmp
+AM_FCFLAGS +=  -ftree-parallelize-loops=2 -fopt-info-loop -fopenmp
 endif
+# AM_FCFLAGS += -fopt-info-all
 
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h
@@ -20,7 +23,7 @@ kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 Blur.f90 \
 	utm.f90 RunSettings.f90 GeoTiffRead.f90 DomainSettings.f90 \
 	InitConds.f90 Closures.f90 TopogFuncs.f90 Parameters.f90 Limiters.f90 \
 	SolverSettings.f90 OutputSettings.f90 TopogSettings.f90 Input.f90 Grid.f90 \
-    Equations.f90 HydraulicRHS.f90 MorphodynamicRHS.f90 Redistribute.f90 \
+    Equations.f90 MorphodynamicRHS.f90 HydraulicRHS.f90 Redistribute.f90 \
     dem.f90 UpdateTiles.f90 SetSources.f90 NetCDFUtils.f90 \
     Output.f90 Restart.f90 TimeStepper.f90 cversion.cpp version.f90 main.f90
 

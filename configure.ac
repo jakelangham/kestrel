@@ -55,14 +55,14 @@ AC_ARG_ENABLE([debug],
 esac],[debug=false])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
-AC_ARG_ENABLE([paral],
+AC_ARG_ENABLE([parallel],
 [  --enable-parallel          turn on parallel loops],
 [case "${enableval}" in
-  yes) paral=true ;;
-  no)  paral=false ;;
+  yes) parallel=true ;;
+  no)  parallel=false ;;
   *) AC_MSG_ERROR([bad value ${enableval} for --enable-parallel]) ;;
-esac],[paral=false])
-AM_CONDITIONAL([PARAL], [test x$paral = xtrue])
+esac],[parallel=false])
+AM_CONDITIONAL([PARAL], [test x$parallel = xtrue])
 
 AC_CONFIG_FILES([
  Makefile

@@ -44,6 +44,7 @@ module update_tiles_module
 
    private
    public :: AddTile
+   public :: AddTiles
    public :: AddToActiveTiles
    public :: ActivateTile
    public :: AllocateTile
@@ -79,6 +80,18 @@ contains
       grid%ymin = min(grid%tileContainer(tile)%ymin, grid%ymin)
       grid%ymax = max(grid%tileContainer(tile)%ymax, grid%ymax)
    end subroutine AddTile
+
+   subroutine AddTiles(grid, tiles, RunParams)
+      type(GridType), target, intent(inout) :: grid
+      integer, dimension(:), intent(in) :: tiles
+      type(RunSet), intent(in) :: RunParams
+
+      integer :: t
+
+      do t=1,size(tiles)
+         call AddTile(grid, tiles(t), RunParams)
+      end do
+   end subroutine AddTiles
 
    ! Add tile to ActiveTiles list
    pure subroutine AddToActiveTiles(grid, k)
@@ -143,28 +156,28 @@ contains
       nFlux = RunParams%nFlux
 
       if (.not. allocated(tileContainer(k)%Hnmax)) then
-         allocate (tileContainer(k)%Hnmax(nXpertile, nYpertile, 2))
-         tileContainer(k)%Hnmax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%Hnmax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%Hnmax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%umax)) then
-         allocate (tileContainer(k)%umax(nXpertile, nYpertile, 2))
-         tileContainer(k)%umax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%umax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%umax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%emax)) then
-         allocate (tileContainer(k)%emax(nXpertile, nYpertile, 2))
-         tileContainer(k)%emax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%emax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%emax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%dmax)) then
-        allocate (tileContainer(k)%dmax(nXpertile, nYpertile, 2))
-        tileContainer(k)%dmax(:, :, :) = 0.0_wp
+        allocate (tileContainer(k)%dmax(nXpertile, nYpertile, 2), source=0.0_wp)
+        ! tileContainer(k)%dmax(:, :, :) = 0.0_wp
      end if
       if (.not. allocated(tileContainer(k)%psimax)) then
-         allocate (tileContainer(k)%psimax(nXpertile, nYpertile, 2))
-         tileContainer(k)%psimax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%psimax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%psimax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%tfirst)) then
-         allocate (tileContainer(k)%tfirst(nXpertile, nYpertile))
-         tileContainer(k)%tfirst(:, :) = -1.0_wp
+         allocate (tileContainer(k)%tfirst(nXpertile, nYpertile), source=-1.0_wp)
+        !  tileContainer(k)%tfirst(:, :) = -1.0_wp
       end if
 
       call AllocateU(RunParams, grid, k)
@@ -177,44 +190,44 @@ contains
       call EqualiseTopographicBoundaryData(RunParams, grid, k)
 
       if (.not. allocated(tileContainer(k)%hXFlux)) then
-         allocate (tileContainer(k)%hXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%hXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%hXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%hXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%hYFlux)) then
-         allocate (tileContainer(k)%hYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%hYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%hYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%hYFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%gXFlux)) then
-         allocate (tileContainer(k)%gXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%gXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%gXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%gXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%gYFlux)) then
-         allocate (tileContainer(k)%gYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%gYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%gYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%gYFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%pXFlux)) then
-         allocate (tileContainer(k)%pXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%pXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%pXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%pXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%pYFlux)) then
-         allocate (tileContainer(k)%pYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%pYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%pYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%pYFlux(:, :, :) = 0.0_wp
       end if
 
       if (.not. allocated(tileContainer(k)%ddtExplicit)) then
-         allocate (tileContainer(k)%ddtExplicit(nFlux, nXpertile, nYpertile))
-         tileContainer(k)%ddtExplicit(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%ddtExplicit(nFlux, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%ddtExplicit(:, :, :) = 0.0_wp
       end if
 
       if (.not. allocated(tileContainer(k)%ddtImplicit)) then
-         allocate (tileContainer(k)%ddtImplicit(nFlux, nXpertile, nYpertile))
-         tileContainer(k)%ddtImplicit(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%ddtImplicit(nFlux, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%ddtImplicit(:, :, :) = 0.0_wp
       end if
 
       if (RunParams%MorphodynamicsOn) then
          if (.not. allocated(tileContainer(k)%ddtExplicitBt)) then
-            allocate (tileContainer(k)%ddtExplicitBt(nXpertile+1, nYpertile+1))
-            tileContainer(k)%ddtExplicitBt(:, :) = 0.0_wp
+            allocate (tileContainer(k)%ddtExplicitBt(nXpertile+1, nYpertile+1), source=0.0_wp)
+            ! tileContainer(k)%ddtExplicitBt(:, :) = 0.0_wp
          end if
       end if
 
@@ -240,36 +253,37 @@ contains
       d = RunParams%nDimensions
 
       if (.not. allocated(tileContainer(k)%u)) then
-         allocate (tileContainer(k)%u(d, nXpertile, nYpertile))
-         tileContainer(k)%u(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%u(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%u(:, :, :) = 0.0_wp
          ! Even dry regions should have rho = 'at least' rhow since sometimes
          ! we need to divide by rho near fronts
          tileContainer(k)%u(RunParams%Vars%rho, :, :) = RunParams%rhow
       end if
       if (.not. allocated(tileContainer(k)%uLimX)) then
-         allocate (tileContainer(k)%uLimX(d, nXpertile, nYpertile))
-         tileContainer(k)%uLimX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uLimX(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uLimX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uLimY)) then
-         allocate (tileContainer(k)%uLimY(d, nXpertile, nYpertile))
-         tileContainer(k)%uLimY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uLimY(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uLimY(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uPlusX)) then
-         allocate (tileContainer(k)%uPlusX(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%uPlusX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uPlusX(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uPlusX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uMinusX)) then
-         allocate (tileContainer(k)%uMinusX(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%uMinusX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uMinusX(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uMinusX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uPlusY)) then
-         allocate (tileContainer(k)%uPlusY(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%uPlusY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uPlusY(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%uPlusY(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uMinusY)) then
-         allocate (tileContainer(k)%uMinusY(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%uMinusY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uMinusY(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%uMinusY(:, :, :) = 0.0_wp
       end if
+      
    end subroutine AllocateU
 
    pure subroutine AllocateTopographicData(RunParams, grid, k)
@@ -293,53 +307,41 @@ contains
 
       if (.not. allocated(tileContainer(k)%x)) then
          allocate (tileContainer(k)%x(nXpertile))
-         ! do ii = 1, nXpertile
-         !    call GridToPhysical(RunParams, grid, grid_i, grid_j, ii, 1, x, y)
-         !    tileContainer(k)%x(ii) = x
-         ! end do
-         do concurrent (ii = 1: nXpertile)
+         do ii = 1, nXpertile
             call GridToPhysical(RunParams, grid, grid_i, grid_j, ii, 1, x, y)
             tileContainer(k)%x(ii) = x
          end do
+
          tileContainer(k)%xmin = minval(tileContainer(k)%x)
          tileContainer(k)%xmax = maxval(tileContainer(k)%x)
       end if
       if (.not. allocated(tileContainer(k)%y)) then
          allocate (tileContainer(k)%y(nYpertile))
-         ! do jj = 1, nYpertile
-         !    call GridToPhysical(RunParams, grid, grid_i, grid_j, 1, jj, x, y)
-         !    tileContainer(k)%y(jj) = y
-         ! end do
-         do concurrent (jj = 1: nYpertile)
+         do jj = 1, nYpertile
             call GridToPhysical(RunParams, grid, grid_i, grid_j, 1, jj, x, y)
             tileContainer(k)%y(jj) = y
          end do
+
          tileContainer(k)%ymin = minval(tileContainer(k)%y)
          tileContainer(k)%ymax = maxval(tileContainer(k)%y)
       end if
       if (.not. allocated(tileContainer(k)%x_vertex)) then
          allocate (tileContainer(k)%x_vertex(nXpertile + 1))
-         ! do ii = 1, nXpertile
-         !    tileContainer(k)%x_vertex(ii) = &
-         !       tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
-         ! end do
-         do concurrent (ii = 1: nXpertile)
+         do ii = 1, nXpertile
             tileContainer(k)%x_vertex(ii) = &
                tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
          end do
+
          tileContainer(k)%x_vertex(nXpertile + 1) = &
             tileContainer(k)%x(nXpertile) + 0.5_wp*RunParams%deltaX
       end if
       if (.not. allocated(tileContainer(k)%y_vertex)) then
          allocate (tileContainer(k)%y_vertex(nYpertile + 1))
-         ! do jj = 1, nYpertile
-         !    tileContainer(k)%y_vertex(jj) = &
-         !       tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
-         ! end do
-         do concurrent (jj = 1: nYpertile)
+         do jj = 1, nYpertile
             tileContainer(k)%y_vertex(jj) = &
                tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
          end do
+
          tileContainer(k)%y_vertex(nYpertile + 1) = &
             tileContainer(k)%y(nYpertile) + 0.5_wp*RunParams%deltaY
       end if
@@ -348,12 +350,12 @@ contains
          allocate (tileContainer(k)%b0(nXpertile + 1, nYpertile + 1))
       end if
       if (.not. allocated(tileContainer(k)%bt)) then
-         allocate (tileContainer(k)%bt(nXpertile + 1, nYpertile + 1))
-         tileContainer(k)%bt(:, :) = 0.0_wp
+         allocate (tileContainer(k)%bt(nXpertile + 1, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%bt(:, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%EminusD)) then
-         allocate (tileContainer(k)%EminusD(nXpertile, nYpertile))
-         tileContainer(k)%EminusD(:, :) = 0.0_wp
+         allocate (tileContainer(k)%EminusD(nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%EminusD(:, :) = 0.0_wp
       end if
 
    end subroutine
@@ -537,12 +539,14 @@ contains
       ! for when directions have to be referenced individually
       tileContainer(ttk)%West => tileContainer(ttk)%neighbours(1)
       tileContainer(ttk)%East => tileContainer(ttk)%neighbours(2)
-      tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
-      tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
-      tileContainer(ttk)%SouthWest => tileContainer(ttk)%cornertiles(1)
-      tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
-      tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
-      tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
+      if (.not. RunParams%isOneD) then
+         tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
+         tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
+         tileContainer(ttk)%SouthWest => tileContainer(ttk)%cornertiles(1)
+         tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
+         tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
+         tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
+      end if
 
       call UpdateNeighbourTiles(grid, ttk)
 
@@ -558,10 +562,10 @@ contains
 
       tileContainer => grid%tileContainer
 
-      tileContainer(ttk)%WestOn => tileContainer(tileContainer(ttk)%West)%TileOn
-      tileContainer(ttk)%EastOn => tileContainer(tileContainer(ttk)%East)%TileOn
-      tileContainer(ttk)%NorthOn => tileContainer(tileContainer(ttk)%North)%TileOn
-      tileContainer(ttk)%SouthOn => tileContainer(tileContainer(ttk)%South)%TileOn
+      if (associated(tileContainer(ttk)%West)) tileContainer(ttk)%WestOn => tileContainer(tileContainer(ttk)%West)%TileOn
+      if (associated(tileContainer(ttk)%East)) tileContainer(ttk)%EastOn => tileContainer(tileContainer(ttk)%East)%TileOn
+      if (associated(tileContainer(ttk)%North)) tileContainer(ttk)%NorthOn => tileContainer(tileContainer(ttk)%North)%TileOn
+      if (associated(tileContainer(ttk)%South)) tileContainer(ttk)%SouthOn => tileContainer(tileContainer(ttk)%South)%TileOn
    end subroutine UpdateNeighbourTiles
 
    ! Determine if tile is on the edge of the domain and if so, set its
@@ -721,11 +725,7 @@ contains
 
       if (TileInBounds(grid, neighbour)) then
          if (tiles(neighbour)%TileOn) then
-            ! do j = 1, nYpertile
-            !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
-            !                                        1, j, tiles, tID, 'W')
-            ! end do
-            do concurrent (j = 1: nYpertile)
+            do j = 1, nYpertile
                call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                    1, j, tiles, tID, 'W')
             end do
@@ -740,11 +740,7 @@ contains
       neighbour = grid%tileContainer(tID)%East
       if (TileInBounds(grid, neighbour)) then
          if (tiles(neighbour)%TileOn) then
-            ! do j = 1, nYpertile
-            !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
-            !                                        nXpertile, j, tiles, tID, 'E')
-            ! end do
-            do concurrent (j = 1: nYpertile)
+            do j = 1, nYpertile
                call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                    nXpertile, j, tiles, tID, 'E')
             end do
@@ -761,11 +757,7 @@ contains
 
          if (TileInBounds(grid, neighbour)) then
             if (tiles(neighbour)%TileOn) then
-               ! do i = 1, nXpertile
-               !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
-               !                                        i, 1, tiles, tID, 'S')
-               ! end do
-               do concurrent (i = 1: nXpertile)
+               do i = 1, nXpertile
                   call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                       i, 1, tiles, tID, 'S')
                end do
@@ -780,11 +772,7 @@ contains
          neighbour = grid%tileContainer(tID)%North
          if (TileInBounds(grid, neighbour)) then
             if (tiles(neighbour)%TileOn) then
-               ! do i = 1, nXpertile
-               !    call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
-               !                                        i, nYpertile, tiles, tID, 'N')
-               ! end do
-               do concurrent (i = 1: nXpertile)
+               do i = 1, nXpertile
                   call CalculateLimitedDerivsBoundary(RunParams, grid, iw, &
                                                       i, nYpertile, tiles, tID, 'N')
                end do

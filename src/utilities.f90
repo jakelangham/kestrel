@@ -49,7 +49,8 @@ module utilities_module
 
    private
    public :: Int2String
-   public :: AddToVector, InVector, RemoveFromVector
+   public :: AddToVector, AddToVector_i
+   public :: InVector, RemoveFromVector
    public :: AddToOrderedVector
    public :: PathTrail, CheckFileExists
    public :: KahanAdd, KahanSum
@@ -441,14 +442,23 @@ contains
       real(kind=wp) :: c
 
       integer :: i, N
+      real(kind=wp) :: y, t ! temporary values
 
       N = size(nums)
       s = 0.0_wp
       c = 0.0_wp
 
-      do i=1,N
-         call KahanAdd(nums(i), s, c)
+      ! Use inlined version of KahanAdd for efficiency
+      do i = 1, N
+         y = nums(i) - c
+         t = s + y
+         c = (t - s) - y
+         s = t
       end do
+
+      ! do i=1,N
+      !    call KahanAdd(nums(i), s, c)
+      ! end do
 
    end function KahanSum
 

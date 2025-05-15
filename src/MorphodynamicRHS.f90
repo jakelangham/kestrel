@@ -51,9 +51,9 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin, DragClosure
+   use closures_module, only: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin_scalar, GeometricCorrectionFactor_gradin_array, DragClosure
    use limiters_module, only: limiter
-   use blur_module, only: MultiBoxBlur
+   use blur_module, only: MultiBinom3Blur
 
    implicit none
 
@@ -61,15 +61,12 @@ module morphodynamic_rhs_module
    public :: CalculateMorphodynamicRHS
    public :: ComputeCellCentredTopographicData
    public :: ComputeTopographicCurvatures
+   public :: ComputeMorphodynamicCurvatures
    public :: ComputeInterfacialTopographicData
    public :: EqualiseTopographicBoundaryData
 
    interface ComputeCellCentredTopographicData
       module procedure :: ComputeCellCentredTopographicData_tileID, ComputeCellCentredTopographicData_ij
-   end interface
-
-   interface ComputeTopographicCurvatures
-      module procedure :: ComputeTopographicCurvatures_tileID, ComputeTopographicCurvatures_ij
    end interface
 
 contains
@@ -192,7 +189,7 @@ contains
                      tiles(tID)%u(idbdx, i    , j - 1), tiles(tID)%u(idbdx, i    , j)])
                   dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, i - 1, j - 1), tiles(tID)%u(idbdy, i - 1, j), &
                      tiles(tID)%u(idbdy, i    , j - 1), tiles(tID)%u(idbdy, i    , j)])
-                  gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+                  gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                   tiles(tID)%ddtExplicitBt(i,j) = -0.25_wp * gam / psib *  &
                      KahanSum([tiles(tID)%EminusD(i - 1, j - 1), tiles(tID)%EminusD(i - 1, j), tiles(tID)%EminusD(i, j - 1), tiles(tID)%EminusD(i, j)])
                end do
@@ -214,7 +211,7 @@ contains
                   tiles(tID)%u(idbdx, 1, j - 1), tiles(tID)%u(idbdx, 1, j)])
                dbdy = 0.25_wp * KahanSum([tiles(ttW)%u(idbdy, nXpertile, j - 1), tiles(ttW)%u(idbdy, nXpertile, j), &
                   tiles(tID)%u(idbdy, 1, j - 1), tiles(tID)%u(idbdy, 1, j)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(1, j) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(ttW)%EminusD(nXpertile, j - 1), tiles(ttW)%EminusD(nXpertile, j), tiles(tID)%EminusD(1, j - 1) + tiles(tID)%EminusD(1, j)]) 
                ! east bdry
@@ -222,7 +219,7 @@ contains
                   tiles(ttE)%u(idbdx, 1, j - 1), tiles(ttE)%u(idbdx, 1, j)])
                dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, nXpertile, j - 1), tiles(tID)%u(idbdy, nXpertile, j), &
                   tiles(ttE)%u(idbdy, 1, j - 1), tiles(ttE)%u(idbdy, 1, j)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(nXpertile + 1, j) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(tID)%EminusD(nXpertile, j - 1), tiles(tID)%EminusD(nXpertile, j), tiles(ttE)%EminusD(1, j - 1), tiles(ttE)%EminusD(1, j)])
             end do
@@ -232,7 +229,7 @@ contains
                   tiles(tID)%u(idbdx, i, nYpertile), tiles(ttN)%u(idbdx, i, 1)])
                dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, i - 1, nYpertile), tiles(ttN)%u(idbdy, i - 1, 1), &
                   tiles(tID)%u(idbdy, i, nYpertile), tiles(ttN)%u(idbdy, i, 1)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(i, nYpertile + 1) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(tID)%EminusD(i - 1, nYpertile), tiles(ttN)%EminusD(i - 1, 1), tiles(tID)%EminusD(i, nYpertile), tiles(ttN)%EminusD(i, 1)])
                ! south bdry
@@ -240,7 +237,7 @@ contains
                   tiles(ttS)%u(idbdx, i, nYpertile), tiles(tID)%u(idbdx, i, 1)])
                dbdy = 0.25_wp * KahanSum([tiles(ttS)%u(idbdy, i - 1, nYpertile), tiles(tID)%u(idbdy, i - 1, 1), &
                   tiles(ttS)%u(idbdy, i, nYpertile), tiles(tID)%u(idbdy, i, 1)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(i, 1) = -0.25_wp * gam / psib * &
                   KahanSum([tiles(ttS)%EminusD(i - 1, nYpertile), tiles(tID)%EminusD(i - 1, 1), tiles(ttS)%EminusD(i, nYpertile), tiles(tID)%EminusD(i, 1)])
             end do
@@ -250,7 +247,7 @@ contains
                tiles(ttS )%u(idbdx, 1, nYpertile), tiles(tID)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttSW)%u(idbdy, nXpertile, nYpertile), tiles(ttW)%u(idbdy, nXpertile, 1), &
                tiles(ttS )%u(idbdy, 1, nYpertile), tiles(tID)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(1, 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttSW)%EminusD(nXpertile, nYpertile), tiles(ttW)%EminusD(nXpertile, 1), tiles(ttS )%EminusD(1, nYpertile), tiles(tID)%EminusD(1, 1)])
             ! SE
@@ -258,7 +255,7 @@ contains
                tiles(ttSE)%u(idbdx, 1, nYpertile), tiles(ttE)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttS )%u(idbdy, nXpertile, nYpertile), tiles(tID)%u(idbdy, nXpertile, 1), &
                tiles(ttSE)%u(idbdy, 1, nYpertile), tiles(ttE)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(nXpertile + 1, 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttS )%EminusD(nXpertile, nYpertile), tiles(tID)%EminusD(nXpertile, 1), tiles(ttSE)%EminusD(1, nYpertile), tiles(ttE)%EminusD(1, 1)])
             ! NW
@@ -266,7 +263,7 @@ contains
                tiles(tID)%u(idbdx, 1, nYpertile), tiles(ttN )%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttW)%u(idbdy, nXpertile, nYpertile), tiles(ttNW)%u(idbdy, nXpertile, 1), &
                tiles(tID)%u(idbdy, 1, nYpertile), tiles(ttN )%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(1, nYpertile + 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttW)%EminusD(nXpertile, nYpertile), tiles(ttNW)%EminusD(nXpertile, 1), &
                tiles(tID)%EminusD(1, nYpertile), tiles(ttN )%EminusD(1, 1)])
@@ -275,7 +272,7 @@ contains
                tiles(ttE)%u(idbdx, 1, nYpertile) + tiles(ttNE)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, nXpertile, nYpertile), tiles(ttN )%u(idbdy, nXpertile, 1), &
                tiles(ttE)%u(idbdy, 1, nYpertile), tiles(ttNE)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(nXpertile + 1, nYpertile + 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(tID)%EminusD(nXpertile, nYpertile), tiles(ttN )%EminusD(nXpertile, 1), &
                tiles(ttE)%EminusD(1, nYpertile), tiles(ttNE)%EminusD(1, 1)])
@@ -283,7 +280,7 @@ contains
             ! 1D is much simpler...
             do i = 2, nXpertile
                dbdx = 0.5_wp * (tiles(tID)%u(idbdx, i - 1, 1) + tiles(tID)%u(idbdx, i, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(i,1) = -0.5_wp * gam * (tiles(tID)%EminusD(i - 1, 1) + tiles(tID)%EminusD(i, 1)) / psib
             end do
 
@@ -291,22 +288,22 @@ contains
             ttW = tiles(tID)%West
             if (ttW > 0 .and. grid%tileContainer(ttW)%TileOn) then
                dbdx = 0.5_wp * (tiles(ttW)%u(iDBDX, nXpertile, 1) + tiles(tID)%u(iDBDX, 1, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(1,1) = -0.5_wp * gam * (tiles(ttW)%EminusD(nXpertile, 1) + tiles(tID)%EminusD(1, 1)) / psib
             else
                dbdx = 0.5_wp * tiles(tID)%u(idbdx, 1, 1)
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(1,1) = -0.5_wp * gam * tiles(tID)%EminusD(1, 1) / psib
             end if
 
             ttE = tiles(tID)%East
             if (ttE > 0 .and. grid%tileContainer(ttE)%TileOn) then
                dbdx = 0.5_wp * (tiles(tID)%u(idbdx, nXpertile, 1) + tiles(ttE)%u(idbdx, 1, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(nXpertile+1,1) = -0.5_wp * gam * (tiles(tID)%EminusD(nXpertile, 1) + tiles(ttE)%EminusD(1, 1)) / psib
             else
                dbdx = 0.5_wp * tiles(tID)%u(idbdx, nXpertile, 1)
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(nXpertile+1,1) = -0.5_wp * gam * tiles(tID)%EminusD(nXpertile, 1) / psib
             end if
          end if
@@ -590,7 +587,7 @@ contains
       end if
    end subroutine ComputeInterfacialTopographicData
 
-   subroutine ComputeTopographicCurvatures_tileID(RunParams, grid, tiles, tID)
+   subroutine ComputeTopographicCurvatures(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -598,7 +595,6 @@ contains
       type(tileType), dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID
 
-      integer :: ib
       integer :: idbdx, idbdy
       integer :: id2bdxx, id2bdyy, id2bdxy
       integer :: nX, nY
@@ -618,7 +614,6 @@ contains
 
       if (.not. isActiveTile) return
 
-      ib = RunParams%Vars%b0
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
       id2bdxx = RunParams%Vars%d2bdxx
@@ -677,8 +672,8 @@ contains
          dbdy(nX+1:nX+3,-2:0) = tiles(ttSE)%u(idbdy,1:3,nY-2:nY)
 
          if (RunParams%nBlur>0) then
-            dbdx = MultiBoxBlur(dbdx, RunParams%BlurPixelWidth, RunParams%nBlur)
-            dbdy = MultiBoxBlur(dbdy, RunParams%BlurPixelWidth, RunParams%nBlur)
+            dbdx = MultiBinom3Blur(dbdx, RunParams%nBlur)
+            dbdy = MultiBinom3Blur(dbdy, RunParams%nBlur)
          end if
 
          allocate(d2bdxx(nX,nY), d2bdxy(nX,nY), d2bdyx(nX,nY), d2bdyy(nX,nY))
@@ -692,12 +687,13 @@ contains
          tiles(tID)%u(id2bdxy,:,:) = 0.5_wp*(d2bdyx(:,:) + d2bdxy(:,:))
          tiles(tID)%u(id2bdyy,:,:) = d2bdyy(:,:)
 
+         deallocate(dbdx, dbdy)
          deallocate(d2bdxx, d2bdxy, d2bdyx, d2bdyy)
          
       else
          ! Allocate dbdx -- take neighours 3 pixels wide on each edge to enable smoothing, if needed
          ! Note, the indices i=1...nXpertile correspond to this tile, others to neighbours
-         allocate(dbdx(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3), dbdy(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
+         allocate(dbdx(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
 
          !interior
          dbdx(1:nX,1) = tiles(tID)%u(idbdx,:,1)
@@ -707,62 +703,244 @@ contains
          dbdx(nX+1:nX+3,1) = tiles(ttE)%u(idbdx,1:3,1)
 
          if (RunParams%nBlur>0) then
-            dbdx = MultiBoxBlur(dbdx, RunParams%BlurPixelWidth, RunParams%nBlur)
+            dbdx = MultiBinom3Blur(dbdx, RunParams%nBlur)
          end if
 
          tiles(tID)%u(id2bdxx,:,1) = (0.25_wp*(dbdx(2:nX+1,1) - dbdx(0:nX-1,1)) + 0.125_wp*(dbdx(3:nX+2,1) - dbdx(-1:nX-2,1))) * deltaXRecip
+         deallocate(dbdx)
 
       end if
-      deallocate(dbdx, dbdy)
-   end subroutine ComputeTopographicCurvatures_tileID
 
-   subroutine ComputeTopographicCurvatures_ij(RunParams, grid, tiles, tID, i, j)
+   end subroutine ComputeTopographicCurvatures
+
+   subroutine ComputeMorphodynamicCurvatures(RunParams, grid, tiles, tID)
       implicit none
-
       type(RunSet), intent(in) :: RunParams
       type(GridType), intent(inout), target :: grid
       type(tileType), dimension(:), intent(inout) :: tiles
-      integer, intent(in) :: tID, i, j
+      integer, intent(in) :: tID
 
-      integer :: ibt, idbdx, idbdy
+      integer :: idbdx, idbdy
+      integer :: id2bdtx, id2bdty
       integer :: id2bdxx, id2bdyy, id2bdxy
+      integer :: nX, nY
+      integer :: ttW, ttE, ttS, ttN
+      integer :: ttNW, ttNE, ttSW, ttSE
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
-      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+      real(kind=wp), dimension(:,:), allocatable :: dbdx, dbdy
+      real(kind=wp), dimension(:,:), allocatable :: dbdt
+      real(kind=wp), dimension(:,:), allocatable :: d2bdtx, d2bdty
+      real(kind=wp), dimension(:,:), allocatable :: d2bdxx, d2bdyy, d2bdxy, d2bdyx
+
+      real(kind=wp), dimension(:,:), allocatable :: gam
+      real(kind=wp) :: psib
+
+      logical :: isActiveTile
 
       if (.not.RunParams%curvature) return
 
+      isActiveTile = .not. tiles(tID)%isGhostTile
+
+      if (.not. isActiveTile) return
+
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
+      id2bdtx = RunParams%Vars%d2bdtx
+      id2bdty = RunParams%Vars%d2bdty
       id2bdxx = RunParams%Vars%d2bdxx
-      id2bdyy = RunParams%Vars%d2bdyy
       id2bdxy = RunParams%Vars%d2bdxy
+      id2bdyy = RunParams%Vars%d2bdyy
+            
+      nX = RunParams%nXpertile
+      nY = RunParams%nYpertile
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
 
+      psib = 1.0_wp - RunParams%BedPorosity
+
+      ttW = tiles(tID)%West
+      ttE = tiles(tID)%East
+
       if (.not. RunParams%isOneD) then
-         d2bdxx = deltaXRecip * ( &
-            tiles(tID)%u(idbdx,i+1, j) - tiles(tID)%u(idbdx,i, j) &
-         )
-         tiles(tID)%u(id2bdxx, i, j) = d2bdxx
 
-         d2bdyy = deltaYRecip * ( &
-            tiles(tID)%u(idbdy,i, j+1) - tiles(tID)%u(idbdy,i, j) &
-         )
-         tiles(tID)%u(id2bdyy, i, j) = d2bdyy
+         ! Allocate dbdx, dbdy -- take neighours 3 pixels wide on each edge to enable smoothing, if needed
+         ! Note, the indices i=1...nXpertile correspond to this tile, others to neighbours
+         allocate(dbdx(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
+         allocate(dbdy(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
+         allocate(dbdt(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
+         allocate(gam(-2:RunParams%nXpertile+3,-2:RunParams%nYpertile+3))
 
-         d2bdxy = 0.5_wp * deltaYRecip * &
-            KahanSum([tiles(tID)%u(idbdx,i, j+1), -tiles(tID)%u(idbdx,i, j), &
-               tiles(tID)%u(idbdx,i+1, j+1), -tiles(tID)%u(idbdx,i+1, j)])
-         tiles(tID)%u(id2bdxy, i, j) = d2bdxy
+         ! computations on edges/corners
+         ttS = tiles(tID)%South
+         ttN = tiles(tID)%North
+         ttSW = tiles(tID)%SouthWest
+         ttSE = tiles(tID)%SouthEast
+         ttNW = tiles(tID)%NorthWest
+         ttNE = tiles(tID)%NorthEast
+
+         !interior
+         dbdx(1:nX,1:nY) = tiles(tID)%u(idbdx,:,:)
+         dbdy(1:nX,1:nY) = tiles(tID)%u(idbdy,:,:)
+         if (allocated(tiles(tID)%EminusD)) then
+            dbdt(1:nX,1:nY) = -tiles(tID)%EminusD(:,:)
+         else
+            dbdt(1:nX,1:nY) = 0.0_wp
+         end if
+         
+         ! West
+         dbdx(-2:0,1:nY) = tiles(ttW)%u(idbdx,nX-2:nX,:)
+         dbdy(-2:0,1:nY) = tiles(ttW)%u(idbdy,nX-2:nX,:)
+         if (allocated(tiles(ttW)%EminusD)) then
+            dbdt(-2:0,1:nY) = -tiles(ttW)%EminusD(nX-2:nX,:)
+         else
+            dbdt(-2:0,1:nY) = 0.0_wp
+         end if
+         
+         ! East
+         dbdx(nX+1:nX+3,1:nY) = tiles(ttE)%u(idbdx,1:3,:)
+         dbdy(nX+1:nX+3,1:nY) = tiles(ttE)%u(idbdy,1:3,:)
+         if (allocated(tiles(ttE)%EminusD)) then
+            dbdt(nX+1:nX+3,1:nY) = -tiles(ttE)%EminusD(1:3,:)
+         else
+            dbdt(nX+1:nX+3,1:nY) = 0.0_wp
+         end if
+
+         ! South
+         dbdx(1:nX,-2:0) = tiles(ttS)%u(idbdx,:,nY-2:nY)
+         dbdy(1:nX,-2:0) = tiles(ttS)%u(idbdy,:,nY-2:nY)
+         if (allocated(tiles(ttS)%EminusD)) then
+            dbdt(1:nX,-2:0) = -tiles(ttS)%EminusD(:,nY-2:nY)
+         else
+            dbdt(1:nX,-2:0) = 0.0_wp
+         end if
+         
+         ! North
+         dbdx(1:nX,nY+1:nY+3) = tiles(ttN)%u(idbdx,:,1:3)
+         dbdy(1:nX,nY+1:nY+3) = tiles(ttN)%u(idbdy,:,1:3)
+         if (allocated(tiles(ttN)%EminusD)) then
+            dbdt(1:nX,nY+1:nY+3) = -tiles(ttN)%EminusD(:,1:3)
+         else
+            dbdt(1:nX,nY+1:nY+3) = 0.0_wp
+         end if
+         
+         ! South-West
+         dbdx(-2:0,-2:0) = tiles(ttSW)%u(idbdx,nX-2:nX,nY-2:nY)
+         dbdy(-2:0,-2:0) = tiles(ttSW)%u(idbdy,nX-2:nX,nY-2:nY)
+         if (allocated(tiles(ttSW)%EminusD)) then
+            dbdt(-2:0,-2:0) = -tiles(ttSW)%EminusD(nX-2:nX,nY-2:nY)
+         else
+            dbdt(-2:0,-2:0) = 0.0_wp
+         end if
+         
+         ! North-West
+         dbdx(-2:0,nY+1:nY+3) = tiles(ttNW)%u(idbdx,nX-2:nX,1:3)
+         dbdy(-2:0,nY+1:nY+3) = tiles(ttNW)%u(idbdy,nX-2:nX,1:3)
+         if (allocated(tiles(ttNW)%EminusD)) then
+            dbdt(-2:0,nY+1:nY+3) = -tiles(ttNW)%EminusD(nX-2:nX,1:3)
+         else
+            dbdt(-2:0,nY+1:nY+3) = 0.0_wp
+         end if
+         
+         ! North-East
+         dbdx(nX+1:nX+3,nY+1:nY+3) = tiles(ttNE)%u(idbdx,1:3,1:3)
+         dbdy(nX+1:nX+3,nY+1:nY+3) = tiles(ttNE)%u(idbdy,1:3,1:3)
+         if (allocated(tiles(ttNE)%EminusD)) then
+            dbdt(nX+1:nX+3,nY+1:nY+3) = -tiles(ttNE)%EminusD(1:3,1:3)
+         else
+            dbdt(nX+1:nX+3,nY+1:nY+3) = 0.0_wp
+         end if
+         
+         ! South-East
+         dbdx(nX+1:nX+3,-2:0) = tiles(ttSE)%u(idbdx,1:3,nY-2:nY)
+         dbdy(nX+1:nX+3,-2:0) = tiles(ttSE)%u(idbdy,1:3,nY-2:nY)
+         if (allocated(tiles(ttSE)%EminusD)) then
+            dbdt(nX+1:nX+3,-2:0) = -tiles(ttSE)%EminusD(1:3,nY-2:nY)
+         else
+            dbdt(nX+1:nX+3,-2:0) = 0.0_wp
+         end if
+
+         ! Update dbdt to include factor gamma/psib
+         gam = GeometricCorrectionFactor_gradin_array(dbdx, dbdy)
+         dbdt(:,:) = dbdt(:,:) * gam(:,:)/psib
+
+         if (RunParams%nBlur>0) then
+            dbdx = MultiBinom3Blur(dbdx, RunParams%nBlur)
+            dbdy = MultiBinom3Blur(dbdy, RunParams%nBlur)
+            dbdt = MultiBinom3Blur(dbdt, RunParams%nBlur)
+         end if
+
+         allocate(d2bdtx(nX,nY), d2bdty(nX,nY))
+         allocate(d2bdxx(nX,nY), d2bdxy(nX,nY), d2bdyx(nX,nY), d2bdyy(nX,nY))
+
+         d2bdtx(:,:) = (0.25_wp*(dbdt(2:nX+1,1:nY) - dbdt(0:nX-1,1:nY)) + 0.125_wp*(dbdt(3:nX+2,1:nY) - dbdt(-1:nX-2,1:nY))) * deltaXRecip
+         d2bdty(:,:) = (0.25_wp*(dbdt(1:nX,2:nY+1) - dbdt(1:nX,0:nY-1)) + 0.125_wp*(dbdt(1:nX,3:nY+2) - dbdt(1:nX,-1:nY-2))) * deltaYRecip
+
+         d2bdxx(:,:) = (0.25_wp*(dbdx(2:nX+1,1:nY) - dbdx(0:nX-1,1:nY)) + 0.125_wp*(dbdx(3:nX+2,1:nY) - dbdx(-1:nX-2,1:nY))) * deltaXRecip
+         d2bdyx(:,:) = (0.25_wp*(dbdy(2:nX+1,1:nY) - dbdy(0:nX-1,1:nY)) + 0.125_wp*(dbdy(3:nX+2,1:nY) - dbdy(-1:nX-2,1:nY))) * deltaXRecip
+         d2bdyy(:,:) = (0.25_wp*(dbdy(1:nX,2:nY+1) - dbdy(1:nX,0:nY-1)) + 0.125_wp*(dbdy(1:nX,3:nY+2) - dbdy(1:nX,-1:nY-2))) * deltaYRecip
+         d2bdxy(:,:) = (0.25_wp*(dbdx(1:nX,2:nY+1) - dbdx(1:nX,0:nY-1)) + 0.125_wp*(dbdx(1:nX,3:nY+2) - dbdx(1:nX,-1:nY-2))) * deltaYRecip
+
+         tiles(tID)%u(id2bdtx,:,:) = d2bdtx(:,:)
+         tiles(tID)%u(id2bdty,:,:) = d2bdty(:,:)
+
+         tiles(tID)%u(id2bdxx,:,:) = d2bdxx(:,:)
+         tiles(tID)%u(id2bdxy,:,:) = 0.5_wp*(d2bdyx(:,:) + d2bdxy(:,:))
+         tiles(tID)%u(id2bdyy,:,:) = d2bdyy(:,:)
+
+         deallocate(dbdx, dbdy, dbdt)
+         deallocate(d2bdxx, d2bdxy, d2bdyx, d2bdyy, d2bdtx, d2bdty)
+         
       else
-         d2bdxx = deltaXRecip * (tiles(tID)%u(idbdx, i+1, 1) - tiles(tID)%u(idbdx, i, 1))
-         tiles(tID)%u(id2bdxx,i,1) = d2bdxx
+         ! Allocate dbdx -- take neighours 3 pixels wide on each edge to enable smoothing, if needed
+         ! Note, the indices i=1...nXpertile correspond to this tile, others to neighbours
+         allocate(dbdx(-2:RunParams%nXpertile+3,1))
+         allocate(dbdy(-2:RunParams%nXpertile+3,1)) ! Only needed to zero
+         allocate(dbdt(-2:RunParams%nXpertile+3,1))
+
+         dbdy(:,:) = 0.0_wp
+
+         !interior
+         dbdx(1:nX,1) = tiles(tID)%u(idbdx,:,1)
+         if (allocated(tiles(tID)%EminusD)) then
+            dbdt(1:nX,1) = -tiles(tID)%EminusD(:,1)
+         else
+            dbdt(1:nX,1) = 0.0_wp
+         end if
+
+         ! West
+         dbdx(-2:0,1) = tiles(ttW)%u(idbdx,nX-2:nX,1)
+         if (allocated(tiles(ttW)%EminusD)) then
+            dbdt(-2:0,1) = -tiles(ttW)%EminusD(nX-2:nX,1)
+         else
+            dbdt(-2:0,1) = 0.0_wp
+         end if
+
+         ! East
+         dbdx(nX+1:nX+3,1) = tiles(ttE)%u(idbdx,1:3,1)
+         if (allocated(tiles(ttE)%EminusD)) then
+            dbdt(nX+1:nX+3,1) = -tiles(ttE)%EminusD(1:3,1)
+         else
+            dbdt(nX+1:nX+3,1) = 0.0_wp
+         end if
+
+         ! Update dbdt to include factor gamma/psib
+         gam = GeometricCorrectionFactor_gradin_array(dbdx, dbdy)
+         dbdt(:,1) = dbdt(:,1) * gam(:,1)/psib
+
+         if (RunParams%nBlur>0) then
+            dbdx = MultiBinom3Blur(dbdx, RunParams%nBlur)
+            dbdt = MultiBinom3Blur(dbdt, RunParams%nBlur)
+         end if
+
+         tiles(tID)%u(id2bdxx,:,1) = (0.25_wp*(dbdx(2:nX+1,1) - dbdx(0:nX-1,1)) + 0.125_wp*(dbdx(3:nX+2,1) - dbdx(-1:nX-2,1))) * deltaXRecip
+         tiles(tID)%u(id2bdtx,:,1) = (0.25_wp*(dbdt(2:nX+1,1) - dbdt(0:nX-1,1)) + 0.125_wp*(dbdt(3:nX+2,1) - dbdt(-1:nX-2,1))) * deltaXRecip
+
+         deallocate(dbdx, dbdy, dbdt)
+
       end if
-
-   end subroutine ComputeTopographicCurvatures_ij
-
+   end subroutine ComputeMorphodynamicCurvatures
 
    ! For DEMS / SRTMS etc, GetHeights returns different values of b0 at the
    ! interface depending on which tile it's called from. These O(1e-10)

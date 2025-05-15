@@ -40,9 +40,9 @@ module closures_module
  
    ! Main model closure declarations, followed by definitions for their interfaces.
    
-   public :: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin
-   public :: IversonOuyangGeometricCorrectionFactor, NoGeometricCorrectionFactor
-   public :: IversonOuyangGeometricCorrectionFactor_gradin, NoGeometricCorrectionFactor_gradin
+   public :: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin_scalar, GeometricCorrectionFactor_gradin_array
+   public :: IversonOuyangGeometricCorrectionFactor, IversonOuyangGeometricCorrectionFactor_gradin_scalar, IversonOuyangGeometricCorrectionFactor_gradin_array
+   public :: NoGeometricCorrectionFactor, NoGeometricCorrectionFactor_gradin_scalar, NoGeometricCorrectionFactor_gradin_array
 
    public :: DepositionClosure
    public :: NoDeposition, SimpleHinderedSettling, SpearmanManningHinderedSettling
@@ -78,13 +78,22 @@ module closures_module
        end function GeometricCorrectionFactor
    end interface
 
-   pointer :: GeometricCorrectionFactor_gradin
+   pointer :: GeometricCorrectionFactor_gradin_scalar
+   interface       
+      pure function GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
+         import :: wp
+         real(kind=wp), intent(in) :: dbdx, dbdy
+         real(kind=wp) :: gam
+      end function GeometricCorrectionFactor_gradin_scalar
+   end interface
+
+   pointer :: GeometricCorrectionFactor_gradin_array
    interface
-       pure function GeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
-           import :: wp
-           real(kind=wp), intent(in) :: dbdx, dbdy
-           real(kind=wp) :: gam
-       end function GeometricCorrectionFactor_gradin
+      pure function GeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+         import :: wp
+         real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+         real(kind=wp), dimension(:,:) :: gam(size(dbdx,1),size(dbdx,2))
+      end function GeometricCorrectionFactor_gradin_array
    end interface
 
    pointer :: DepositionClosure
@@ -298,7 +307,7 @@ contains
 
    end function IversonOuyangGeometricCorrectionFactor
 
-   pure function IversonOuyangGeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
+   pure function IversonOuyangGeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
       implicit none
 
       real(kind=wp), intent(in) :: dbdx, dbdy
@@ -306,7 +315,17 @@ contains
 
       gam = sqrt(1.0_wp + dbdx*dbdx + dbdy*dbdy)
 
-   end function IversonOuyangGeometricCorrectionFactor_gradin
+   end function IversonOuyangGeometricCorrectionFactor_gradin_scalar
+
+   pure function IversonOuyangGeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+      implicit none
+
+      real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+      real(kind=wp), dimension(:,:) :: gam(size(dbdx,1), size(dbdx,2))
+
+      gam(:,:) = sqrt(1.0_wp + dbdx(:,:)*dbdx(:,:) + dbdy(:,:)*dbdy(:,:))
+
+   end function IversonOuyangGeometricCorrectionFactor_gradin_array
 
    ! If geometric factors are switched off, set gamma = 1.
    pure function NoGeometricCorrectionFactor(RunParams, u) result(gam)
@@ -320,7 +339,7 @@ contains
 
    end function NoGeometricCorrectionFactor
 
-   pure function NoGeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
+   pure function NoGeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
       implicit none
 
       real(kind=wp), intent(in) :: dbdx, dbdy
@@ -328,7 +347,17 @@ contains
 
       gam = 1.0_wp
 
-   end function NoGeometricCorrectionFactor_gradin
+   end function NoGeometricCorrectionFactor_gradin_scalar
+
+   pure function NoGeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+      implicit none
+
+      real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+      real(kind=wp), dimension(:,:) :: gam(size(dbdx,1), size(dbdx,2))
+
+      gam(:,:) = 1.0_wp
+
+   end function NoGeometricCorrectionFactor_gradin_array
 
 ! -- Closures for the deposition law. --
 
@@ -497,7 +526,11 @@ contains
       Hn = uvect(RunParams%Vars%Hn)
       gperp = RunParams%g / gam
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
-      Fr = modu / sqrt(gperp * Hn)
+      if (Hn < epsilon(1.0_wp)) then
+        Fr = 0.0_wp
+      else
+        Fr = modu / sqrt(gperp * Hn)
+      end if
 
       mu1 = RunParams%PouliquenMinSlope
       mu2 = RunParams%PouliquenMaxSlope

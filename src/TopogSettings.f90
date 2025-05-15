@@ -405,9 +405,9 @@ contains
       else
          label = RebuildDEM%to_lower()
          select case (label%s)
-            case ('yes')
+            case ('yes','on')
                RunParams%RebuildDEM = .TRUE.
-            case ('no')
+            case ('no','off')
                RunParams%RebuildDEM = .FALSE.
             case default
                RunParams%RebuildDEM = RebuildDEM_d

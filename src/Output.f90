@@ -951,7 +951,7 @@ contains
       integer :: w_id, Hn_id, u_id, v_id, spd_id, psi_id
       integer :: rho_id, rhoHnu_id, rhoHnv_id, Hnpsi_id
       integer :: b0_id, bt_id, dbdx_id, dbdy_id, gamma_id
-      integer :: d2bdxx_id, d2bdxy_id, d2bdyy_id
+      integer :: d2bdxx_id, d2bdxy_id, d2bdyy_id, d2bdtx_id, d2bdty_id
 
       integer :: x_vertex_id, y_vertex_id
       integer :: B0_vertex_id, Bt_vertex_id
@@ -1199,23 +1199,38 @@ contains
          call define_nc_var_real(ncid, "d2bdxx", dimids, d2bdxx_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='d2bdxx', &
                               standard_name='d2bdxx', &
-                              units='1', &
+                              units='1/m', &
                               coordinates='x y', &
                               grid_mapping='crs')
          
          call define_nc_var_real(ncid, "d2bdxy", dimids, d2bdxy_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='d2bdxy', &
                               standard_name='d2bdxy', &
-                              units='1', &
+                              units='1/m', &
                               coordinates='x y', &
                               grid_mapping='crs')
          
          call define_nc_var_real(ncid, "d2bdyy", dimids, d2bdyy_id, fill_value=-9999.9_wp, deflate=1, &
                               long_name='d2bdyy', &
                               standard_name='d2bdyy', &
-                              units='1', &
+                              units='1/m', &
                               coordinates='x y', &
                               grid_mapping='crs')
+         if (RunParams%MorphodynamicsOn) then
+            call define_nc_var_real(ncid, "d2bdtx", dimids, d2bdtx_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='d2bdtx', &
+                              standard_name='d2bdtx', &
+                              units='1/s', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+            
+            call define_nc_var_real(ncid, "d2bdty", dimids, d2bdty_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='d2bdty', &
+                              standard_name='d2bdty', &
+                              units='1/s', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+         end if
       end if
 
       call define_nc_var_real(ncid, "B0_vertex", vertex_dim_ids, B0_vertex_id, &
@@ -1291,6 +1306,11 @@ contains
             call put_nc_var(ncid, d2bdxx_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdxx, :, :), start=xy_start, count=nXYpertile)
             call put_nc_var(ncid, d2bdxy_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdxy, :, :), start=xy_start, count=nXYpertile)
             call put_nc_var(ncid, d2bdyy_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdyy, :, :), start=xy_start, count=nXYpertile)
+
+            if (RunParams%MorphodynamicsOn) then
+               call put_nc_var(ncid, d2bdtx_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdtx, :, :), start=xy_start, count=nXYpertile)
+               call put_nc_var(ncid, d2bdty_id, grid%tileContainer(ttk)%u(RunParams%Vars%d2bdty, :, :), start=xy_start, count=nXYpertile)
+            end if
          end if
 
          call put_nc_var(ncid, x_vertex_id, grid%tileContainer(ttk)%x_vertex(:), start=[x_vertex_start], count=[nX_vertex_pertile])

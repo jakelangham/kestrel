@@ -706,6 +706,7 @@ contains
       real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, dbdx, dbdy
       real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
+      real(kind=wp) :: d2bdtx, d2bdty
       real(kind=wp) :: u, v
       real(kind=wp) :: curvatureTerm
 
@@ -738,10 +739,10 @@ contains
       ! series data sttored in RunParams%FluxSources(:)%{time,flux,psi,etc}.
       if (tile_has_source) then
          if (nSrc >= 1) then
-            allocate (Qf(nSrc), rhoQf(nSrc), psiQf(nSrc))
-            Qf(:) = 0.0_wp
-            rhoQf(:) = 0.0_wp
-            psiQf(:) = 0.0_wp
+            allocate (Qf(nSrc), rhoQf(nSrc), psiQf(nSrc), source=0.0_wp)
+            ! Qf(:) = 0.0_wp
+            ! rhoQf(:) = 0.0_wp
+            ! psiQf(:) = 0.0_wp
             do J = 1, nSrc
                srcX = RunParams%FluxSources(J)%x
                srcY = RunParams%FluxSources(J)%y
@@ -837,28 +838,44 @@ contains
 
       if (uvect(iHn) > RunParams%heightThreshold) then
 
-        ! Determine the gravitational forcing and add it on to the momentum
-        ! equations.
-        g = RunParams%g
-        hp_o_gam = -uvect(ibt)
-        hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
-        hp_o_gam = hp_o_gam / gam
-        stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
-        stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
+         ! Determine the gravitational forcing and add it on to the momentum
+         ! equations.
+         g = RunParams%g
+         hp_o_gam = -uvect(ibt)
+         hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
+         hp_o_gam = hp_o_gam / gam
+         stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
+         stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
 
-        if (RunParams%curvature) then
-           ! Determine the curvature terms and add it on to the momentum
-           ! equations.
-           d2bdxx = uvect(RunParams%Vars%d2bdxx)
-           d2bdyy = uvect(RunParams%Vars%d2bdyy)
-           d2bdxy = uvect(RunParams%Vars%d2bdxy)
+         if (RunParams%curvature) then
+            ! Determine the curvature terms and add it on to the momentum
+            ! equations.
+            d2bdxx = uvect(RunParams%Vars%d2bdxx)
+            d2bdyy = uvect(RunParams%Vars%d2bdyy)
+            d2bdxy = uvect(RunParams%Vars%d2bdxy)
 
-           u = uvect(iu)
-           v = uvect(iv)
+            u = uvect(iu)
+            if (RunParams%isOneD) then
+               v = 0.0_wp
+            else
+               v = uvect(iv)
+            end if
 
-           curvatureTerm = uvect(irho)*hp_o_gam*(u*u*d2bdxx + 2.0_wp*u*v*d2bdxy + v*v*d2bdyy)
-           stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx
-           stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy
+            if (RunParams%MorphodynamicsOn) then
+               d2bdtx = uvect(RunParams%Vars%d2bdtx)
+               if (RunParams%isOneD) then
+                  d2bdty = 0.0_wp
+               else
+                  d2bdty = uvect(RunParams%Vars%d2bdty)
+               end if
+            else
+               d2bdtx = 0.0_wp
+               d2bdty = 0.0_wp
+            end if
+
+            curvatureTerm = uvect(irho)*hp_o_gam*(u*u*d2bdxx + 2.0_wp*u*v*d2bdxy + v*v*d2bdyy + u*d2bdtx + v*d2bdty)
+            stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx
+            stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy
         end if
     end if
 

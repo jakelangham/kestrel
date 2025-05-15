@@ -39,4 +39,4 @@ directory = lake_at_rest_hydro/
 Topog:
 Type = Function
 Topog function = xSinSlope
-Topog params = (0.2)
+Topog params = (0.2, 20)

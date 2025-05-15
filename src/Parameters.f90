@@ -252,15 +252,18 @@ contains
                   case ('off')
                      RunParams%geometric_factors = .false.
                      GeometricCorrectionFactor => NoGeometricCorrectionFactor
-                     GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
+                     GeometricCorrectionFactor_gradin_scalar => NoGeometricCorrectionFactor_gradin_scalar
+                     GeometricCorrectionFactor_gradin_array => NoGeometricCorrectionFactor_gradin_array
                   case ('on')
                      RunParams%geometric_factors = .true.
                      GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                     GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+                     GeometricCorrectionFactor_gradin_scalar => IversonOuyangGeometricCorrectionFactor_gradin_scalar
+                     GeometricCorrectionFactor_gradin_array => IversonOuyangGeometricCorrectionFactor_gradin_array
                   case default
                      set_geometric_factors = geometric_factors_d
                      GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                     GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+                     GeometricCorrectionFactor_gradin_scalar => IversonOuyangGeometricCorrectionFactor_gradin_scalar
+                     GeometricCorrectionFactor_gradin_array => IversonOuyangGeometricCorrectionFactor_gradin_array
                end select
 
             case ('curvature')
@@ -501,10 +504,12 @@ contains
          RunParams%geometric_factors = geometric_factors_d
          if (geometric_factors_d) then
             GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-            GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+            GeometricCorrectionFactor_gradin_scalar => IversonOuyangGeometricCorrectionFactor_gradin_scalar
+            GeometricCorrectionFactor_gradin_array => IversonOuyangGeometricCorrectionFactor_gradin_array
          else
             GeometricCorrectionFactor => NoGeometricCorrectionFactor
-            GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
+            GeometricCorrectionFactor_gradin_scalar => NoGeometricCorrectionFactor_gradin_scalar
+            GeometricCorrectionFactor_gradin_array => NoGeometricCorrectionFactor_gradin_array
          end if
       end if
 

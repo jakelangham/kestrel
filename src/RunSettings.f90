@@ -47,6 +47,7 @@ module runsettings_module
       integer :: Hn, hp, u, v, psi, rho ! Derived variables
       integer :: b0, bt, dbdx, dbdy ! Specified elevation and slopes
       integer :: d2bdxx, d2bdyy, d2bdxy ! second derivatives of elevation
+      integer :: d2bdtx, d2bdty ! time derivatives of elevation slopes
    end type VarIndex
 
    ! Cap initial condition type. Defines an initial release of a volume of
