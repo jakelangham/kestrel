@@ -53,10 +53,13 @@ module timestepper_module
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
    use morphodynamic_rhs_module, only: CalculateMorphodynamicRHS, ComputeCellCentredTopographicData, ComputeInterfacialTopographicData
-   use update_tiles_module, only: AddTile
+   use update_tiles_module, only: AddTile, AddTiles
    use varstring_module, only: varString
    use output_module, only: OutputSolutionData, OutputAggregateData, OutputInfo, CalculateVolume
-   use utilities_module, only: Int2String
+   use utilities_module, only: AddToVector
+#if DEBUG_SPD>0
+    use utilities_module, only: Int2String
+#endif
 
    implicit none
 
@@ -1017,53 +1020,48 @@ contains
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
 
-      integer :: nXtiles, nYtiles
-      integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: nYpertile, buffer
       integer :: tt, ttk, ttN
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
 
-      nXtiles = grid%nXtiles
-      nYtiles = grid%nYtiles
+      integer, dimension(:), allocatable :: tilesToAdd
 
-      nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      buffer = RunParams%TileBuffer
+
+      allocate(Hn(RunParams%nXpertile, buffer))
+
 !$omp parallel do schedule(auto), default(none), &
-!$omp private(tt, ttk, Hn, ttN, ydist), &
-!$omp shared(ActiveTiles, grid, tileContainer, RunParams, nXpertile, nYpertile)
+!$omp private(tt, ttk, Hn, ttN), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, nYpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttN = tileContainer(ttk)%North 
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttN > 0 .and. (.not. tileContainer(ttN)%TileOn)) then
-            ydist = 0
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = nYpertile, 1, -1
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist > (RunParams%nYpertile - RunParams%TileBuffer)) then
+         if (.not. tileContainer(ttk)%NorthOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, (nYpertile - buffer + 1):nYpertile)
+
+            if (any(Hn > RunParams%heightThreshold)) then
 !$omp critical
-                  call AddTile(grid, ttN, RunParams)
+               ttN = tileContainer(ttk)%North 
+               call AddToVector(tilesToAdd, ttN)
 !$omp end critical
-                  exit
-               end if
-            end do
+            end if
          end if
       end do
 !$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+         call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearNorthBoundary
 
@@ -1074,53 +1072,48 @@ contains
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
 
-      integer :: nXtiles, nYtiles
-      integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: nXpertile, buffer
       integer :: tt, ttk, ttE
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
 
-      nXtiles = grid%nXtiles
-      nYtiles = grid%nYtiles
+      integer, dimension(:), allocatable :: tilesToAdd
 
       nXpertile = RunParams%nXpertile
-      nYpertile = RunParams%nYpertile
+
+      buffer = RunParams%TileBuffer
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(buffer, RunParams%nYpertile))
+
 !$omp parallel do schedule(auto), default(none), &
-!$omp private(tt, ttk, Hn, ttE, xdist), &
-!$omp shared(ActiveTiles, grid, tileContainer, RunParams, nXpertile, nYpertile)
+!$omp private(tt, ttk, Hn, ttE), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, nXpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttE = tileContainer(ttk)%East
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttE > 0 .and. (.not. tileContainer(ttE)%TileOn)) then
-            xdist = 0
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = nXpertile, 1, -1
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist > (RunParams%nXpertile - RunParams%TileBuffer)) then
+         if (.not. tileContainer(ttk)%EastOn) then
+            
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, (nXpertile-buffer+1):nXpertile, :)
+
+            if (any(Hn > RunParams%heightThreshold)) then
 !$omp critical
-                  call AddTile(grid, ttE, RunParams)
+               ttE = tileContainer(ttk)%East
+               call AddToVector(tilesToAdd, ttE)
 !$omp end critical
-                  exit
-               end if
-            end do
+            end if
          end if
       end do
 !$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+         call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearEastBoundary
 
@@ -1131,53 +1124,46 @@ contains
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
 
-      integer :: nXtiles, nYtiles
-      integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttS
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
 
-      nXtiles = grid%nXtiles
-      nYtiles = grid%nYtiles
+      integer, dimension(:), allocatable :: tilesToAdd
 
-      nXpertile = RunParams%nXpertile
-      nYpertile = RunParams%nYpertile
+      buffer = RunParams%TileBuffer
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(RunParams%nXpertile, buffer))
+
 !$omp parallel do schedule(auto), default(none), &
-!$omp private(tt, ttk, Hn, ttS, ydist), &
-!$omp shared(ActiveTiles, grid, tileContainer, RunParams, nXpertile, nYPertile)
+!$omp private(tt, ttk, Hn, ttS), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         ttS = tileContainer(ttk)%South
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttS > 0 .and. (.not. tileContainer(ttS)%TileOn)) then
-            ydist = nYpertile
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = 1, nYpertile
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist <= RunParams%TileBuffer) then
+         if (.not. tileContainer(ttk)%SouthOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, 1:buffer)
+
+            if (any(Hn > RunParams%heightThreshold)) then
 !$omp critical
-                  call AddTile(grid, ttS, RunParams)
+               ttS = tileContainer(ttk)%South
+               call AddToVector(tilesToAdd, ttS)
 !$omp end critical
-                  exit
-               end if
-            end do
+            end if
          end if
       end do
 !$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+        call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearSouthBoundary
 
@@ -1188,54 +1174,47 @@ contains
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
 
-      integer :: nXtiles, nYtiles
-      integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttW
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
 
-      nXtiles = grid%nXtiles
-      nYtiles = grid%nYtiles
+      integer, dimension(:), allocatable :: tilesToAdd
 
-      nXpertile = RunParams%nXpertile
-      nYpertile = RunParams%nYpertile
+      buffer = RunParams%TileBuffer
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(buffer, RunParams%nYpertile))
+
 !$omp parallel do schedule(auto), default(none), &
-!$omp private(tt, ttk, Hn, ttW, xdist), &
-!$omp shared(ActiveTiles, grid, tileContainer, RunParams, nXpertile, nYpertile)
+!$omp private(tt, ttk, Hn, ttW), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ttW = tileContainer(ttk)%West
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (ttW > 0 .and. (.not. tileContainer(ttW)%TileOn)) then
-            xdist = nXpertile
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = 1, nXpertile
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist <= RunParams%TileBuffer) then
+         if (.not. tileContainer(ttk)%WestOn) then
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, 1:buffer, :)
+
+            if (any(Hn > RunParams%heightThreshold)) then
 !$omp critical
-                  call AddTile(grid, ttW, RunParams)
+               ttW = tileContainer(ttk)%West
+               call AddToVector(tilesToAdd, ttW)
 !$omp end critical
-                  exit
-               end if
-            end do
+            end if
          end if
       end do
-!$omp end parallel do
 
+      if (allocated(tilesToAdd)) then
+        call AddTiles(grid, tilesToAdd, RunParams)
+      end if
+      
    end subroutine NearWestBoundary
 
 ! The remaining routines below are used for updating data the tracts the maximum
@@ -1270,7 +1249,11 @@ contains
 
    end subroutine UpdateMaximumHeights
 
+#if DEBUG_SPD==1 || DEBUG_SPD==2
    subroutine UpdateMaximumSpeeds(RunParams, tile, t)
+#else
+   pure subroutine UpdateMaximumSpeeds(RunParams, tile, t)
+#endif
 
       implicit none
 
@@ -1290,7 +1273,8 @@ contains
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
                call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
-                   Int2String(ii) // ',' // Int2String(jj) // ' : spd = ', spd)
+                   Int2String(ii) // ',' // Int2String(jj))
+               write (*, *) '    spd = ', spd, ' : Hn above threshold? ', (tile%u(iHn, ii, jj) > RunParams%heightThreshold)
 #if DEBUG_SPD==2
                call exit(1)
 #endif

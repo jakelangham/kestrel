@@ -68,6 +68,7 @@ module grid_module
       ! referenced individually
       integer, pointer :: North, South, East, West
       integer, pointer :: NorthWest, NorthEast, SouthWest, SouthEast
+      logical, pointer :: NorthOn, SouthOn, EastOn, WestOn
 
       ! x, y values at cell centres.
       real(kind=wp), dimension(:), allocatable :: x, y

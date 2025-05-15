@@ -44,6 +44,7 @@ module update_tiles_module
 
    private
    public :: AddTile
+   public :: AddTiles
    public :: AddToActiveTiles
    public :: ActivateTile
    public :: AllocateTile
@@ -76,6 +77,18 @@ contains
       grid%ymin = min(grid%tileContainer(tile)%ymin, grid%ymin)
       grid%ymax = max(grid%tileContainer(tile)%ymax, grid%ymax)
    end subroutine AddTile
+
+   subroutine AddTiles(grid, tiles, RunParams)
+      type(GridType), target, intent(inout) :: grid
+      integer, dimension(:), intent(in) :: tiles
+      type(RunSet), intent(in) :: RunParams
+
+      integer :: t
+
+      do t=1,size(tiles)
+         call AddTile(grid, tiles(t), RunParams)
+      end do
+   end subroutine AddTiles
 
    ! Add tile to ActiveTiles list
    subroutine AddToActiveTiles(grid, k)
@@ -139,28 +152,28 @@ contains
       nFlux = RunParams%nFlux
 
       if (.not. allocated(tileContainer(k)%Hnmax)) then
-         allocate (tileContainer(k)%Hnmax(nXpertile, nYpertile, 2))
-         tileContainer(k)%Hnmax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%Hnmax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%Hnmax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%umax)) then
-         allocate (tileContainer(k)%umax(nXpertile, nYpertile, 2))
-         tileContainer(k)%umax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%umax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%umax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%emax)) then
-         allocate (tileContainer(k)%emax(nXpertile, nYpertile, 2))
-         tileContainer(k)%emax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%emax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%emax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%dmax)) then
-        allocate (tileContainer(k)%dmax(nXpertile, nYpertile, 2))
-        tileContainer(k)%dmax(:, :, :) = 0.0_wp
+        allocate (tileContainer(k)%dmax(nXpertile, nYpertile, 2), source=0.0_wp)
+        ! tileContainer(k)%dmax(:, :, :) = 0.0_wp
      end if
       if (.not. allocated(tileContainer(k)%psimax)) then
-         allocate (tileContainer(k)%psimax(nXpertile, nYpertile, 2))
-         tileContainer(k)%psimax(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%psimax(nXpertile, nYpertile, 2), source=0.0_wp)
+        !  tileContainer(k)%psimax(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%tfirst)) then
-         allocate (tileContainer(k)%tfirst(nXpertile, nYpertile))
-         tileContainer(k)%tfirst(:, :) = -1.0_wp
+         allocate (tileContainer(k)%tfirst(nXpertile, nYpertile), source=-1.0_wp)
+        !  tileContainer(k)%tfirst(:, :) = -1.0_wp
       end if
 
       call AllocateU(RunParams, grid, k)
@@ -173,44 +186,44 @@ contains
       call EqualiseTopographicBoundaryData(RunParams, grid, k)
 
       if (.not. allocated(tileContainer(k)%hXFlux)) then
-         allocate (tileContainer(k)%hXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%hXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%hXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%hXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%hYFlux)) then
-         allocate (tileContainer(k)%hYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%hYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%hYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%hYFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%gXFlux)) then
-         allocate (tileContainer(k)%gXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%gXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%gXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%gXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%gYFlux)) then
-         allocate (tileContainer(k)%gYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%gYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%gYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%gYFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%pXFlux)) then
-         allocate (tileContainer(k)%pXFlux(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%pXFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%pXFlux(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%pXFlux(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%pYFlux)) then
-         allocate (tileContainer(k)%pYFlux(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%pYFlux(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%pYFlux(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%pYFlux(:, :, :) = 0.0_wp
       end if
 
       if (.not. allocated(tileContainer(k)%ddtExplicit)) then
-         allocate (tileContainer(k)%ddtExplicit(nFlux, nXpertile, nYpertile))
-         tileContainer(k)%ddtExplicit(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%ddtExplicit(nFlux, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%ddtExplicit(:, :, :) = 0.0_wp
       end if
 
       if (.not. allocated(tileContainer(k)%ddtImplicit)) then
-         allocate (tileContainer(k)%ddtImplicit(nFlux, nXpertile, nYpertile))
-         tileContainer(k)%ddtImplicit(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%ddtImplicit(nFlux, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%ddtImplicit(:, :, :) = 0.0_wp
       end if
 
       if (RunParams%MorphodynamicsOn) then
          if (.not. allocated(tileContainer(k)%ddtExplicitBt)) then
-            allocate (tileContainer(k)%ddtExplicitBt(nXpertile+1, nYpertile+1))
-            tileContainer(k)%ddtExplicitBt(:, :) = 0.0_wp
+            allocate (tileContainer(k)%ddtExplicitBt(nXpertile+1, nYpertile+1), source=0.0_wp)
+            ! tileContainer(k)%ddtExplicitBt(:, :) = 0.0_wp
          end if
       end if
 
@@ -236,36 +249,37 @@ contains
       d = RunParams%nDimensions
 
       if (.not. allocated(tileContainer(k)%u)) then
-         allocate (tileContainer(k)%u(d, nXpertile, nYpertile))
-         tileContainer(k)%u(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%u(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%u(:, :, :) = 0.0_wp
          ! Even dry regions should have rho = 'at least' rhow since sometimes
          ! we need to divide by rho near fronts
          tileContainer(k)%u(RunParams%Vars%rho, :, :) = RunParams%rhow
       end if
       if (.not. allocated(tileContainer(k)%uLimX)) then
-         allocate (tileContainer(k)%uLimX(d, nXpertile, nYpertile))
-         tileContainer(k)%uLimX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uLimX(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uLimX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uLimY)) then
-         allocate (tileContainer(k)%uLimY(d, nXpertile, nYpertile))
-         tileContainer(k)%uLimY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uLimY(d, nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uLimY(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uPlusX)) then
-         allocate (tileContainer(k)%uPlusX(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%uPlusX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uPlusX(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uPlusX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uMinusX)) then
-         allocate (tileContainer(k)%uMinusX(d, nXpertile + 1, nYpertile))
-         tileContainer(k)%uMinusX(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uMinusX(d, nXpertile + 1, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%uMinusX(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uPlusY)) then
-         allocate (tileContainer(k)%uPlusY(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%uPlusY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uPlusY(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%uPlusY(:, :, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%uMinusY)) then
-         allocate (tileContainer(k)%uMinusY(d, nXpertile, nYpertile + 1))
-         tileContainer(k)%uMinusY(:, :, :) = 0.0_wp
+         allocate (tileContainer(k)%uMinusY(d, nXpertile, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%uMinusY(:, :, :) = 0.0_wp
       end if
+      
    end subroutine AllocateU
 
    subroutine AllocateTopographicData(RunParams, grid, k)
@@ -293,6 +307,7 @@ contains
             call GridToPhysical(RunParams, grid, grid_i, grid_j, ii, 1, x, y)
             tileContainer(k)%x(ii) = x
          end do
+
          tileContainer(k)%xmin = minval(tileContainer(k)%x)
          tileContainer(k)%xmax = maxval(tileContainer(k)%x)
       end if
@@ -302,6 +317,7 @@ contains
             call GridToPhysical(RunParams, grid, grid_i, grid_j, 1, jj, x, y)
             tileContainer(k)%y(jj) = y
          end do
+
          tileContainer(k)%ymin = minval(tileContainer(k)%y)
          tileContainer(k)%ymax = maxval(tileContainer(k)%y)
       end if
@@ -311,6 +327,7 @@ contains
             tileContainer(k)%x_vertex(ii) = &
                tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
          end do
+
          tileContainer(k)%x_vertex(nXpertile + 1) = &
             tileContainer(k)%x(nXpertile) + 0.5_wp*RunParams%deltaX
       end if
@@ -320,6 +337,7 @@ contains
             tileContainer(k)%y_vertex(jj) = &
                tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
          end do
+
          tileContainer(k)%y_vertex(nYpertile + 1) = &
             tileContainer(k)%y(nYpertile) + 0.5_wp*RunParams%deltaY
       end if
@@ -328,12 +346,12 @@ contains
          allocate (tileContainer(k)%b0(nXpertile + 1, nYpertile + 1))
       end if
       if (.not. allocated(tileContainer(k)%bt)) then
-         allocate (tileContainer(k)%bt(nXpertile + 1, nYpertile + 1))
-         tileContainer(k)%bt(:, :) = 0.0_wp
+         allocate (tileContainer(k)%bt(nXpertile + 1, nYpertile + 1), source=0.0_wp)
+        !  tileContainer(k)%bt(:, :) = 0.0_wp
       end if
       if (.not. allocated(tileContainer(k)%EminusD)) then
-         allocate (tileContainer(k)%EminusD(nXpertile, nYpertile))
-         tileContainer(k)%EminusD(:, :) = 0.0_wp
+         allocate (tileContainer(k)%EminusD(nXpertile, nYpertile), source=0.0_wp)
+        !  tileContainer(k)%EminusD(:, :) = 0.0_wp
       end if
 
    end subroutine
@@ -484,7 +502,7 @@ contains
    ! navigating the grid and boundary condition types.
    ! N.B. For now, this is a quick paste-in of code that used to be in
    ! ActivateTile so that it can be used for ghost tiles too.
-   subroutine SetTileBoundaries(RunParams, grid, ttk)
+   pure subroutine SetTileBoundaries(RunParams, grid, ttk)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -520,11 +538,38 @@ contains
          tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
          tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
       end if
+
+      call UpdateNeighbourTiles(grid, ttk)
+
    end subroutine SetTileBoundaries
+
+   ! For a tile in the grid, record whether its neigbour tiles are active.
+   pure subroutine UpdateNeighbourTiles(grid, ttk)
+      implicit none
+      type(GridType), target, intent(inout) :: grid
+      integer, intent(in) :: ttk
+
+      type(tileType), dimension(:), pointer :: tileContainer
+
+      tileContainer => grid%tileContainer
+
+      if (associated(tileContainer(ttk)%West)) then
+         tileContainer(ttk)%WestOn => tileContainer(tileContainer(ttk)%West)%TileOn
+      end if
+      if (associated(tileContainer(ttk)%East)) then
+         tileContainer(ttk)%EastOn => tileContainer(tileContainer(ttk)%East)%TileOn
+      end if
+      if (associated(tileContainer(ttk)%North)) then
+         tileContainer(ttk)%NorthOn => tileContainer(tileContainer(ttk)%North)%TileOn
+      end if
+      if (associated(tileContainer(ttk)%South)) then
+         tileContainer(ttk)%SouthOn => tileContainer(tileContainer(ttk)%South)%TileOn
+      end if
+   end subroutine UpdateNeighbourTiles
 
    ! Determine if tile is on the edge of the domain and if so, set its
    ! neighbours to wrap around.
-   subroutine SetPeriodicBoundaryConds(grid, k)
+   pure subroutine SetPeriodicBoundaryConds(grid, k)
       implicit none
 
       type(GridType), target, intent(inout) :: grid
