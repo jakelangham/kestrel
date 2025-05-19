@@ -337,11 +337,19 @@ contains
             // " The block variable 'curvature blur width' must be a positive integer.")
       end if
 
+      ! nthreads only used if _OPENMP
+#ifndef _OPENMP
+      if (set_nthreads) then
+         call WarningMessage("In the 'Solver' block input file " // trim(RunParams%InputFile%s) // new_line('A') &
+            // " The block variable 'nthreads' requires OPENMP, enabled with --enable-parallel in configure.")
+      end if
+#else
       ! nthreads >= 1
       if (RunParams%nthreads < 1) then
         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
            // " The block variable 'nthreads' must be a positive integer.")
      end if
+#endif
 
    end subroutine Solver_Set
 

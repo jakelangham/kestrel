@@ -86,7 +86,7 @@ contains
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
 
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -97,7 +97,7 @@ contains
 
       ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -108,7 +108,7 @@ contains
 
       ! Correct slopes for w, Hnpsi to ensure positivity.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -119,7 +119,7 @@ contains
 
       ! Compute derived variables Hn, u, v, psi and rho at cell centres.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -130,7 +130,7 @@ contains
       
       ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -141,7 +141,7 @@ contains
 
       ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
@@ -153,7 +153,7 @@ contains
       ! Calculate numerical flux terms, and also local propagation speeds which
       ! give the CFL time step.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, unitCFLTimeStep)
       do tt = 1, ActiveTiles%Size
@@ -168,7 +168,7 @@ contains
 
       ! Sum flux and source terms to complete the calculation.
       ! do tt = 1, ActiveTiles%Size
-!$omp parallel do schedule(dynamic), default(none), &
+!$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, t)
       do tt = 1, ActiveTiles%Size
