@@ -173,7 +173,7 @@ contains
    ! Compute diffusion fluxes in the x direction for each of the governing
    ! equations and store in the vector xFlux. These implement an eddy viscosity
    ! parametrisation.
-   subroutine XDiffusionFlux(RunParams, u, dudx, xFlux)
+   pure subroutine XDiffusionFlux(RunParams, u, dudx, xFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -210,7 +210,7 @@ contains
    ! Compute diffusion fluxes in the y direction for each of the governing
    ! equations and store in the vector yFlux. These implement an eddy viscosity
    ! parametrisation.
-   subroutine YDiffusionFlux(RunParams, u, dudy, yFlux)
+   pure subroutine YDiffusionFlux(RunParams, u, dudy, yFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -246,14 +246,15 @@ contains
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the x direction, return in xMaxWS.
-   pure function XMaxWaveSpeeds(RunParams, uvect) result(xMaxWS)
+   pure function XMaxWaveSpeeds(RunParams, uvect, gam) result(xMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: xMaxWS
 
-      real(kind=wp) :: Hn, u, gam, by
+      real(kind=wp) :: Hn, u, by
 
       integer :: iHn, iu
 
@@ -268,7 +269,6 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
@@ -280,14 +280,15 @@ contains
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the x direction, return in xMinWS.
-   pure function XMinWaveSpeeds(RunParams, uvect) result(xMinWS)
+   pure function XMinWaveSpeeds(RunParams, uvect, gam) result(xMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: xMinWS
 
-      real(kind=wp) :: Hn, u, gam, by
+      real(kind=wp) :: Hn, u, by
 
       integer :: iHn, iu
 
@@ -302,7 +303,6 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
@@ -314,14 +314,15 @@ contains
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the y direction, return in yMaxWS.
-   pure function YMaxWaveSpeeds(RunParams, uvect) result(yMaxWS)
+   pure function YMaxWaveSpeeds(RunParams, uvect, gam) result(yMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: yMaxWS
 
-      real(kind=wp) :: Hn, v, gam, bx
+      real(kind=wp) :: Hn, v, bx
 
       integer :: iHn, iv
 
@@ -336,7 +337,6 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
@@ -348,14 +348,15 @@ contains
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the y direction, return in yMinWS.
-   pure function YMinWaveSpeeds(RunParams, uvect) result(yMinWS)
+   pure function YMinWaveSpeeds(RunParams, uvect, gam) result(yMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: yMinWS
 
-      real(kind=wp) :: Hn, v, gam, bx
+      real(kind=wp) :: Hn, v, bx
 
       integer :: iHn, iv
 
@@ -370,7 +371,6 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then

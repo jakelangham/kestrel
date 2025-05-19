@@ -2,13 +2,15 @@ if DEBUG
 AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all -Wuninitialized -finit-real=snan -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16
+AM_FCFLAGS = -O2 -falign-loops=16 -ftree-vectorize -finline-functions
 if LINUX
 # These optimisation flags are only supported by gcc on linux.
 AM_FCFLAGS += -march=native -mtune=native
 endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
+AM_FCFLAGS += @FC_PARALLEL_FLAGS@
+AM_FCFLAGS += @FC_OPT_REPORT_FLAGS@
 
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h
@@ -31,6 +33,10 @@ kestrel_LDFLAGS += $(BOOST_LDFLAGS)
 kestrel_LDADD += $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB)
 else
 kestrel_LDADD += -lstdc++fs
+endif
+
+if PARAL
+kestrel_LDFLAGS += -fopenmp
 endif
 
 if HAVE_JULIA

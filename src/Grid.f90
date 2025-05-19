@@ -67,6 +67,7 @@ module grid_module
       ! Pointers to the neighbours array for easy reading when they need to be
       ! referenced individually
       integer, pointer :: North, South, East, West
+      integer, pointer :: NorthWest, NorthEast, SouthWest, SouthEast
 
       ! x, y values at cell centres.
       real(kind=wp), dimension(:), allocatable :: x, y

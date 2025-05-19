@@ -512,8 +512,14 @@ contains
       ! for when directions have to be referenced individually
       tileContainer(ttk)%West => tileContainer(ttk)%neighbours(1)
       tileContainer(ttk)%East => tileContainer(ttk)%neighbours(2)
-      tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
-      tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
+      if (.not. RunParams%isOneD) then
+         tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
+         tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
+         tileContainer(ttk)%SouthWest => tileContainer(ttk)%cornertiles(1)
+         tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
+         tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
+         tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
+      end if
    end subroutine SetTileBoundaries
 
    ! Determine if tile is on the edge of the domain and if so, set its

@@ -155,7 +155,7 @@ contains
    ! Outputs: excess_dep - amount of excess deposition
    !          deltaBt - change in bed height
    !          psiold - solids fraction prior to time step
-   subroutine ExcessDeposition(RunParams, tilesBefore, tilesAfter, &
+   pure subroutine ExcessDeposition(RunParams, tilesBefore, tilesAfter, &
                                ttk, i, j, excess_dep, deltaBt, psiold)
       implicit none
 
