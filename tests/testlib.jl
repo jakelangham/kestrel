@@ -397,7 +397,7 @@ function check_identical_simulations(testname1, testname2, tol, dim)
 
          if (diff > tol)
             result = 1
-            println("Solution field in $f1 differs from $f2")
+            println("Solution field in $f1 differs from $f2 (by $diff)")
             break
          end
       end

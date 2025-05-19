@@ -1,0 +1,43 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 100
+nYtiles = 1
+nXpertile = 100
+nYpertile = 1
+Xtilesize = 100
+Boundary Conditions = halt
+
+Source:
+  sourceX = 0
+  sourceY = 0
+  sourceRadius = 10
+  sourceTime = (0,1000)
+  sourceFlux = (1.,1.)
+  sourceConc = (0.,0.)
+
+Parameters:
+Drag = Chezy
+Chezy Co = 0.04
+Erosion = Off
+Eddy Viscosity = 1e-4
+Curvature = On
+
+Solver:
+T end = 50
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+nthreads = 4
+
+Output:
+N out = 3
+directory = flux_hydro_parallel/
+
+Topog:
+Type = Function
+Topog function = xSlope
+Topog params = (0.2)
