@@ -64,6 +64,33 @@ AC_ARG_ENABLE([parallel],
 esac],[parallel=false])
 AM_CONDITIONAL([PARAL], [test x$parallel = xtrue])
 
+if test x$parallel = xtrue; then
+#   FC_PARALLEL_FLAGS="-ftree-parallelize-loops=$threads -fopenmp"
+  FC_PARALLEL_FLAGS="-fopenmp"
+else
+  FC_PARALLEL_FLAGS=""
+fi
+
+AC_SUBST([FC_PARALLEL_FLAGS])
+
+AC_ARG_ENABLE([opt-report],
+[  --enable-opt-report        Show missed optimization and vectorization reports],
+[case "${enableval}" in
+  yes) opt_report=true ;;
+  no)  opt_report=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-opt-report]) ;;
+esac],
+[opt_report=false])
+
+# Set Fortran flags accordingly
+if test x$opt_report = xtrue; then
+  FC_OPT_REPORT_FLAGS="-fopt-info-missed -fopt-info-vec-missed"
+else
+  FC_OPT_REPORT_FLAGS=""
+fi
+
+AC_SUBST([FC_OPT_REPORT_FLAGS])
+
 AC_CONFIG_FILES([
  Makefile
  src/Makefile

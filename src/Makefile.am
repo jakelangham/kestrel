@@ -4,17 +4,15 @@ AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,o
              -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16 -ftree-vectorize
+AM_FCFLAGS = -O2 -falign-loops=16 -ftree-vectorize -finline-functions
 if LINUX
 # These optimisation flags are only supported by gcc on linux.
 AM_FCFLAGS += -march=native -mtune=native
 endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
-if PARAL
-AM_FCFLAGS +=  -ftree-parallelize-loops=2 -fopt-info-loop -fopenmp
-endif
-# AM_FCFLAGS += -fopt-info-all
+AM_FCFLAGS += @FC_PARALLEL_FLAGS@
+AM_FCFLAGS += @FC_OPT_REPORT_FLAGS@
 
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h

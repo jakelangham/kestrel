@@ -50,7 +50,7 @@ program Kestrel
    use timestepper_module, only: Run
    use output_module, only: CreateOutDir
    use varstring_module, only: varString
-   use version_module, only: GetVersion 
+   use version_module, only: GetVersion
 
    implicit none
 

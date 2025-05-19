@@ -55,6 +55,7 @@ module solver_settings_module
    integer(kind=c_int), parameter :: nBlur_d = 0
    integer(kind=c_int), parameter :: BlurPixelWidth_d = 1
    logical, parameter :: Restart_d = .FALSE.
+   integer(kind=c_int), parameter :: nthreads_d = 1
 
 contains
 
@@ -71,6 +72,7 @@ contains
       type(varString) :: limiter_label
       type(varString) :: desingularization_label
       type(varString) :: Restart_label
+      type(varString) :: nthreads_label
 
       integer :: J, N
 
@@ -87,6 +89,7 @@ contains
       logical :: set_InitialCondition
       logical :: set_nBlur
       logical :: set_BlurWidth
+      logical :: set_nthreads
 
       N = size(SolverValues)
 
@@ -103,6 +106,7 @@ contains
       set_InitialCondition=.FALSE.
       set_nBlur = .FALSE.
       set_BlurWidth = .FALSE.
+      set_nthreads = .FALSE.
 
       do J=1,N
          label = SolverLabels(J)%to_lower()
@@ -210,7 +214,11 @@ contains
             case ('curvature blur width')
                   set_BlurWidth = .TRUE.
                   RunParams%BlurPixelWidth = SolverValues(J)%to_int()
-          
+
+            case ('nthreads')
+                set_nthreads = .TRUE.
+                RunParams%nthreads = SolverValues(J)%to_int()
+
             case default
                call InputLabelUnrecognized(SolverLabels(J)%s)
 
@@ -260,6 +268,8 @@ contains
       if (.not. set_nBlur) RunParams%nBlur = nBlur_d
 
       if (.not. set_BlurWidth) RunParams%BlurPixelWidth = BlurPixelWidth_d
+
+      if (.not. set_nthreads) RunParams%nthreads = nthreads_d
 
       ! Validate Solver settings
 
@@ -326,6 +336,12 @@ contains
          call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
             // " The block variable 'curvature blur width' must be a positive integer.")
       end if
+
+      ! nthreads >= 1
+      if (RunParams%nthreads < 1) then
+        call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+           // " The block variable 'nthreads' must be a positive integer.")
+     end if
 
    end subroutine Solver_Set
 

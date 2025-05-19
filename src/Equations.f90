@@ -261,7 +261,7 @@ contains
    ! Compute diffusion fluxes in the x direction for each of the governing
    ! equations and store in the vector xFlux. These implement an eddy viscosity
    ! parametrisation.
-   subroutine XDiffusionFlux(RunParams, u, dudx, xFlux)
+   pure subroutine XDiffusionFlux(RunParams, u, dudx, xFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -300,7 +300,7 @@ contains
    ! Compute diffusion fluxes in the y direction for each of the governing
    ! equations and store in the vector yFlux. These implement an eddy viscosity
    ! parametrisation.
-   subroutine YDiffusionFlux(RunParams, u, dudy, yFlux)
+   pure subroutine YDiffusionFlux(RunParams, u, dudy, yFlux)
       implicit none
 
       type(RunSet), intent(in) :: RunParams

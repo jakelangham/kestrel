@@ -198,35 +198,76 @@ contains
 
    end function Binom3Blur_1d
 
+   ! pure function Binom3BlurH(source) result(filtered)
+   !    ! computes 2d 3-tap binomial blur
+   !    implicit none
+   !    real(kind=wp), dimension(:,:), intent(in) :: source
+   !    real(kind=wp), dimension(:,:) :: filtered(size(source,1), size(source,2))
+
+   !    integer :: M
+
+   !    M = size(source,1)
+
+   !    filtered(1,:) = source(1,:)
+   !    filtered(2:M-1,:) = (2*source(2:M-1,:) + source(1:M-2,:) + source(3:M,:)) / 4
+   !    filtered(M,:) = source(M,:)
+
+   !    return
+   ! end function Binom3BlurH
+
    pure function Binom3BlurH(source) result(filtered)
-      ! computes 2d 3-tap binomial blur
+      ! Applies a 1D 3-tap binomial blur along rows of a 2D array
       implicit none
       real(kind=wp), dimension(:,:), intent(in) :: source
       real(kind=wp), dimension(:,:) :: filtered(size(source,1), size(source,2))
 
-      integer :: M
+      integer :: i, j, M
 
       M = size(source,1)
 
-      filtered(1,:) = source(1,:)
-      filtered(2:M-1,:) = (2*source(2:M-1,:) + source(1:M-2,:) + source(3:M,:)) / 4
-      filtered(M,:) = source(M,:)
-
-      return
+      do j = 1, size(source,2)
+         filtered(1,j) = source(1,j)
+         do i = 2, M-1
+            filtered(i,j) = (2*source(i,j) + source(i-1,j) + source(i+1,j)) / 4.0_wp
+         end do
+         filtered(M,j) = source(M,j)
+      end do
    end function Binom3BlurH
+
+   pure function Binom3BlurV(source) result(filtered)
+   ! Applies a 1D 3-tap binomial blur along columns of a 2D array
+      implicit none
+      real(kind=wp), dimension(:,:), intent(in) :: source
+      real(kind=wp), dimension(size(source,1), size(source,2)) :: filtered
+
+      integer :: N, i, j
+
+      N = size(source,2)
+
+      do i = 1, size(source,1)
+         filtered(i,1) = source(i,1)
+         do j = 2, N-1
+            filtered(i,j) = (2*source(i,j) + source(i,j-1) + source(i,j+1)) / 4.0_wp
+         end do
+         filtered(i,N) = source(i,N)
+      end do
+   end function Binom3BlurV
 
    pure function Binom3Blur_2d(source) result(filtered)
       ! computes 2d 3-tap binomial blur
       implicit none
       real(kind=wp), dimension(:,:), intent(in) :: source
       real(kind=wp), dimension(:,:) :: filtered(size(source,1), size(source,2))
-      real(kind=wp), dimension(:,:) :: filtered_t(size(source,2), size(source,1))
+      ! real(kind=wp), dimension(:,:) :: filtered_t(size(source,2), size(source,1))
+
+      ! filtered = Binom3BlurH(source)
+      
+      ! filtered_t = transpose(filtered)
+      ! filtered_t = Binom3BlurH(filtered_t)
+      ! filtered = transpose(filtered_t)
 
       filtered = Binom3BlurH(source)
-      
-      filtered_t = transpose(filtered)
-      filtered_t = Binom3BlurH(filtered_t)
-      filtered = transpose(filtered_t)
+      filtered = Binom3BlurV(filtered)
 
       return
 

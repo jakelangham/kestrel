@@ -98,6 +98,10 @@ contains
       HnS = 0.0_wp
       HnN = 0.0_wp
 
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(auto), default(none), &
+!$omp private(tt, tID, i, j, ttW, HnW, ttE, HnE, ttS, HnS, ttN, HnN, gam, Friction, Ero, Depo), &
+!$omp shared(ActiveTiles, RunParams, tiles, grid, iHn, Hneps, nd, GeometricCorrectionFactor, DragClosure)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          do i = 1, RunParams%nXPertile
@@ -149,6 +153,7 @@ contains
             end do
          end do
       end do
+!$omp end parallel do
 
       call BtSourceTerm(RunParams, grid, tiles)
 
@@ -179,9 +184,13 @@ contains
 
       psib = 1.0_wp - RunParams%BedPorosity
 
+   if (.not. RunParams%isOneD) then
+!$omp parallel do schedule(auto), default(none), &
+!$omp private(tt, tID, i, j, dbdx, dbdy, gam, ttW, ttE, ttS, ttN, ttSW, ttSE, ttNW, ttNE), &
+!$omp shared(ActiveTiles, tiles, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
-         if (.not. RunParams%isOneD) then
+         
             ! interior
             do i = 2, nXpertile
                do j = 2, nYpertile
@@ -200,10 +209,10 @@ contains
             ttE = tiles(tID)%East
             ttS = tiles(tID)%South
             ttN = tiles(tID)%North
-            ttSW = tiles(ttW)%South
-            ttSE = tiles(ttE)%South
-            ttNW = tiles(ttW)%North
-            ttNE = tiles(ttE)%North
+            ttSW = tiles(tID)%SouthWest
+            ttSE = tiles(tID)%SouthEast
+            ttNW = tiles(tID)%NorthWest
+            ttNE = tiles(tID)%NorthEast
 
             do j = 2, nYpertile
                ! west bdry
@@ -276,7 +285,14 @@ contains
             tiles(tID)%ddtExplicitBt(nXpertile + 1, nYpertile + 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(tID)%EminusD(nXpertile, nYpertile), tiles(ttN )%EminusD(nXpertile, 1), &
                tiles(ttE)%EminusD(1, nYpertile), tiles(ttNE)%EminusD(1, 1)])
-         else
+         end do
+!$omp end parallel do
+      else
+!$omp parallel do schedule(auto), default(none), &
+!$omp private(tt, tID, dbdx, gam, ttW, ttE), &
+!$omp shared(ActiveTiles, tiles, grid, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
+         do tt = 1, ActiveTiles%Size
+            tID = ActiveTiles%List(tt)
             ! 1D is much simpler...
             do i = 2, nXpertile
                dbdx = 0.5_wp * (tiles(tID)%u(idbdx, i - 1, 1) + tiles(tID)%u(idbdx, i, 1))
@@ -306,12 +322,14 @@ contains
                gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(nXpertile+1,1) = -0.5_wp * gam * tiles(tID)%EminusD(nXpertile, 1) / psib
             end if
-         end if
-      end do
+         end do
+!$omp end parallel do
+      end if
+
    end subroutine
 
    ! Interpolate b at cell centres, for tile tID.
-   subroutine ComputeCellCentredTopographicData_tileID(RunParams, grid, tiles, tID)
+   pure subroutine ComputeCellCentredTopographicData_tileID(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -378,7 +396,7 @@ contains
    end subroutine ComputeCellCentredTopographicData_tileID
 
    ! Interpolate b at cell centres, for cell i,j in tile tID.
-   subroutine ComputeCellCentredTopographicData_ij(RunParams, grid, tiles, tID, i, j)
+   pure subroutine ComputeCellCentredTopographicData_ij(RunParams, grid, tiles, tID, i, j)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -426,7 +444,7 @@ contains
    end subroutine ComputeCellCentredTopographicData_ij
 
    ! Interpolate b at cell interfaces, for tile tID.
-   subroutine ComputeInterfacialTopographicData(RunParams, grid, tiles, tID)
+   pure subroutine ComputeInterfacialTopographicData(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -587,7 +605,7 @@ contains
       end if
    end subroutine ComputeInterfacialTopographicData
 
-   subroutine ComputeTopographicCurvatures(RunParams, grid, tiles, tID)
+   pure subroutine ComputeTopographicCurvatures(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -713,7 +731,7 @@ contains
 
    end subroutine ComputeTopographicCurvatures
 
-   subroutine ComputeMorphodynamicCurvatures(RunParams, grid, tiles, tID)
+   pure subroutine ComputeMorphodynamicCurvatures(RunParams, grid, tiles, tID)
       implicit none
       type(RunSet), intent(in) :: RunParams
       type(GridType), intent(inout), target :: grid

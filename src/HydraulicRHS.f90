@@ -84,64 +84,98 @@ contains
       unitCFLTimeStep(:) = RunParams%maxdt
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
+
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
+!$omp end parallel do
 
       ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call Reconstruct(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
+!$omp end parallel do
 
       ! Correct slopes for w, Hnpsi to ensure positivity.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CorrectSlopes(RunParams, grid, tileWorkspace, ttk)
       end do
+!$omp end parallel do
 
       ! Compute derived variables Hn, u, v, psi and rho at cell centres.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeDesingularisedVariables(RunParams, tileWorkspace, ttk, .true.)
       end do
+!$omp end parallel do
       
       ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
       end do
+!$omp end parallel do
 
       ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call Reconstruct(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
       end do
-
-      ! if (RunParams%curvature .and. RunParams%MorphodynamicsOn) then
-      !    do tt = 1, ActiveTiles%Size
-      !       ttk = ActiveTiles%List(tt)
-      !       call ComputeMorphodynamicCurvatures(RunParams, grid, tileWorkspace, ttk)
-      !    end do
-      ! end if
+!$omp end parallel do
 
       ! Calculate numerical flux terms, and also local propagation speeds which
       ! give the CFL time step.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, unitCFLTimeStep)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileWorkspace, &
                               ttk, unitCFLTimeStep(ttk))  ! Look at eqn input
       end do
+!$omp end parallel do
 
       advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
                                                substep, unitCFLTimeStep)
 
       ! Sum flux and source terms to complete the calculation.
+      ! do tt = 1, ActiveTiles%Size
+!$omp parallel do schedule(dynamic), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, t)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ConstructHydraulicRHS(RunParams, grid, tileWorkspace, ttk, t)
       end do
+!$omp end parallel do
       
    end subroutine CalculateHydraulicRHS
 
@@ -188,7 +222,7 @@ contains
    ! are stored in the uLimX and uLimY arrays respectively. The limiter function
    ! (which is user-settable) tries to prevent oscillations whose lengthscales
    ! are comparable to deltaX, deltaY.
-   subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID)
+   pure subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -409,7 +443,7 @@ contains
    ! tiles(tID)%uPlusX(d, i, j),  for (x + dx/2, y)
    ! tiles(tID)%uMinusY(d, i, j), for (x, y - dy/2)
    ! tiles(tID)%uPlusY(d, i, j),  for (x, y + dy/2), for each d in dims.
-   subroutine Reconstruct(RunParams, grid, dims, tiles, tID)
+   pure subroutine Reconstruct(RunParams, grid, dims, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -574,7 +608,7 @@ contains
    ! balanced approach of Chertock et al. (2015), though the logic ends up being
    ! rather complicated in order to account for tile boundaries and the need to
    ! make sure that calculations are independent of the tiling layout.
-   subroutine CorrectSlopes(RunParams, grid, tiles, tID)
+   pure subroutine CorrectSlopes(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -883,7 +917,8 @@ contains
    ! N.b. 1 - some of these fluxes will be zero in some cases, i.e. when the
    ! equation possesses no corresponding term.
    ! N.b. 2 - code particular to each equation is to be found in Equations.f90.
-   subroutine CalculateFluxes(RunParams, grid, dims, &
+   
+   pure subroutine CalculateFluxes(RunParams, grid, dims, &
                               tiles, tID, unitCFLTimeStep)
       implicit none
 
@@ -909,12 +944,6 @@ contains
 
       real(kind=wp) :: dif
       real(kind=wp) :: hX, hY
-#if DEBUG_SPD==1 || DEBUG_SPD==2
-      integer :: iu, iv
-
-      iu = RunParams%Vars%u
-      iv = RunParams%Vars%v
-#endif
 
       nXPoints = RunParams%nXpertile
       nYPoints = RunParams%nYpertile
@@ -944,20 +973,7 @@ contains
 
             wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
             wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
-#if DEBUG_SPD == 1 || DEBUG_SPD == 2
-            if (tiles(tID)%uPlusX(iU, i, j) > 50.0) then
-               write(stderr, *) 'High x-velocity: uPlusX = ', tiles(tID)%uPlusX(iU,i, j), ' for tile ', tID, ' at cell index ', i, ', ', j
-#if DEBUG_SPD==2
-               call exit
-#endif
-            end if
-            if (tiles(tID)%uMinusX(iU, i, j) > 50.0) then
-               write(stderr, *) 'High x-velocity: uMinusX = ', tiles(tID)%uMinusX(iU,i, j), ' for tile ', tID, ' at cell index ', i, ', ', j
-#if DEBUG_SPD==2
-               call exit
-#endif
-            end if
-#endif
+
             if (wsPlus > wsMinus) then
                aPos = wsPlus
             else
@@ -1169,7 +1185,7 @@ contains
    ! tiles(tID)%ddtExplicit(1:nFlux,:,:) and tiles(tID)%ddtImplicit(1:nFlux,:,:)
    ! which respectively record the parts on the RHS that are to be time stepped
    ! explicitly and implicity.
-   subroutine ConstructHydraulicRHS(RunParams, grid, tiles, tID, t)
+   pure subroutine ConstructHydraulicRHS(RunParams, grid, tiles, tID, t)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
