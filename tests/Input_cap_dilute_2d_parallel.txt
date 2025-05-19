@@ -1,0 +1,46 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 30
+nYtiles = 30
+nXpertile = 50
+nYpertile = 50
+Xtilesize = 50
+Boundary Conditions = halt
+
+Cap:
+  capX = 0
+  capY = 0
+  capRadius = 5
+  capHeight = 0.316
+  capU = 0.0
+  capConc = 0.0
+  capShape = flat
+
+Parameters:
+Drag = Chezy
+Chezy Co = 0.04
+Erosion = Off
+
+Solver:
+T end = 8.0
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Base Evolve = off
+Height threshold = 1e-5
+Restart = off
+nthreads = 4
+
+Output:
+N out = 5
+directory = cap_dilute_2d_parallel/
+Topog filename = Topog.txt
+
+Topog:
+Type = Function
+Topog function = xParab
+Topog params = (0.01)
+

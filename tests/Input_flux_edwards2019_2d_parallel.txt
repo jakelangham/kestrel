@@ -1,0 +1,42 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 40
+nYtiles = 40
+nXpertile = 50
+nYpertile = 50
+Xtilesize = 50
+Boundary Conditions = halt
+
+Source:
+  sourceX = 0
+  sourceY = 0
+  sourceRadius = 10
+  sourceTime = (0,1.)
+  sourceFlux = (10.,10.)
+  sourceConc = (0.,0.)
+
+Parameters:
+Drag = Edwards2019
+Erosion = Off
+
+Solver:
+T end = 10.0
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+Restart = off
+nthreads = 4
+
+Output:
+N out = 2
+directory = flux_edwards2019_2d_parallel/
+
+Topog:
+Type = Function
+Topog function = xSlope
+Topog params = (-0.1)
+
