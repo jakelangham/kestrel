@@ -100,7 +100,7 @@ contains
 
    end subroutine AddToRedistList
 
-   subroutine CreateNode(node, ttk, i, j, excess_dep)
+   pure subroutine CreateNode(node, ttk, i, j, excess_dep)
       implicit none
 
       type(RedistNode), pointer, intent(inout) :: node
@@ -115,7 +115,7 @@ contains
       node%next => null()
    end subroutine CreateNode
 
-   subroutine FreeList(list)
+   pure subroutine FreeList(list)
       implicit none
 
       type(RedistList), intent(inout) :: list
@@ -200,7 +200,11 @@ contains
    ! Loop over all the cells in the RedistList and call RedistributeCell, which
    ! does the actual correction. We recalculate the excess deposition for each
    ! cell, since it can change if neighbouring cells are redistributed.
+#if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
    subroutine RedistributeGrid(RunParams, grid, redistcells, refineTimeStep)
+#else
+   pure subroutine RedistributeGrid(RunParams, grid, redistcells, refineTimeStep)
+#endif
       implicit none
 
       type(RunSet), intent(inout) :: RunParams
@@ -246,7 +250,11 @@ contains
    ! Correct for 'excess deposition' by modifying adjacent vertices such that
    ! the morphodynamic update to the cell centre changes from bt to bt - corr
    ! (and update w and rhoHc in a commensurate way).
+#if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
    subroutine RedistributeCell(RunParams, grid, ttk, i, j, corr, success)
+#else
+   pure subroutine RedistributeCell(RunParams, grid, ttk, i, j, corr, success)
+#endif
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -302,10 +310,12 @@ contains
       end if
 
       if (N == 0) then
+#if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
          call WarningMessage("Trying to correct excess deposition within a cell " &
             // "that borders no depositional vertices. " &
             // "(This should never happen.)")
          call WarningMessage("Excess deposition = ", corr, fmt='(a,2P,G0)')
+#endif
 
         !  call exit
          success = .false.

@@ -338,7 +338,7 @@ contains
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
       real(kind=wp), intent(inout) :: nextT
-      logical, intent(inout) :: refineTimeStep
+      logical, intent(out) :: refineTimeStep !! SHOULD THIS BE INTENT(OUT)?
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -551,7 +551,7 @@ contains
       type(RunSet), intent(inout) :: RunParams
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
-      logical, intent(inout) :: refineTimeStep
+      logical, intent(out) :: refineTimeStep
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -746,11 +746,6 @@ contains
       !   (N.B. This process can get bogged down if erosionCriticalHeight is
       !   small. In general it should probably be set so it's at least greater
       !   than the solid diameter.)
-!$omp parallel do schedule(auto), default(none), &
-!$omp reduction(.or.:refineTimeStep), &
-!$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, Hn_new, db, w, Hnpsi_old, Hnpsi, excess_dep, deltaBt, psiold, relhdiff), &
-!$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, intermed0, intermed1, intermed2, intermed3, thisdt, redistcells, relhdiffmax, GeometricCorrectionFactor)
-      !!! LIKELY PROBLEM !!!!!
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          do j = 1, RunParams%nYpertile
@@ -777,9 +772,7 @@ contains
                   ! Otherwise, we must refine the time step.
                   if (Hn_old < RunParams%EroCriticalHeight .or. &
                       abs(Hn_new - Hn_old) < RunParams%EroCriticalHeight) then
-                     !$omp critical
-                        call AddToRedistList(redistcells, ttk, i, j, excess_dep)
-                     !$omp end critical
+                     call AddToRedistList(redistcells, ttk, i, j, excess_dep)
                   else
                      ! refineTimeStep = .true.
                      refineTimeStep = refineTimeStep .or. .true.
@@ -792,9 +785,7 @@ contains
                if (Hn_old < RunParams%EroCriticalHeight) cycle
                relhdiff = abs(Hn_new - Hn_old) / abs(Hn_old)
                if (relhdiff > 0.1_wp .and. relhdiff > relhdiffmax) then
-                  !$omp critical
-                     relhdiffmax = relhdiff
-                  !$omp end critical
+                  relhdiffmax = relhdiff
 
                   ! refineTimeStep = .true.
                   refineTimeStep = refineTimeStep .or. .true.
@@ -803,7 +794,6 @@ contains
             end do
          end do
       end do
-!$omp end parallel do
 
       ! Some cells may have been marked for redistribution in the loop above.
       ! This is handled by RedistributeGrid, which makes a small correction to
