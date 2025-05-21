@@ -17,7 +17,7 @@ AM_FCFLAGS += @FC_OPT_REPORT_FLAGS@
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h
 kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 Blur.f90 \
-	Messages.f90 varStringClass.f90 utilities.f90 Interp2d.f90 \
+	varStringClass.f90 Messages.f90 utilities.f90 Interp2d.f90 \
 	utm.f90 RunSettings.f90 GeoTiffRead.f90 DomainSettings.f90 \
 	InitConds.f90 Closures.f90 TopogFuncs.f90 Parameters.f90 Limiters.f90 \
 	SolverSettings.f90 OutputSettings.f90 TopogSettings.f90 Input.f90 Grid.f90 \

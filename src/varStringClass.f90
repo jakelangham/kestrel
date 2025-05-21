@@ -158,8 +158,8 @@
 module varstring_module
 
    use, intrinsic :: iso_c_binding
+   use, intrinsic :: iso_fortran_env, only: CSZ=>character_storage_size
    use set_precision_module, only : wp
-   use messages_module, only: FatalErrorMessage
 
    implicit none
 
@@ -296,7 +296,7 @@ module varstring_module
 
    ! Interface to varString constructor
    interface varString
-      procedure constructor
+      procedure constructor_char, constructor_real, constructor_int
    end interface varString
 
 contains
@@ -304,7 +304,7 @@ contains
    ! Create a varString from a inferred length character string
    ! Inputs: character string str
    ! Returns: varString this - varString containing str in attribute this%s
-   pure function constructor(str, trim_str) result(this)
+   pure function constructor_char(str, trim_str) result(this)
       character(len=*), intent(in) :: str
       logical, intent(in), optional :: trim_str
       type(varString) :: this
@@ -322,7 +322,41 @@ contains
       else
          this%s = str
       end if
-   end function constructor
+   end function constructor_char
+
+   pure function constructor_int(val) result(this)
+      integer, intent(in) :: val
+      type(varString) :: this
+
+      integer :: isize
+      character(len=:), allocatable :: valStr
+
+      isize = storage_size(val)/CSZ
+
+      if (allocated(valStr)) deallocate(valStr)
+      allocate(character(len=isize) :: valStr)
+      valStr(:) = transfer(val, valStr)
+
+      this%s = valStr
+
+   end function constructor_int
+
+   pure function constructor_real(val) result(this)
+      real(kind=wp), intent(in) :: val
+      type(varString) :: this
+
+      integer :: isize
+      character(len=:), allocatable :: valStr
+
+      isize = storage_size(val)/CSZ
+
+      if (allocated(valStr)) deallocate(valStr)
+      allocate(character(len=isize) :: valStr)
+      valStr(:) = transfer(val, valStr)
+
+      this%s = valStr
+
+   end function constructor_real
    
    ! Private method to copy a varString
    !  new_varString = old_varString
@@ -865,10 +899,14 @@ contains
       integer :: val
 
       integer :: stat
+      type(varString) :: msg
 
       read(this%s, *, iostat=stat) val
       if (stat.ne.0) then
-         call FatalErrorMessage('In varstring to_int, could not read varString ' // this%s // ' as integer. Read status =', stat)
+         msg = varString('In varstring to_int, could not read varString ')
+         msg = msg + this%s
+         msg = msg + ' as integer. Read status =' + varString(stat)
+         error stop msg%s
       end if
 
    end function varstring_to_int
@@ -887,6 +925,7 @@ contains
       type(varString) :: denStr
       real(kind=wp) :: num, den
 
+      type(varString) :: msg
       integer :: stat
 
       if (this%contains('/')) then
@@ -900,7 +939,10 @@ contains
       end if
 
       if (stat.ne.0) then
-         call FatalErrorMessage('In varstring to_real, could not read varString ' // this%s // ' as real. Read status = ', stat)
+         msg = varString('In varstring to_real, could not read varString ')
+         msg = msg + this%s
+         msg = msg + ' as real. Read status =' + varString(stat)
+         error stop msg%s
       end if
 
    end function varstring_to_real
@@ -917,11 +959,15 @@ contains
       real(kind=wp) :: val
 
       integer :: stat
+      type(varString) :: msg
 
       read(this%s, fmt=fmt, iostat=stat) val
 
       if (stat.ne.0) then
-         call FatalErrorMessage('In varstring to_real, could not read varString ' // this%s // ' as real. Read status = ', stat)
+         msg = varString('In varstring to_real, could not read varString ')
+         msg = msg + this%s
+         msg = msg + ' as real. Read status =' + varString(stat)
+         error stop msg%s
       end if
 
    end function varstring_to_real_fmt
@@ -1094,9 +1140,13 @@ contains
       type(varString), dimension(:), allocatable, intent(out) :: vals
 
       type(varString) :: list
+      type(varString) :: msg
 
       if (.not. (this%contains('(') .and. this%contains(')'))) then
-         call FatalErrorMessage('varString ' // this%s // ' is not recognized as a set')
+         msg = varString('varString ')
+         msg = msg + this%s
+         msg = msg + 'is not recognized as a set'
+         error stop msg%s
       end if
 
       call this%get_between('(', ')', list)
@@ -1116,9 +1166,13 @@ contains
       integer, dimension(:), allocatable, intent(out) :: vals
 
       type(varString) :: list
+      type(varString) :: msg
 
       if (.not. (this%contains('(') .and. this%contains(')'))) then
-         call FatalErrorMessage('varString ' // this%s // ' is not recognized as a set')
+         msg = varString('varString ')
+         msg = msg + this%s
+         msg = msg + 'is not recognized as a set'
+         error stop msg%s
       end if
 
       call this%get_between('(', ')', list)
@@ -1138,9 +1192,13 @@ contains
       real(kind=wp), dimension(:), allocatable, intent(out) :: vals
 
       type(varString) :: list
+      type(varString) :: msg
 
       if (.not. (this%contains('(') .and. this%contains(')'))) then
-         call FatalErrorMessage('varString ' // this%s // ' is not recognized as a set')
+         msg = varString('varString ')
+         msg = msg + this%s
+         msg = msg + 'is not recognized as a set'
+         error stop msg%s
       end if
 
       call this%get_between('(', ')', list)

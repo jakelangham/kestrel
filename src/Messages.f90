@@ -29,6 +29,7 @@ module messages_module
 
    use, intrinsic :: iso_fortran_env, only : stdout=>output_unit, stderr=>error_unit
    use set_precision_module, only: wp
+   use varstring_module, only: varString
    
    implicit none
 
@@ -53,61 +54,59 @@ contains
 
    ! Fatal Error message with no information.
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_b
-      write(stderr, *) '                                    '
-      write(stderr, *) '************************************'
-      write(stderr, *) '************************************'
-      write(stderr, *) 'FATAL ERROR :                       '
-      write(stderr, *) 'Quitting.'
-      write(stderr, *) '************************************'
-      write(stderr, *) '************************************'
-      write(stderr, *) '                                    '
+   pure subroutine FatalErrorMessage_b
+      implicit none
+      type(varString) :: msg
 
-      call exit(1) ! Fatal error return with status 1
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+
+      error stop msg%s
 
    end subroutine FatalErrorMessage_b
 
    ! Fatal Error message with information.
    ! Input: Message - reported message
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_m(Message)
+   pure subroutine FatalErrorMessage_m(Message)
+      implicit none
       character(*), intent(in) :: Message
+      type(varString) :: msg
 
-      write(stderr, *) '                                    '
-      write(stderr, *) '************************************'
-      write(stderr, *) '************************************'
-      write(stderr, *) 'FATAL ERROR :                       '
-      write(stderr, *) trim(Message)
-      write(stderr, *) 'Quitting.'
-      write(stderr, *) '************************************'
-      write(stderr, *) '************************************'
-      write(stderr, *) '                                    '
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + trim(Message) + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
 
-      call exit(1) ! Fatal error return with status 1
+      error stop msg%s
 
    end subroutine FatalErrorMessage_m
 
    ! Fatal Error message with information and real value.
    ! Input: Message - reported message
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_r(Message, val)
+   pure subroutine FatalErrorMessage_r(Message, val)
 
       implicit none
 
       character(*), intent(in) :: Message
       real(kind=wp), intent(in) :: val
 
-      write(stderr,*) '                                    '
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) 'FATAL ERROR :                       '
-      write(stderr,*) trim(Message), val
-      write(stderr,*) 'Quitting.'
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) '                                    '
+      type(varString) :: msg
 
-      call exit(1) ! Fatal error return with status 1
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + trim(Message) + varString(val) + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A') + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+
+      error stop msg%s
 
    end subroutine FatalErrorMessage_r
 
@@ -115,22 +114,22 @@ contains
    ! Inputs: Message - reported message
    !         val - integer value appended to message
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_i(Message, val)
+   pure subroutine FatalErrorMessage_i(Message, val)
 
       character(*), intent(in) :: Message
       integer, intent(in) :: val
 
-      write(stderr,*) '                                    '
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) 'FATAL ERROR :                       '
-      write(stderr,*) trim(Message), val
-      write(stderr,*) 'Quitting.'
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) '                                    '
+      type(varString) :: msg
 
-      call exit(1) ! Fatal error return with status 1
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + trim(Message)
+      msg = msg + varString(val) + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+
+      error stop msg%s
 
    end subroutine FatalErrorMessage_i
 
@@ -142,22 +141,23 @@ contains
    !        val - integer value in message
    !        Message2 - second part of reported message
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_is(Message1, val, Message2)
+   pure subroutine FatalErrorMessage_is(Message1, val, Message2)
       character(*), intent(in) :: Message1
       integer, intent(in) :: val
       character(*), intent(in) :: Message2
 
-      write(stderr,*) '                                    '
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) 'FATAL ERROR :                       '
-      write(stderr,*) trim(Message1), val, trim(Message2)
-      write(stderr,*) 'Quitting.'
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) '                                    '
+      type(varString) :: msg
 
-      call exit(1) ! Fatal error return with status 1
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + trim(Message1) + new_line('A')
+      msg = msg + varString(val) + new_line('A')
+      msg = msg + trim(Message2) + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+
+      error stop msg%s
 
    end subroutine FatalErrorMessage_is
 
@@ -165,22 +165,25 @@ contains
    ! Inputs: Message - reported message
    !         val - 1d array of reals printed after Message
    ! Terminates with status 1.
-   subroutine FatalErrorMessage_rv(Message, val)
+   pure subroutine FatalErrorMessage_rv(Message, val)
       character(*), intent(in) :: Message
       real(kind=wp), dimension(:), intent(in) :: val
 
-      write(stderr,*) '                                    '
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) 'FATAL ERROR :                       '
-      write(stderr,*) trim(Message)
-      write(stderr,*) val
-      write(stderr,*) 'Quitting.'
-      write(stderr,*) '************************************'
-      write(stderr,*) '************************************'
-      write(stderr,*) '                                    '
+      type(varString) :: msg
+      integer :: j
 
-      call exit(1) ! Fatal error return with status 1
+      msg = varString('************************************') + new_line('A')
+      msg = msg + 'FATAL ERROR :                       ' + new_line('A')
+      msg = msg + trim(Message)
+      do j=1,size(val)
+         msg = msg%s + varString(val(j)) + ','
+      end do
+      msg = msg + new_line('A')
+      msg = msg + 'Quitting.' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+      msg = msg + '************************************' + new_line('A')
+
+      error stop msg%s
 
    end subroutine FatalErrorMessage_rv
 

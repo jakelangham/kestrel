@@ -968,7 +968,7 @@ contains
    ! interfaces of each tile with its neighbour's values. Since every active
    ! tile is initialised with ghost tiles surrounding it, this routine should
    ! ensure that b0 and its derivatives are single-valued fields.
-   subroutine EqualiseTopographicBoundaryData(RunParams, grid, tID)
+   pure subroutine EqualiseTopographicBoundaryData(RunParams, grid, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams

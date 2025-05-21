@@ -328,7 +328,6 @@ contains
       inquire(file=RunParams%out_path%s // fname%s, exist=FileExists)
       if (.not.FileExists) then
          call FatalErrorMessage("dem file " // RunParams%out_path%s // fname%s // " not found")
-         error stop (1)
       end if
 
       call RasterInfo(path=RunParams%out_path, filename=fname, rasterF=rasterFull)

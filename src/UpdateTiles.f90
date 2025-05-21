@@ -447,7 +447,7 @@ contains
             tile = tileContainer(k)%neighbours(i)
          end if
          if (.not. TileInBounds(grid, tile)) then
-            call exit
+            call FatalErrorMessage('Tile out of bounds')
          end if
 
          alreadyGhostTile = (allocated(ghostTiles%List)) .and. &
@@ -605,7 +605,7 @@ contains
    ! Update the u-values for a ghost tile.
    ! N.B. This routine does not check or care whether k actually is a ghost
    ! tile.
-   subroutine UpdateGhostTileBCs(RunParams, grid, k)
+   pure subroutine UpdateGhostTileBCs(RunParams, grid, k)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -629,7 +629,7 @@ contains
    ! to its fields.
    ! Typical case is that this is a ghost tile needed to enforce conditions
    ! at domain edge.
-   subroutine SetDomainBoundaryData(RunParams, grid, k)
+   pure subroutine SetDomainBoundaryData(RunParams, grid, k)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -674,14 +674,14 @@ contains
          u(RunParams%Vars%v, :, :) = vval
          u(RunParams%Vars%psi, :, :) = psival
          u(RunParams%Vars%rho, :, :) = rho
-       case default
-         call FatalErrorMessage('Unrecognised boundary condition')
+      !  case default
+      !    call FatalErrorMessage('Unrecognised boundary condition') !! CHECK HAS ALREADY BEEN MADE IN DomainSettings.f90
       end select
    end subroutine SetDomainBoundaryData
 
    ! Initialise a tile with 'default data', i.e. all vars 0
    ! apart from rho = rhow, w = b0
-   subroutine SetDefaultTileData(RunParams, grid, k)
+   pure subroutine SetDefaultTileData(RunParams, grid, k)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -703,7 +703,7 @@ contains
    ! For the benefit of CorrectSlopes (see CCKWSolver.f90), the ghost tiles
    ! need certain w reconstructions that depend on the cells adjacent to the
    ! boundary.
-   subroutine ReconstructwAtEdges(RunParams, grid, tiles, tID)
+   pure subroutine ReconstructwAtEdges(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams

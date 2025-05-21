@@ -163,8 +163,8 @@ contains
       end do
 !$omp end parallel do
 
-      advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
-                                               substep, unitCFLTimeStep)
+      call ComputeAdvisedTimeStep(RunParams, grid, &
+                                  substep, unitCFLTimeStep, advisedTimeStep)
 
       ! Sum flux and source terms to complete the calculation.
       ! do tt = 1, ActiveTiles%Size
@@ -182,16 +182,17 @@ contains
    ! This contains all the logic for computing a suitable time step, i.e. one
    ! that is stable with respect to the CFL condition and the diffusive time
    ! scale set by eddy viscosity.
-   function ComputeAdvisedTimeStep(RunParams, grid, substep, &
-                                   unitCFLTimeStep) result(advisedTimeStep)
+   pure subroutine ComputeAdvisedTimeStep(RunParams, grid, substep, &
+                                   unitCFLTimeStep, advisedTimeStep)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
       integer, intent(in) :: substep ! i.e. stage of multistep timestepper
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%nTiles)
+      real(kind=wp), dimension(:), intent(in) :: unitCFLTimeStep(grid%nTiles)
+      real(kind=wp), intent(out) :: advisedTimeStep
 
-      real(kind=wp) maxTimeStep, advisedTimeStep
+      real(kind=wp) maxTimeStep
 
       ! N.B. If eddy viscosity is present we need to limit the time step by the 
       ! diffusive time scale ~ dx^2 / nu
@@ -215,7 +216,7 @@ contains
          advisedTimeStep = maxTimeStep
       end if
 
-   end function ComputeAdvisedTimeStep
+   end subroutine ComputeAdvisedTimeStep
 
    ! Compute limited derivatives in x and y for the given variables, indexed by
    ! the variables array, over the tile indexed by tID. Derivatives in x and y

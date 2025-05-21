@@ -421,6 +421,9 @@ contains
       end do
 
       ! Read all the solution data in from the NetCDF, tile per tile.
+      !$omp parallel do schedule(dynamic), default(none), &
+      !$omp private(n, ttk, tile_i, tile_j, x_start, y_start, xy_start, x_vertex_start, y_vertex_start, x, y), &
+      !$omp shared(RunParams, grid, tiles, nTiles, tile_left, tile_bottom, tileContainer, ncid, maxncid, central_easting, central_northing, nXpertile, nYpertile, nXYpertile, nXY_vertex_pertile)
       do n = 1, nTiles
          ttk = tiles(n)
          call AddTile(grid,ttk,RunParams)
@@ -459,6 +462,12 @@ contains
          call get_nc_var(ncid, 'x_slope', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%dbdx, :, :))
          call get_nc_var(ncid, 'y_slope', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%dbdy, :, :))
 
+         call get_nc_var(ncid, 'd2bdxx', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdxx, :, :))
+         call get_nc_var(ncid, 'd2bdxy', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdxy, :, :))
+         call get_nc_var(ncid, 'd2bdyy', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdyy, :, :))
+         call get_nc_var(ncid, 'd2bdtx', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdtx, :, :))
+         call get_nc_var(ncid, 'd2bdty', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdty, :, :))
+                 
          call get_nc_var(ncid, 'B0_vertex', start=[x_vertex_start, y_vertex_start], count=nXY_vertex_pertile, vals=tileContainer(ttk)%B0(:, :))
          call get_nc_var(ncid, 'Bt_vertex', start=[x_vertex_start, y_vertex_start], count=nXY_vertex_pertile, vals=tileContainer(ttk)%bt(:, :))
 
@@ -478,6 +487,7 @@ contains
          end if
 
       end do
+      !$omp end parallel do
 
       call get_nc_att(ncid, 'DeltaT', RunParams%DeltaT)
 
