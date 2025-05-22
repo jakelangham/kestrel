@@ -430,11 +430,7 @@ contains
 
       mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
 
-      if (modu2 > 0) then
-         friction = mu * g * Hn
-      else
-         friction = 0.0_wp
-      end if
+      friction = mu * g * Hn
    end function PouliquenDrag
 
    ! Pouliquen's intertial number dependent friction coefficient.
