@@ -1282,9 +1282,6 @@ contains
                else if (d == RunParams%Vars%Hnpsi) then
                   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) * deltaXRecip / gam
                else
-                  STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1) +  &
-                     (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam +  &
-                     tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)) * deltaXRecip
                   STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1), &
                      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam,  &
                      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)]) * deltaXRecip
