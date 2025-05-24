@@ -48,6 +48,7 @@ module solver_settings_module
    real(kind=wp), parameter :: maxdt_d = HUGE(1.0_wp)
    real(kind=wp), parameter :: tstart_d = 0.0_wp
    real(kind=wp), parameter :: SpongeStrength_d = 0.2_wp
+   logical, parameter :: StoppedMaterialHandling_d = .false.
    logical, parameter :: Restart_d = .FALSE.
 
 contains
@@ -62,14 +63,13 @@ contains
       type(RunSet), intent(inout) :: RunParams
 
       type(varString) :: label
-      type(varString) :: limiter_label
-      type(varString) :: Restart_label
 
       integer :: J, N
 
       logical :: set_limiter
       logical :: set_heightThreshold
       logical :: set_SpongeStrength
+      logical :: set_StoppedMaterialHandling
       logical :: set_TileBuffer
       logical :: set_cfl
       logical :: set_maxdt
@@ -83,6 +83,7 @@ contains
       set_limiter=.FALSE.
       set_heightThreshold=.FALSE.
       set_SpongeStrength=.FALSE.
+      set_StoppedMaterialHandling=.FALSE.
       set_TileBuffer=.FALSE.
       set_cfl=.FALSE.
       set_maxdt=.FALSE.
@@ -101,8 +102,8 @@ contains
 
             case ('limiter')
                set_limiter=.TRUE.
-               limiter_label = SolverValues(J)%to_lower()
-               select case (limiter_label%s)
+               label = SolverValues(J)%to_lower()
+               select case (label%s)
                   case ('minmod1')
                      RunParams%limiter = varString('MinMod1')
                      limiter => MinMod1
@@ -149,10 +150,23 @@ contains
                set_SpongeStrength=.TRUE.
                RunParams%SpongeStrength = SolverValues(J)%to_real()
 
+            case ('stopped material handling')
+               set_StoppedMaterialHandling=.TRUE.
+               label = SolverValues(J)%to_lower()
+               select case (label%s)
+                  case ('on')
+                     RunParams%StoppedMaterialHandling = .TRUE.
+                  case ('off')
+                     RunParams%StoppedMaterialHandling = .FALSE.
+                  case default
+                     call WarningMessage("In the 'Solver' block the value of 'StoppedMaterialHandling' is not recognized. Using the default setting StoppedMaterialHandling = off.")
+                     RunParams%StoppedMaterialHandling = StoppedMaterialHandling_d
+               end select
+
             case ('restart')
                set_Restart=.TRUE.
-               Restart_label = SolverValues(J)%to_lower()
-               select case (Restart_label%s)
+               label = SolverValues(J)%to_lower()
+               select case (label%s)
                   case ('on')
                      RunParams%Restart = .TRUE.
                   case ('off')
@@ -199,6 +213,8 @@ contains
       if (.not.set_tstart) RunParams%tstart = tstart_d
 
       if (.not.set_SpongeStrength) RunParams%SpongeStrength = SpongeStrength_d
+
+      if (.not.set_StoppedMaterialHandling) RunParams%StoppedMaterialHandling = StoppedMaterialHandling_d
 
       if (.not. set_InitialCondition) RunParams%InitialCondition = varString("")
 
@@ -259,6 +275,18 @@ contains
       if (RunParams%SpongeLayer) then
          if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " The block variable 'Sponge Strength' must be positive.")
+      end if
+
+      ! Stopped material handling only supported for Edwards2019 drag law for now
+      if (RunParams%StoppedMaterialHandling .and. RunParams%DragChoice /= "Edwards2019") then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " Stopped material handling is only supported for the Edwards2019 drag rule.")
+      end if
+
+      ! Likewise, only 1d
+      if (RunParams%StoppedMaterialHandling .and. .not. RunParams%isOneD) then
+         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
+            // " Stopped material handling is only supported for 1D simulations.")
       end if
 
    end subroutine Solver_Set

@@ -32,7 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure
+   use closures_module
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -1201,7 +1201,7 @@ contains
 
       real(kind=wp) :: deltaX, deltaY
       real(kind=wp) :: deltaXRecip, deltaYRecip
-      real(kind=wp) :: Friction, gam, dbdx, dbdy
+      real(kind=wp) :: Friction, gam, dbdx, dbdy, modu2
 
       real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STE(RunParams%nDimensions), STI(RunParams%nDimensions)
       real(kind=wp), dimension(:) :: gX_prefactors(RunParams%nDimensions), gY_prefactors(RunParams%nDimensions)
@@ -1293,11 +1293,56 @@ contains
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
             Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
-            call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
-            tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
+            modu2 = FlowSquaredSpeedSlopeAligned(RunParams, tiles(tID)%u(:,i,1))
+            if (RunParams%StoppedMaterialHandling .and. modu2 < 1.0d-12) then
+                call StoppedMaterialHandling(RunParams, tiles(tID)%u(:,i,1), STF, STE, STI)
+            else
+                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
+            end if
+            if (RunParams%StoppedMaterialHandling) then
+                tiles(tID)%ddtExplicit(1:nFlux,i,1) = tiles(tID)%ddtExplicit(1:nFlux,i,1) + STI(1:nFlux)
+            else
+                tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
+            end if
+
          end do
       end if
 
    end subroutine ConstructHydraulicRHS
+
+   ! Adjust drag so that stopped regions remain static, if the drag law will 
+   ! permit them to be.
+   subroutine StoppedMaterialHandling(RunParams, uvect, STF, STE, STI)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), dimension(:), intent(in) :: STF(size(uvect))
+      real(kind=wp), dimension(:), intent(in) :: STE(size(uvect))
+      real(kind=wp), dimension(:), intent(inout) :: STI(size(uvect))
+
+      real(kind=wp) :: arrested_drag, dynamic_drag
+      real(kind=wp) :: gam, Hn, rho
+      real(kind=wp) :: L, mu1, mu2, mu3
+
+      L = RunParams%SolidDiameter
+      mu1 = RunParams%PouliquenMinSlope
+      mu2 = RunParams%PouliquenMaxSlope
+      mu3 = RunParams%PouliquenIntermediateSlope
+      Hn = uvect(RunParams%Vars%Hn)
+      rho = uvect(RunParams%Vars%rho)
+      gam = GeometricCorrectionFactor(RunParams, uvect)
+      arrested_drag = -(STF(RunParams%Vars%rhoHnu) + STE(RunParams%Vars%rhoHnu))
+      STI(RunParams%Vars%rhoHnu) = arrested_drag
+      dynamic_drag = rho * (RunParams%g / gam / gam) * Hn * (mu3 + (mu2 - mu1) / (1.0_wp + Hn / L))
+      if (Hn > RunParams%heightThreshold) then
+         if (arrested_drag > 0.0_wp) then
+            STI(RunParams%Vars%rhoHnu) = min(arrested_drag, dynamic_drag)
+         else
+            STI(RunParams%Vars%rhoHnu) = max(arrested_drag, -dynamic_drag)
+         end if
+      end if
+
+   end subroutine StoppedMaterialHandling
 
 end module hydraulic_rhs_module

@@ -283,6 +283,7 @@ module runsettings_module
       ! Settings for 'sponge layer' to damp out flow near domain edge.
       logical :: SpongeLayer
       real(kind=wp) :: SpongeStrength
+      logical :: StoppedMaterialHandling ! Enable static friction treatment
 
    ! -- Output settings. --
       ! Various output file names.

@@ -635,7 +635,7 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, hr, modu
+      real(kind=wp) :: Hn, hr, modu, modur, eps
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -645,7 +645,17 @@ contains
 
       stvect(:) = 0.0_wp
 
-      if (Hn > RunParams%heightThreshold) then
+      if (RunParams%StoppedMaterialHandling) then
+         eps = 1.0d-8
+         modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+         modur = 2 * modu / (modu * modu + max(modu * modu, eps * eps))
+         if (modu > 1d-12) then
+            stvect(irhoHnu) = -friction * uvect(RunParams%Vars%rho) * uvect(RunParams%Vars%u) * modur
+            if (.not. RunParams%isOneD) then
+               stvect(irhoHnv) = -friction * uvect(RunParams%Vars%rho) * uvect(RunParams%Vars%v) * modur
+            end if
+         end if
+      else if (Hn > RunParams%heightThreshold) then
          modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
          if (modu > 1.0e-8_wp) then

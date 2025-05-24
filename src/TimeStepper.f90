@@ -346,7 +346,7 @@ contains
 
       real(kind=wp), pointer :: t
       real(kind=wp) :: dt1, dt2, dt3
-      integer :: tt, ttk, k, nFlux, var
+      integer :: tt, ttk, k, nFlux, var, i, j
 
       real(kind=wp), dimension(:,:), allocatable :: hp_old, hp_new, w_update
 
@@ -375,7 +375,7 @@ contains
 
          do k = 1, nFlux
             var = RunParams%iFlux(k)
-            if (RunParams%ImplicitStep(var)) then
+            if (RunParams%ImplicitStep(var) .and. (.not. RunParams%StoppedMaterialHandling)) then
                intermed1(ttk)%u(var,:,:) = (intermed0(ttk)%u(var,:,:) + &
                   thisdt * intermed0(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed0(ttk)%ddtImplicit(var,:,:))
             else
@@ -411,7 +411,23 @@ contains
 
          do k = 1, nFlux
             var = RunParams%iFlux(k)
-            if (RunParams%ImplicitStep(var)) then
+            ! If using stopped material handling, our current method relies 
+            ! overriding the default time stepper with (2nd order) Heun's 
+            ! method. So that's what's happening here.
+            if (RunParams%StoppedMaterialHandling) then
+               do i = 1, RunParams%nXpertile
+                  do j = 1, RunParams%nYpertile
+                     if (abs(intermed1(ttk)%u(var,i,j)) < 1d-14) then
+                        intermed3(ttk)%u(var,i,j) = intermed1(ttk)%u(var,i,j)
+                     else
+                        intermed3(ttk)%u(var,i,j) = 0.5_wp * &
+                           (intermed0(ttk)%u(var,i,j) + &
+                           intermed1(ttk)%u(var,i,j) + &
+                           thisdt * intermed1(ttk)%ddtExplicit(var,i,j))
+                     end if
+                  end do
+               end do
+            else if (RunParams%ImplicitStep(var)) then
                intermed2(ttk)%u(var,:,:) = &
                   0.75_wp * intermed0(ttk)%u(var,:,:) + &
                   0.25_wp * (intermed1(ttk)%u(var,:,:) + &
@@ -443,78 +459,83 @@ contains
          end do
       end do ! end second substep
 
-      ! Compute new RHS from second substep.
-      call CalculateHydraulicRHS(RunParams, grid, intermed2, &
-                                 t + 0.5_wp * thisdt, 3, dt2)
-
-      ! Check that the second substep was ok. If too big, we recommend a new 
-      ! dt and return.
-      if (dt2 < thisdt) then
-         thisdt = 0.9_wp * dt2
-         call ReportRevisedTimeStep(RunParams, grid%t0, thisdt)
-         refineTimeStep = .true.
+      if (.not. RunParams%StoppedMaterialHandling) then
+         ! Compute new RHS from second substep.
+         call CalculateHydraulicRHS(RunParams, grid, intermed2, &
+                                    t + 0.5_wp * thisdt, 3, dt2)
+   
+         ! Check that the second substep was ok. If too big, we recommend a new 
+         ! dt and return.
+         if (dt2 < thisdt) then
+            thisdt = 0.9_wp * dt2
+            call ReportRevisedTimeStep(RunParams, grid%t0, thisdt)
+            refineTimeStep = .true.
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
-         call InfoMessage('HydraulicTimeStepper refining at second correction')
+            call InfoMessage('HydraulicTimeStepper refining at second correction')
 #if DEBUG_TIMESTEP==2
-         call exit
+            call exit
 #endif
 #endif
-         return
+            return
+         end if
+
+         ! Compute third substep.
+         do tt = 1, ActiveTiles%Size
+            ttk = ActiveTiles%List(tt)
+
+            call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed2, .false.)
+
+            do k = 1, nFlux
+               var = RunParams%iFlux(k)
+               if (RunParams%ImplicitStep(var)) then
+                  intermed3(ttk)%u(var,:,:) = &
+                     (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
+                     (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
+                     thisdt * intermed2(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed2(ttk)%ddtImplicit(var,:,:))
+               else if (var == RunParams%Vars%w) then
+                  hp_old = -intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+                  hp_old = hp_old + (intermed0(ttk)%u(RunParams%Vars%w, :, :) - &
+                                     intermed0(ttk)%u(RunParams%Vars%b0, :, :))
+                  hp_new = -intermed2(ttk)%u(RunParams%Vars%bt, :, :)
+                  hp_new = hp_new + (intermed2(ttk)%u(RunParams%Vars%w, :, :) - &
+                                     intermed2(ttk)%u(RunParams%Vars%b0, :, :))
+                  w_update = intermed0(ttk)%u(RunParams%Vars%bt, :, :)
+                  w_update = w_update + (1.0_wp/3.0_wp) * hp_old
+                  w_update = w_update + (2.0_wp/3.0_wp) * hp_new
+                  w_update = w_update + (2.0_wp/3.0_wp) * thisdt * intermed2(ttk)%ddtExplicit(var, :, :)
+                  w_update = w_update + intermed0(ttk)%u(RunParams%Vars%b0, :, :)
+                  intermed3(ttk)%u(var, :, :) = w_update
+               else
+                  intermed3(ttk)%u(var,:,:) = &
+                     (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
+                     (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
+                     thisdt * intermed2(ttk)%ddtExplicit(var,:,:))
+               end if
+            end do
+         end do ! end third substep
+
+         ! Compute new RHS from third substep.
+         call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
+
       end if
-
-      ! Compute third substep.
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-
-         call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed2, .false.)
-
-         do k = 1, nFlux
-            var = RunParams%iFlux(k)
-            if (RunParams%ImplicitStep(var)) then
-               intermed3(ttk)%u(var,:,:) = &
-                  (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
-                  (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
-                  thisdt * intermed2(ttk)%ddtExplicit(var,:,:)) / (1.0_wp - thisdt * intermed2(ttk)%ddtImplicit(var,:,:))
-            else if (var == RunParams%Vars%w) then
-               hp_old = -intermed0(ttk)%u(RunParams%Vars%bt, :, :)
-               hp_old = hp_old + (intermed0(ttk)%u(RunParams%Vars%w, :, :) - &
-                                  intermed0(ttk)%u(RunParams%Vars%b0, :, :))
-               hp_new = -intermed2(ttk)%u(RunParams%Vars%bt, :, :)
-               hp_new = hp_new + (intermed2(ttk)%u(RunParams%Vars%w, :, :) - &
-                                  intermed2(ttk)%u(RunParams%Vars%b0, :, :))
-               w_update = intermed0(ttk)%u(RunParams%Vars%bt, :, :)
-               w_update = w_update + (1.0_wp/3.0_wp) * hp_old
-               w_update = w_update + (2.0_wp/3.0_wp) * hp_new
-               w_update = w_update + (2.0_wp/3.0_wp) * thisdt * intermed2(ttk)%ddtExplicit(var, :, :)
-               w_update = w_update + intermed0(ttk)%u(RunParams%Vars%b0, :, :)
-               intermed3(ttk)%u(var, :, :) = w_update
-            else
-               intermed3(ttk)%u(var,:,:) = &
-                  (1.0_wp/3.0_wp) * intermed0(ttk)%u(var,:,:) + &
-                  (2.0_wp/3.0_wp) * (intermed2(ttk)%u(var,:,:) + &
-                  thisdt * intermed2(ttk)%ddtExplicit(var,:,:))
-            end if
-         end do
-      end do ! end third substep
-
-      ! Compute new RHS from third substep.
-      call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
-         call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed3, .false.)
+         if (.not. RunParams%StoppedMaterialHandling) then
+            call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed3, .false.)
 
-         do k = 1, nFlux
-            var = RunParams%iFlux(k)
-            if (RunParams%ImplicitStep(var)) then
-               intermed3(ttk)%u(var,:,:) = &
-                  (intermed3(ttk)%u(var,:,:) - &
-                  thisdt * thisdt * intermed3(ttk)%ddtExplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:)) / &
-                  (1.0_wp + thisdt * thisdt * intermed3(ttk)%ddtImplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:))
-            end if
-         end do
+            do k = 1, nFlux
+               var = RunParams%iFlux(k)
+               if (RunParams%ImplicitStep(var)) then
+                  intermed3(ttk)%u(var,:,:) = &
+                     (intermed3(ttk)%u(var,:,:) - &
+                     thisdt * thisdt * intermed3(ttk)%ddtExplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:)) / &
+                     (1.0_wp + thisdt * thisdt * intermed3(ttk)%ddtImplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:))
+               end if
+            end do
+         end if
 
          call ComputeDesingularisedVariables(RunParams, tileContainer, ttk, .true.)
          call UpdateMaximumHeights(RunParams, tileContainer(ttk), nextT)
