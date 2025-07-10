@@ -2,7 +2,7 @@ if DEBUG
 AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all -Wuninitialized -finit-real=snan -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16 -march=native -mtune=native
+AM_FCFLAGS = -O2 -falign-loops=16
 if LINUX
 # These optimisation flags are only supported by gcc on linux.
 AM_FCFLAGS += -march=native -mtune=native
