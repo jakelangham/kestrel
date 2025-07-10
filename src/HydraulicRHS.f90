@@ -32,7 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, DesingularizeFunc
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -811,7 +811,7 @@ contains
 
             Hneps_gam = Hneps * gam
 
-            Hn_recip = DesingularizeFunc(Hn, Hneps_gam)
+            Hn_recip = Reciprocal(Hn, Hneps_gam)
 
 #if DEBUG_NEGATIVE_DEPTH==1 || DEBUG_NEGATIVE_DEPTH==2
             ! In principle this should never happen within the hydraulic

@@ -64,7 +64,7 @@ module closures_module
    public :: MorphoDamping
    public :: NoMorphoDamping, tanhMorphoDamping, rat3MorphoDamping
 
-   public :: DesingularizeFunc
+   public :: Reciprocal
    public :: Desingularize_L1, Desingularize_L2, Desingularize_Linfty, Desingularize_step
 
    pointer :: GeometricCorrectionFactor
@@ -153,14 +153,14 @@ module closures_module
        end function MorphoDamping
    end interface
 
-   pointer :: DesingularizeFunc
+   pointer :: Reciprocal
    interface
-       pure function DesingularizeFunc(x,eps) result(x_recip)
+       pure function Reciprocal(x,eps) result(x_recip)
             import :: wp
             real(kind=wp), intent(in) :: x
             real(kind=wp), intent(in) :: eps
             real(kind=wp) :: x_recip
-       end function DesingularizeFunc
+       end function Reciprocal
    end interface
 
 contains
@@ -501,7 +501,7 @@ contains
       capgam = RunParams%Edwards2019Gamma
       L = RunParams%SolidDiameter
 
-      gperp_Hn_recip = gperp * DesingularizeFunc(Hn, RunParams%heightThreshold * gam)
+      gperp_Hn_recip = gperp * Reciprocal(Hn, RunParams%heightThreshold * gam)
       Fr = modu * sqrt(gperp_Hn_recip)
 
       if (Fr > betastar) then
@@ -536,7 +536,7 @@ contains
 
       ManningCo = RunParams%ManningCo
       
-      Hn_recip = DesingularizeFunc(Hn, RunParams%heightThreshold*gam)
+      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold*gam)
 
       friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
 

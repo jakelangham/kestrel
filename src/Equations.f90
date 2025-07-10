@@ -647,7 +647,7 @@ contains
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
       ! Desingularize 1/(Hn*modu)
-      f = DesingularizeFunc(Hn*modu, 1.0e-8_wp*gam)
+      f = Reciprocal(Hn*modu, 1.0e-8_wp*gam)
 
       stvect(irhoHnu) = -friction * f
       stvect(irhoHnv) = stvect(irhoHnu)
