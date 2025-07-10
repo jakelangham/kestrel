@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version 1.0
+! Version v1.1.1
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -535,10 +535,11 @@ contains
       g = RunParams%g / gam
 
       ManningCo = RunParams%ManningCo
-
+      
       Hn_recip = DesingularizeFunc(Hn, RunParams%heightThreshold*gam)
 
       friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
+
    end function ManningDrag
 
    ! Variable drag parameterization. This is a concentration-dependent

@@ -1,0 +1,51 @@
+name: Update version info on release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags
+
+jobs:
+  update-headers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Modify header comments and PACKAGE_VERSION
+        run: |
+          TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+          # fortran files
+          for file in $(find . -name "*.f90"); do
+            sed -i "0,/^! Version .*/s//! Version $TAG_NAME/" $file
+          done
+          # c++ files
+          for file in $(find . -name "*.cpp" -o -name "*.h"); do
+            sed -i "0,/^\/\/ Version .*/s//\/\/ Version $TAG_NAME/" $file
+          done
+          # PACKAGE_VERSION
+          for file in $(find . -name "*.cpp" -o -name "*.h"); do
+            sed -i "s/\#define PACKAGE_VERSION .*/\#define PACKAGE_VERSION \"$TAG_NAME\"/" $file
+          done
+          # configure.ac
+          sed -i "s/m4_define(\[DEFAULT_VERSION\], .*/m4_define([DEFAULT_VERSION], [$TAG_NAME])/" configure.ac
+
+      - name: Commit changes and update tag
+        run: |
+          TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+          git config --global user.name "update-version-info[bot]"
+          git config --global user.email "update-version-info[bot]@users.noreply.github.com"
+          git tag -d $TAG_NAME
+          git commit -a -m "Mark release $TAG_NAME"
+          git tag $TAG_NAME
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          tags: true
+
