@@ -501,7 +501,7 @@ contains
       capgam = RunParams%Edwards2019Gamma
       L = RunParams%SolidDiameter
 
-      gperp_Hn_recip = gperp * Reciprocal(Hn, RunParams%heightThreshold * gam)
+      gperp_Hn_recip = gperp * Reciprocal(Hn, RunParams%heightThreshold)
       Fr = modu * sqrt(gperp_Hn_recip)
 
       if (Fr > betastar) then
@@ -536,7 +536,7 @@ contains
 
       ManningCo = RunParams%ManningCo
       
-      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold*gam)
+      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
 
       friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
 

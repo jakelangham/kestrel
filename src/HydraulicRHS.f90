@@ -774,7 +774,7 @@ contains
 
       real(kind=wp) :: rhoHnu, rhoHnv, Hnpsi
       real(kind=wp) :: rho, Hn, u, v, psi
-      real(kind=wp) :: Hneps, gam, Hneps_gam
+      real(kind=wp) :: Hneps, gam
       
       real(kind=wp) :: Hn_recip
 
@@ -809,9 +809,7 @@ contains
             gam = GeometricCorrectionFactor(RunParams, tiles(tID)%u(:,i,j))
             Hn = ComputeHn(tiles(tID)%u(iw,i,j), tiles(tID)%u(ib0,i,j), tiles(tID)%u(ibt,i,j), gam)
 
-            Hneps_gam = Hneps * gam
-
-            Hn_recip = Reciprocal(Hn, Hneps_gam)
+            Hn_recip = Reciprocal(Hn, Hneps)
 
 #if DEBUG_NEGATIVE_DEPTH==1 || DEBUG_NEGATIVE_DEPTH==2
             ! In principle this should never happen within the hydraulic
