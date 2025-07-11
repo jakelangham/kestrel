@@ -54,8 +54,9 @@ module closures_module
    public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
 
    public :: DragClosure
-   public :: ChezyDrag, CoulombDrag, VoellmyDrag, PouliquenDrag, Edwards2019Drag
-   public :: ManningDrag, VariableDrag
+   public :: ChezyDrag, ManningDrag, PowerLawDrag
+   public :: CoulombDrag, PouliquenDrag, Edwards2019Drag
+   public :: VoellmyDrag, VariableDrag
 
    public :: fswitch
    public :: tanhSwitch, rat3Switch, cosSwitch
@@ -567,6 +568,24 @@ contains
 
       friction = chezy_friction * (1.0_wp - fc) + pouliquen_friction * fc
    end function VariableDrag
+
+   pure function PowerLawDrag(RunParams, uvect) result(friction)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp) :: friction
+
+      real(kind=wp) :: modu, Hn, Hneps, hr
+
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      Hn = uvect(RunParams%Vars%Hn)
+      Hneps = RunParams%heightThreshold
+
+      hr = Reciprocal(Hn, RunParams%heightThreshold)
+      friction = RunParams%PowerLawCo * (modu * hr)**RunParams%PowerLawPower
+
+   end function PowerLawDrag
 
 ! -- Erosion closures --
 

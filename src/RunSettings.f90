@@ -223,6 +223,8 @@ module runsettings_module
       real(kind=wp) :: ChezyCo ! Chezy coefficient
       real(kind=wp) :: ManningCo ! Manning coefficient
       real(kind=wp) :: CoulombCo ! Coulomb coefficient
+      real(kind=wp) :: PowerLawCo ! Power law viscosity coefficient
+      real(kind=wp) :: PowerLawPower ! i.e. n where drag propto (u/h)^n
       real(kind=wp) :: PouliquenMinSlope ! Minimum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenMaxSlope ! Maximum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenIntermediateSlope ! Intermediate slope angle for Pouliquen friction

@@ -47,6 +47,8 @@ module parameters_module
    real(kind=wp), parameter :: chezyco_d = 0.01_wp
    real(kind=wp), parameter :: manningco_d = 0.03_wp
    real(kind=wp), parameter :: coulombco_d = 0.1_wp
+   real(kind=wp), parameter :: powerlawco_d = 0.1_wp
+   real(kind=wp), parameter :: powerlawpower_d = 1.0_wp
    real(kind=wp), parameter :: pouliquenMinSlope_d = 0.1_wp
    real(kind=wp), parameter :: pouliquenMaxSlope_d = 0.4_wp
    real(kind=wp), parameter :: pouliquenIntermediateSlope_d = 0.2_wp
@@ -104,6 +106,8 @@ contains
       logical :: set_chezyco
       logical :: set_manningco
       logical :: set_coulombco
+      logical :: set_powerlawco
+      logical :: set_powerlawpower
       logical :: set_pouliquenMinSlope
       logical :: set_pouliquenMaxSlope
       logical :: set_pouliquenIntermediateSlope
@@ -141,6 +145,8 @@ contains
       set_chezyco=.FALSE.
       set_manningco=.FALSE.
       set_coulombco=.FALSE.
+      set_powerlawco=.FALSE.
+      set_powerlawpower=.FALSE.
       set_pouliquenMinSlope=.FALSE.
       set_pouliquenMaxSlope=.FALSE.
       set_pouliquenIntermediateSlope=.FALSE.
@@ -275,6 +281,9 @@ contains
                   case ('coulomb')
                      RunParams%DragChoice = varString('Coulomb')
                      DragClosure => CoulombDrag
+                  case ('power law')
+                     RunParams%DragChoice = varString('Power Law')
+                     DragClosure => PowerLawDrag
                   case ('voellmy')
                      RunParams%DragChoice = varString('Voellmy')
                      DragClosure => VoellmyDrag
@@ -293,7 +302,7 @@ contains
                   case default
                      call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
                         // "The block value for the variable 'Drag' " // DragChoice%s // " is not recognized." // new_line('A') &
-                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Voellmy', 'Pouliquen', 'Manning' and 'Variable'")
+                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Manning' and 'Variable'")
                end select
 
             case ('chezy co')
@@ -310,6 +319,14 @@ contains
                set_coulombco=.TRUE.
                RunParams%CoulombCo = ParamValues(J)%to_real()
                if (RunParams%CoulombCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Coulomb Co")
+            case ('power law co')
+               set_powerlawco=.TRUE.
+               RunParams%PowerLawCo = ParamValues(J)%to_real()
+               if (RunParams%PowerLawCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Co")
+            case ('power law power')
+               set_powerlawpower=.TRUE.
+               RunParams%PowerLawPower = ParamValues(J)%to_real()
+               if (RunParams%PowerLawPower<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Power")
           
             case ('pouliquen min')
                set_pouliquenMinSlope=.TRUE.
@@ -506,6 +523,16 @@ contains
       if ((RunParams%DragChoice%s=="Coulomb").and.(.not.set_coulombco)) then
          RunParams%CoulombCo = coulombco_d
          call Warning_DragDefaultValue("Coulomb","Coulomb Co",RunParams%CoulombCo)
+      end if
+
+      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawco)) then
+         RunParams%PowerLawCo = powerlawco_d
+         call Warning_DragDefaultValue("Power Law","Power Law Co",RunParams%PowerLawCo)
+      end if
+
+      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawpower)) then
+         RunParams%PowerLawPower = powerlawpower_d
+         call Warning_DragDefaultValue("Power Law","Power Law Power",RunParams%PowerLawPower)
       end if
 
       if (RunParams%DragChoice%s=="Voellmy") then
