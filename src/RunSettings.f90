@@ -269,8 +269,8 @@ module runsettings_module
       ! Small height below which desingularisation for derived variables (e.g.
       ! u & v) is applied in the numerical scheme. Also used elsewhere when we
       ! occasionally need to define cutoffs based on flow depth.
-      type(varString) :: desingularization
       real(kind=wp) :: heightThreshold
+      type(varString) :: desingularization ! The specific kind of desingularisation.
       ! Sets a buffer around flowing area where tiles are activated.
       integer :: TileBuffer
       real(kind=wp) :: cfl ! Courant-Friedrichs-Lewy time stepping constant
