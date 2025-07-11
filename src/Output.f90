@@ -343,12 +343,16 @@ contains
       case ("Chezy")
          write (101, fmt="(a)") "Drag = Chezy"
          write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
-      case ("Coulomb")
-         write (101, fmt="(a)") "Drag = Coulomb"
-         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
       case ("Manning")
          write (101, fmt="(a)") "Drag = Manning"
          write (101, fmt="(a,G0)") "Manning co = ", RunParams%ManningCo
+      case ("Power Law")
+         write (101, fmt="(a)") "Drag = Power Law"
+         write (101, fmt="(a,G0)") "Power law co = ", RunParams%PowerLawCo
+         write (101, fmt="(a,G0)") "Power law power = ", RunParams%PowerLawPower
+      case ("Coulomb")
+         write (101, fmt="(a)") "Drag = Coulomb"
+         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
       case ("Pouliquen")
          write (101, fmt="(a)") "Drag = Pouliquen"
          write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
@@ -2062,6 +2066,11 @@ contains
       select case (RunParams%DragChoice%s)
          case ("Chezy")
             call put_nc_att(ncid, "Chezy coefficient", RunParams%ChezyCo)
+         case ("Manning")
+            call put_nc_att(ncid, "Manning coefficient", RunParams%ManningCo)
+         case ("Power Law")
+            call put_nc_att(ncid, "Power law coefficient", RunParams%PowerLawCo)
+            call put_nc_att(ncid, "Power law power", RunParams%PowerLawPower)
          case ("Coulomb")
             call put_nc_att(ncid, "Coulomb coefficient", RunParams%CoulombCo)
          case ("Voellmy")
@@ -2087,8 +2096,6 @@ contains
             call put_nc_att(ncid, "Voellmy switch function", RunParams%fswitch%s)
             call put_nc_att(ncid, "Voellmy switch rate", RunParams%VoellmySwitchRate)
             call put_nc_att(ncid, "Voellmy switch value", RunParams%VoellmySwitchValue)
-         case ("Manning")
-            call put_nc_att(ncid, "Manning coefficient", RunParams%ManningCo)
       end select
       call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice%s)
       if (RunParams%MorphodynamicsOn) then
