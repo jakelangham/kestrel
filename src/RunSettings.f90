@@ -256,7 +256,8 @@ module runsettings_module
       type(varString) :: fswitch 
       ! Choice of function for erosion transition. Can be: smooth [default], step, off
       type(varString) :: ErosionTransition 
-      ! Choice of drag function. Can be: Chezy, Coulomb, Voellmy, Pouliquen, Variable [default], Manning
+      ! Choice of drag function. Can be: Chezy, Manning, Power law, Coulomb, 
+      ! Voellmy, Pouliquen, Edwards2019, Variable [default]
       type(varString) :: DragChoice 
       ! Choice of deposition function.  Can be: None, Simple, Spearman Manning [default]
       type(varString) :: DepositionChoice
