@@ -270,6 +270,7 @@ module runsettings_module
       ! u & v) is applied in the numerical scheme. Also used elsewhere when we
       ! occasionally need to define cutoffs based on flow depth.
       real(kind=wp) :: heightThreshold
+      type(varString) :: desingularization ! The specific kind of desingularisation.
       ! Sets a buffer around flowing area where tiles are activated.
       integer :: TileBuffer
       real(kind=wp) :: cfl ! Courant-Friedrichs-Lewy time stepping constant

@@ -32,7 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -775,6 +775,8 @@ contains
       real(kind=wp) :: rhoHnu, rhoHnv, Hnpsi
       real(kind=wp) :: rho, Hn, u, v, psi
       real(kind=wp) :: Hneps, gam
+      
+      real(kind=wp) :: Hn_recip
 
       integer :: iw, irhoHnu, irhoHnv, iHnpsi
       integer :: iHn, iu, iv, ipsi, ib0, ibt, irho
@@ -806,6 +808,8 @@ contains
 
             gam = GeometricCorrectionFactor(RunParams, tiles(tID)%u(:,i,j))
             Hn = ComputeHn(tiles(tID)%u(iw,i,j), tiles(tID)%u(ib0,i,j), tiles(tID)%u(ibt,i,j), gam)
+
+            Hn_recip = Reciprocal(Hn, Hneps)
 
 #if DEBUG_NEGATIVE_DEPTH==1 || DEBUG_NEGATIVE_DEPTH==2
             ! In principle this should never happen within the hydraulic
@@ -844,7 +848,7 @@ contains
                Hnpsi = 0.0_wp
             end if
 
-            psi = min(2.0_wp * Hn * Hnpsi / (Hn * Hn + max(Hn * Hn, Hneps * Hneps)), RunParams%maxPack)
+            psi = min(Hnpsi * Hn_recip, RunParams%maxPack)
             rho = Density(RunParams, psi)
 
 # if DEBUG_EXCESS_CONC==1 || DEBUG_EXCESS_CONC==2
@@ -864,12 +868,15 @@ contains
             tiles(tID)%u(irho,i,j) = rho
 
             if (computeVelocities) then
-               u = 2.0_wp * Hn * rhoHnu / (Hn * Hn + max(Hn * Hn, Hneps * Hneps)) / rho
+               ! u = rhoHnu * (1/Hn) / rho with 1/Hn calculated using desingularization
+               u = rhoHnu * Hn_recip / rho
+
                tiles(tID)%u(iu,i,j) = u
 
                if (.not. RunParams%isOneD) then
                   rhoHnv = tiles(tID)%u(irhoHnv, i, j)
-                  v = 2.0_wp * Hn * rhoHnv / (Hn * Hn + max(Hn * Hn, Hneps * Hneps)) / rho
+                  ! v = rhoHnv * (1/Hn) / rho with 1/Hn calculated using desingularization
+                  v = rhoHnv * Hn_recip / rho
                   tiles(tID)%u(iv,i,j) = v
                end if
             end if
@@ -1252,12 +1259,14 @@ contains
                      STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam +  &
                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam
                   else
-                     STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j), &
-                        (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d), &
-                        tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)]) * deltaXRecip
-                     STF(d) = STF(d) + KahanSum([tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1), &
-                        (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d),  &
-                        tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)]) * deltaYRecip
+                     STF(d) = KahanSum([ &
+                         (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
+                         (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
+                         (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
+                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
+                         (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
+                         (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
+
                   end if
                end do
 
@@ -1282,9 +1291,6 @@ contains
                else if (d == RunParams%Vars%Hnpsi) then
                   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) * deltaXRecip / gam
                else
-                  STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1) +  &
-                     (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam +  &
-                     tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)) * deltaXRecip
                   STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1), &
                      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam,  &
                      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)]) * deltaXRecip
