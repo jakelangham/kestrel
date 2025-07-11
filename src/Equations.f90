@@ -632,8 +632,7 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, modu
-      real(kind=wp) :: gam, f
+      real(kind=wp) :: Hn, modu, f
 
       irhoHnu = RunParams%Vars%rhoHnu
       irhoHnv = RunParams%Vars%rhoHnv
@@ -642,7 +641,6 @@ contains
       Hn = uvect(iHn)
 
       stvect(:) = 0.0_wp
-      gam = GeometricCorrectionFactor(RunParams, uvect)
 
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
