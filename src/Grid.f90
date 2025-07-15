@@ -320,7 +320,7 @@ contains
       W = tileID - 1
    end function
 
-   function OnDomainEdge(grid, tileID) result(on)
+   pure function OnDomainEdge(grid, tileID) result(on)
       implicit none
 
       type(GridType), intent(in) :: grid

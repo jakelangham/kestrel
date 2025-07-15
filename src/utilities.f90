@@ -327,7 +327,7 @@ contains
 
    end function RemoveFromVector_i
 
-   recursive function InVector_r(vector,val) result(invec)
+   pure recursive function InVector_r(vector,val) result(invec)
 
       implicit none
 
@@ -349,7 +349,7 @@ contains
 
    end function InVector_r
 
-   recursive function InVector_i(vector,val) result(invec)
+   pure recursive function InVector_i(vector,val) result(invec)
 
       implicit none
 
