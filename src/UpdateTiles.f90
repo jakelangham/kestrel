@@ -570,8 +570,8 @@ contains
       end if
    end subroutine UpdateNeighbourTiles
 
-   ! Determine if tile is on the edge of the domain and if so, set its
-   ! neighbours to wrap around.
+   ! Set a tile's neighbours to wrap around at domain edges to enforce 
+   ! periodic boundaries.
    pure subroutine SetPeriodicBoundaryConds(grid, k)
       implicit none
 
@@ -579,44 +579,21 @@ contains
       integer, intent(in) :: k
 
       integer :: grid_i, grid_j
+      integer :: cornertiles(4), neighbours(4)
 
-      type(tileType), dimension(:), pointer :: tileContainer
+      type(tileType), dimension(:), pointer :: tiles
 
-      tileContainer => grid%tileContainer
+      tiles => grid%tileContainer
       call GridCoords(k, grid, grid_i, grid_j)
 
-      if (grid_i == 1) then
-         tileContainer(k)%neighbours(1) = TileID(grid, grid%nXtiles, grid_j)
-         if (grid_j > 1 .and. grid_j < grid%nYtiles) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid_j - 1)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, grid_j + 1)
-         else if (grid_j == 1) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid%nYtiles)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, grid_j + 1)
-         else if (grid_j == grid%nYtiles) then
-            tileContainer(k)%cornertiles(1) = TileID(grid, grid%nXtiles, grid_j - 1)
-            tileContainer(k)%cornertiles(3) = TileID(grid, grid%nXtiles, 1)
-         end if
-      end if
-      if (grid_i == grid%nXtiles) then
-         tileContainer(k)%neighbours(2) = TileID(grid, 1, grid_j)
-         if (grid_j > 1 .and. grid_j < grid%nYtiles) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid_j - 1)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, grid_j + 1)
-         else if (grid_j == 1) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid%nYtiles)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, grid_j + 1)
-         else if (grid_j == grid%nYtiles) then
-            tileContainer(k)%cornertiles(2) = TileID(grid, 1, grid_j - 1)
-            tileContainer(k)%cornertiles(4) = TileID(grid, 1, 1)
-         end if
-      end if
-      if (grid_j == 1) then
-         tileContainer(k)%neighbours(4) = TileID(grid, grid_i, grid%nYtiles)
-      end if
-      if (grid_j == grid%nYtiles) then
-         tileContainer(k)%neighbours(3) = TileID(grid, grid_i, 1)
-      end if
+      tiles(k)%neighbours(1) = TileID(grid, modulo(grid_i-2, grid%nXtiles)+1, grid_j)
+      tiles(k)%neighbours(2) = TileID(grid, modulo(grid_i  , grid%nXtiles)+1, grid_j)
+      tiles(k)%neighbours(3) = TileID(grid, grid_i, modulo(grid_j  , grid%nYtiles)+1)
+      tiles(k)%neighbours(4) = TileID(grid, grid_i, modulo(grid_j-2, grid%nYtiles)+1)
+      tiles(k)%cornertiles(1) = TileID(grid, modulo(grid_i-2, grid%nXtiles)+1, modulo(grid_j-2, grid%nYtiles)+1)
+      tiles(k)%cornertiles(2) = TileID(grid, modulo(grid_i  , grid%nXtiles)+1, modulo(grid_j-2, grid%nYtiles)+1)
+      tiles(k)%cornertiles(3) = TileID(grid, modulo(grid_i-2, grid%nXtiles)+1, modulo(grid_j  , grid%nYtiles)+1)
+      tiles(k)%cornertiles(4) = TileID(grid, modulo(grid_i  , grid%nXtiles)+1, modulo(grid_j  , grid%nYtiles)+1)
    end subroutine SetPeriodicBoundaryConds
 
    ! Update the u-values for a ghost tile.
