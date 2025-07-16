@@ -537,6 +537,9 @@ contains
          tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
          tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
          tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
+      else
+         nullify(tileContainer(ttk)%North)
+         nullify(tileContainer(ttk)%South)
       end if
 
       call UpdateNeighbourTiles(grid, ttk)
