@@ -5,7 +5,7 @@ else
 AM_FCFLAGS = -O2 -falign-loops=16
 if LINUX
 # Set architecture-specific optimisation flags from configure
-AM_FCFLAGS += @ARCH_FLAGS@
+AM_FCFLAGS += @FC_ARCH_FLAGS@
 endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
