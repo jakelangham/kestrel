@@ -4,8 +4,8 @@ AM_CXXFLAGS = -g
 else
 AM_FCFLAGS = -O2 -falign-loops=16
 if LINUX
-# These optimisation flags are only supported by gcc on linux.
-AM_FCFLAGS += -march=native -mtune=native
+# Set architecture-specific optimisation flags from configure
+AM_FCFLAGS += @ARCH_FLAGS@
 endif
 AM_CXXFLAGS = -O2 -falign-loops=16 
 endif
