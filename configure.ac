@@ -55,10 +55,22 @@ AC_ARG_ENABLE([debug],
 esac],[debug=false])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
+# Check for -march=native -mtune=native,
+# otherwise try -mcpu=native -mtune=native, or else give up. 
+# N.B. These flags seem to conflict for some compilers so must be tested
+# together.
 AC_LANG(C++)
-AX_CHECK_COMPILE_FLAG(-march=native, [AC_SUBST(CXX_ARCH_FLAGS, "-march=native")])
+AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
+                      [AC_SUBST(CXX_ARCH_FLAGS, "-march=native -mtune=native")],
+                      [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
+                        [AC_SUBST(CXX_ARCH_FLAGS, "-mcpu=native -mtune=native")],
+                       )])
 AC_LANG(Fortran)
-AX_CHECK_COMPILE_FLAG(-march=native, [AC_SUBST(FC_ARCH_FLAGS, "-march=native")])
+AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
+                      [AC_SUBST(FC_ARCH_FLAGS, "-march=native -mtune=native")],
+                      [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
+                        [AC_SUBST(FC_ARCH_FLAGS, "-mcpu=native -mtune=native")],
+                       )])
 
 AC_CONFIG_FILES([
  Makefile
