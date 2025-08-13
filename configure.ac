@@ -55,18 +55,10 @@ AC_ARG_ENABLE([debug],
 esac],[debug=false])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
-# Detect architecture to set Fortran compile flags in Makefile
-AS_VAR_SET([ARCH], [`uname -m`])
-case "$ARCH" in
-  ppc64le)
-    FC_ARCH_FLAGS="-mcpu=native -mtune=native"
-    ;;
-  *)
-    FC_ARCH_FLAGS="-march=native -mtune=native"
-    ;;
-esac
-
-AC_SUBST([FC_ARCH_FLAGS])
+AC_LANG(C++)
+AX_CHECK_COMPILE_FLAG(-march=native, [AC_SUBST(CXX_ARCH_FLAGS, "-march=native")])
+AC_LANG(Fortran)
+AX_CHECK_COMPILE_FLAG(-march=native, [AC_SUBST(FC_ARCH_FLAGS, "-march=native")])
 
 AC_CONFIG_FILES([
  Makefile

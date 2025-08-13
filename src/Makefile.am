@@ -2,12 +2,8 @@ if DEBUG
 AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all -Wuninitialized -finit-real=snan -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16
-if LINUX
-# Set architecture-specific optimisation flags from configure
-AM_FCFLAGS += @FC_ARCH_FLAGS@
-endif
-AM_CXXFLAGS = -O2 -falign-loops=16 
+AM_FCFLAGS = -O2 -falign-loops=16 -mtune=native $(FC_ARCH_FLAGS)
+AM_CXXFLAGS = -O2 -falign-loops=16 -mtune=native $(CXX_ARCH_FLAGS)
 endif
 
 bin_PROGRAMS = kestrel
