@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -36,7 +36,7 @@ module update_tiles_module
    use utilities_module, only: AddToOrderedVector, InVector, RemoveFromVector, AddToVector, WrapIndex
    use hydraulic_rhs_module, only: CalculateFluxes, CalculateLimitedDerivs, CalculateLimitedDerivsBoundary, ComputeDesingularisedVariables, &
       CorrectSlopes, Reconstruct
-   use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, EqualiseTopographicBoundaryData, ComputeTopographicCurvatures
+   use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, EqualiseTopographicBoundaryData
    use dem_module, only: GetHeights
    use closures_module, only : Density, GeometricCorrectionFactor
 
@@ -392,10 +392,6 @@ contains
       end if
 
       call AddGhostTiles(RunParams, grid, k)
-
-      if (RunParams%curvature) then
-        call ComputeTopographicCurvatures(RunParams, grid, tileContainer, k)
-      end if
 
       call ComputeInterfacialTopographicData(RunParams, grid, tileContainer, k)
       call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k)

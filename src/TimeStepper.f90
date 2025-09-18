@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -52,7 +52,7 @@ module timestepper_module
    use runsettings_module, only: RunSet
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
-   use morphodynamic_rhs_module, only: CalculateMorphodynamicRHS, ComputeCellCentredTopographicData, ComputeInterfacialTopographicData, ComputeMorphodynamicCurvatures
+   use morphodynamic_rhs_module, only: CalculateMorphodynamicRHS, ComputeCellCentredTopographicData, ComputeInterfacialTopographicData
    use update_tiles_module, only: AddTile, AddTiles
    use varstring_module, only: varString
    use output_module, only: OutputSolutionData, OutputAggregateData, OutputInfo, CalculateVolume
@@ -341,7 +341,7 @@ contains
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
       real(kind=wp), intent(inout) :: nextT
-      logical, intent(out) :: refineTimeStep !! SHOULD THIS BE INTENT(OUT)?
+      logical, intent(out) :: refineTimeStep
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -837,19 +837,6 @@ contains
       end do
 !$omp end parallel do
 
-      ! Update Morphodynamic curvatures
-      if (RunParams%curvature .and. RunParams%MorphodynamicsOn) then
-         call CalculateMorphodynamicRHS(RunParams, grid, intermed3)
-!$omp parallel do schedule(auto), default(none), &
-!$omp private(tt, ttk), &
-!$omp shared(ActiveTiles, RunParams, grid)
-         do tt = 1, ActiveTiles%Size
-            ttk = ActiveTiles%List(tt)
-            call ComputeMorphodynamicCurvatures(RunParams, grid, grid%intermed3, ttk)
-         end do
-!$omp end parallel do
-      end if
-
    end subroutine MorphodynamicTimeStepper
 
    ! Initialise each of the intermediate substep arrays by copying over the
@@ -940,26 +927,17 @@ contains
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
          tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
-         tilesto(ttk)%u(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxx, :, :)
          tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
 
          tilesto(ttk)%uPlusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%bt, :, :)
          tilesto(ttk)%uMinusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%bt, :, :)
          tilesto(ttk)%uPlusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdx, :, :)
          tilesto(ttk)%uMinusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdx, :, :)
-         tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxx, :, :)
-         tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxx, :, :)
          if (.not. RunParams%isOneD) then
             tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%u(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdyy, :, :)
-            tilesto(ttk)%u(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%d2bdxy, :, :)
 
             tilesto(ttk)%uPlusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdy, :, :)
             tilesto(ttk)%uMinusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdyy, :, :)
-            tilesto(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdyy, :, :)
-            tilesto(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%d2bdxy, :, :)
-            tilesto(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%d2bdxy, :, :)
 
             tilesto(ttk)%uPlusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%bt, :, :)
             tilesto(ttk)%uMinusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%bt, :, :)
@@ -967,12 +945,6 @@ contains
             tilesto(ttk)%uMinusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdx, :, :)
             tilesto(ttk)%uPlusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdy, :, :)
             tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxx, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxx, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdyy, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdyy, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%d2bdxy, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%d2bdxy, :, :)
          end if
       end do
 !$omp end parallel do

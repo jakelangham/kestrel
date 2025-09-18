@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -32,8 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, DesingularizeFunc
-   use morphodynamic_rhs_module, only: ComputeMorphodynamicCurvatures
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
    use messages_module, only: FatalErrorMessage
    use varstring_module
 
@@ -85,7 +84,6 @@ contains
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
 
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
@@ -96,7 +94,6 @@ contains
 !$omp end parallel do
 
       ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
@@ -107,7 +104,6 @@ contains
 !$omp end parallel do
 
       ! Correct slopes for w, Hnpsi to ensure positivity.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
@@ -118,7 +114,6 @@ contains
 !$omp end parallel do
 
       ! Compute derived variables Hn, u, v, psi and rho at cell centres.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, tileWorkspace)
@@ -129,7 +124,6 @@ contains
 !$omp end parallel do
       
       ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
@@ -140,7 +134,6 @@ contains
 !$omp end parallel do
 
       ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace)
@@ -152,7 +145,6 @@ contains
 
       ! Calculate numerical flux terms, and also local propagation speeds which
       ! give the CFL time step.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, unitCFLTimeStep)
@@ -167,7 +159,6 @@ contains
                                   substep, unitCFLTimeStep, advisedTimeStep)
 
       ! Sum flux and source terms to complete the calculation.
-      ! do tt = 1, ActiveTiles%Size
 !$omp parallel do schedule(auto), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid, tileWorkspace, t)
@@ -826,7 +817,7 @@ contains
 
       real(kind=wp) :: rhoHnu, rhoHnv, Hnpsi
       real(kind=wp) :: rho, Hn, u, v, psi
-      real(kind=wp) :: Hneps, gam, Hneps_gam
+      real(kind=wp) :: Hneps, gam
       
       real(kind=wp) :: Hn_recip ! 1/Hn computed using Desingularization
 
@@ -861,9 +852,7 @@ contains
             gam = GeometricCorrectionFactor(RunParams, tiles(tID)%u(:,i,j))
             Hn = ComputeHn(tiles(tID)%u(iw,i,j), tiles(tID)%u(ib0,i,j), tiles(tID)%u(ibt,i,j), gam)
 
-            Hneps_gam = Hneps * gam
-
-            Hn_recip = DesingularizeFunc(Hn,Hneps_gam)
+            Hn_recip = Reciprocal(Hn, Hneps)
 
             ! Within substeps of the morphodynamic operator, w & Hnpsi are 
             ! permitted to deviate s.t. Hn & psi would be computed as negative,

@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -455,10 +455,6 @@ contains
          c = (t - s) - y
          s = t
       end do
-
-      ! do i=1,N
-      !    call KahanAdd(nums(i), s, c)
-      ! end do
 
    end function KahanSum
 

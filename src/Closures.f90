@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -54,8 +54,9 @@ module closures_module
    public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
 
    public :: DragClosure
-   public :: ChezyDrag, CoulombDrag, VoellmyDrag, PouliquenDrag, Edwards2019Drag
-   public :: ManningDrag, VariableDrag
+   public :: ChezyDrag, ManningDrag, PowerLawDrag
+   public :: CoulombDrag, PouliquenDrag, Edwards2019Drag
+   public :: VoellmyDrag, VariableDrag
 
    public :: fswitch
    public :: tanhSwitch, rat3Switch, cosSwitch
@@ -64,7 +65,7 @@ module closures_module
    public :: MorphoDamping
    public :: NoMorphoDamping, tanhMorphoDamping, rat3MorphoDamping
 
-   public :: DesingularizeFunc
+   public :: Reciprocal
    public :: Desingularize_L1, Desingularize_L2, Desingularize_Linfty, Desingularize_step
 
    pointer :: GeometricCorrectionFactor
@@ -164,14 +165,14 @@ module closures_module
        end function MorphoDamping
    end interface
 
-   pointer :: DesingularizeFunc
+   pointer :: Reciprocal
    interface
-       pure function DesingularizeFunc(x,eps) result(x_recip)
+       pure function Reciprocal(x,eps) result(x_recip)
             import :: wp
             real(kind=wp), intent(in) :: x
             real(kind=wp), intent(in) :: eps
             real(kind=wp) :: x_recip
-       end function DesingularizeFunc
+       end function Reciprocal
    end interface
 
 contains
@@ -468,16 +469,14 @@ contains
       real(kind=wp) :: g
       real(kind=wp) :: mu
 
+      Hn = uvect(RunParams%Vars%Hn)
+      g = RunParams%g / gam
+
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
 
-      if (modu2 > 0) then
-         Hn = uvect(RunParams%Vars%Hn)
-         g = RunParams%g / gam
-         mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
-         friction = mu * g * Hn
-      else
-         friction = 0.0_wp
-      end if
+      mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
+
+      friction = mu * g * Hn
    end function PouliquenDrag
 
    ! Pouliquen's intertial number dependent friction coefficient.
@@ -492,10 +491,10 @@ contains
       real(kind=wp) :: mu, mu1, mu2, beta, Fr, I
 
       mu1 = RunParams%PouliquenMinSlope
-      
+      mu2 = RunParams%PouliquenMaxSlope
+      beta = RunParams%PouliquenBeta
+
       if (Hn > RunParams%heightThreshold) then
-         mu2 = RunParams%PouliquenMaxSlope
-         beta = RunParams%PouliquenBeta
          ! Froude number
          Fr = modu / sqrt(gcostheta * Hn)
          ! Inertial number
@@ -519,37 +518,32 @@ contains
       real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
-      real(kind=wp) :: Hn, modu, gperp, mu, Fr
+      real(kind=wp) :: Hn, modu, gperp, Hn_recip, mu, Fr
       real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
-      real(kind=wp) :: Hn_on_L
 
       Hn = uvect(RunParams%Vars%Hn)
       gperp = RunParams%g / gam
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
-      if (Hn < epsilon(1.0_wp)) then
-        Fr = 0.0_wp
-      else
-        Fr = modu / sqrt(gperp * Hn)
-      end if
 
       mu1 = RunParams%PouliquenMinSlope
       mu2 = RunParams%PouliquenMaxSlope
+      mu3 = RunParams%PouliquenIntermediateSlope
       beta = RunParams%Pouliquenbeta
       betastar = RunParams%Edwards2019betastar
+      kappa = RunParams%Edwards2019kappa
       capgam = RunParams%Edwards2019Gamma
       L = RunParams%SolidDiameter
 
-      Hn_on_L = Hn / L
+      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
+      Fr = modu * sqrt(Hn_recip / gperp)
 
       if (Fr > betastar) then
-         friction = mu1 + (mu2 - mu1) / (1.0_wp + Hn_on_L * beta / (Fr + capgam))
+         friction = mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (Fr + capgam)))
       else
-         mu3 = RunParams%PouliquenIntermediateSlope
-         kappa = RunParams%Edwards2019kappa
          friction = ((Fr / betastar)**kappa) * &
-             (mu1 + (mu2 - mu1) / (1.0_wp + Hn_on_L * beta / (betastar + capgam)) - &
-             mu3 - (mu2 - mu1) / (1.0_wp + Hn_on_L)) + &
-             mu3 + (mu2 - mu1) / (1.0_wp + Hn_on_L)
+             (mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (betastar + capgam))) - &
+             mu3 - (mu2 - mu1) / (1.0_wp + Hn / L)) + &
+             mu3 + (mu2 - mu1) / (1.0_wp + Hn / L)
       end if
 
       friction = friction * gperp * Hn
@@ -573,8 +567,8 @@ contains
       g = RunParams%g / gam
 
       ManningCo = RunParams%ManningCo
-
-      Hn_recip = DesingularizeFunc(Hn, RunParams%heightThreshold*gam)
+      
+      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
 
       friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
 
@@ -606,6 +600,25 @@ contains
 
       friction = chezy_friction * (1.0_wp - fc) + pouliquen_friction * fc
    end function VariableDrag
+
+   pure function PowerLawDrag(RunParams, uvect, gam) result(friction)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
+      real(kind=wp) :: friction
+
+      real(kind=wp) :: modu, Hn, Hneps, hr
+
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      Hn = uvect(RunParams%Vars%Hn)
+      Hneps = RunParams%heightThreshold
+
+      hr = Reciprocal(Hn, RunParams%heightThreshold)
+      friction = RunParams%PowerLawCo * (modu * hr)**RunParams%PowerLawPower
+
+   end function PowerLawDrag
 
 ! -- Erosion closures --
 

@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -99,13 +99,8 @@ program Kestrel
    RunParams%Vars%bt = 11
    RunParams%Vars%dbdx = 12
    RunParams%Vars%dbdy = 13
-   RunParams%Vars%d2bdxx = 14
-   RunParams%Vars%d2bdyy = 15
-   RunParams%Vars%d2bdxy = 16
-   RunParams%Vars%d2bdtx = 17
-   RunParams%Vars%d2bdty = 18
-   
-   RunParams%nDimensions = 18
+
+   RunParams%nDimensions = 13
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"

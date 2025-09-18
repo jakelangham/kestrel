@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -462,12 +462,6 @@ contains
          call get_nc_var(ncid, 'x_slope', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%dbdx, :, :))
          call get_nc_var(ncid, 'y_slope', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%dbdy, :, :))
 
-         call get_nc_var(ncid, 'd2bdxx', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdxx, :, :))
-         call get_nc_var(ncid, 'd2bdxy', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdxy, :, :))
-         call get_nc_var(ncid, 'd2bdyy', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdyy, :, :))
-         call get_nc_var(ncid, 'd2bdtx', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdtx, :, :))
-         call get_nc_var(ncid, 'd2bdty', start=xy_start, count=nXYpertile, vals=tileContainer(ttk)%u(RunParams%Vars%d2bdty, :, :))
-                 
          call get_nc_var(ncid, 'B0_vertex', start=[x_vertex_start, y_vertex_start], count=nXY_vertex_pertile, vals=tileContainer(ttk)%B0(:, :))
          call get_nc_var(ncid, 'Bt_vertex', start=[x_vertex_start, y_vertex_start], count=nXY_vertex_pertile, vals=tileContainer(ttk)%bt(:, :))
 

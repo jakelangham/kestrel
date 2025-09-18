@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -49,8 +49,6 @@ module runsettings_module
       integer :: w, rhoHnu, rhoHnv, Hnpsi ! Conserved quantities
       integer :: Hn, hp, u, v, psi, rho ! Derived variables
       integer :: b0, bt, dbdx, dbdy ! Specified elevation and slopes
-      integer :: d2bdxx, d2bdyy, d2bdxy ! second derivatives of elevation
-      integer :: d2bdtx, d2bdty ! time derivatives of elevation slopes
    end type VarIndex
 
    ! Cap initial condition type. Defines an initial release of a volume of
@@ -221,8 +219,6 @@ module runsettings_module
    ! -- Parameters. --
       ! Use geometrically corrected coordinates?
       logical :: geometric_factors
-      ! Use curvature terms?
-      logical :: curvature
       real(kind=wp) :: g ! gravity
       real(kind=wp) :: rhow ! Density of water
       real(kind=wp) :: rhos ! Density of solids
@@ -231,6 +227,8 @@ module runsettings_module
       real(kind=wp) :: ChezyCo ! Chezy coefficient
       real(kind=wp) :: ManningCo ! Manning coefficient
       real(kind=wp) :: CoulombCo ! Coulomb coefficient
+      real(kind=wp) :: PowerLawCo ! Power law viscosity coefficient
+      real(kind=wp) :: PowerLawPower ! i.e. n where drag propto (u/h)^n
       real(kind=wp) :: PouliquenMinSlope ! Minimum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenMaxSlope ! Maximum slope angle for steady flow with Pouliquen friction
       real(kind=wp) :: PouliquenIntermediateSlope ! Intermediate slope angle for Pouliquen friction
@@ -262,7 +260,8 @@ module runsettings_module
       type(varString) :: fswitch 
       ! Choice of function for erosion transition. Can be: smooth [default], step, off
       type(varString) :: ErosionTransition 
-      ! Choice of drag function. Can be: Chezy, Coulomb, Voellmy, Pouliquen, Variable [default], Manning
+      ! Choice of drag function. Can be: Chezy, Manning, Power law, Coulomb, 
+      ! Voellmy, Pouliquen, Edwards2019, Variable [default]
       type(varString) :: DragChoice 
       ! Choice of deposition function.  Can be: None, Simple, Spearman Manning [default]
       type(varString) :: DepositionChoice
@@ -277,8 +276,8 @@ module runsettings_module
       ! Small height below which desingularisation for derived variables (e.g.
       ! u & v) is applied in the numerical scheme. Also used elsewhere when we
       ! occasionally need to define cutoffs based on flow depth.
-      type(varString) :: desingularization
       real(kind=wp) :: heightThreshold
+      type(varString) :: desingularization ! The specific kind of desingularisation.
       ! Sets a buffer around flowing area where tiles are activated.
       integer :: TileBuffer
       real(kind=wp) :: cfl ! Courant-Friedrichs-Lewy time stepping constant
@@ -292,8 +291,6 @@ module runsettings_module
       ! Settings for 'sponge layer' to damp out flow near domain edge.
       logical :: SpongeLayer
       real(kind=wp) :: SpongeStrength
-      integer :: nBlur ! number of box blur iterations for smoothing second derivative computation of topography (= 0 for no blur)
-      integer :: BlurPixelWidth ! width of the blur in pixels
       integer :: nthreads
 
    ! -- Output settings. --

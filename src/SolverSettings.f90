@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -44,7 +44,7 @@ module solver_settings_module
    character(len=7), parameter :: limiter_d = 'MinMod2'
    procedure(limiter), pointer :: limiter_dfunc => MinMod2
    character(len=2), parameter :: desingularization_d = 'L1'
-   procedure(DesingularizeFunc), pointer :: desingularize_dfunc => Desingularize_L2
+   procedure(Reciprocal), pointer :: reciprocal_dfunc => Desingularize_L1
    real(kind=wp), parameter :: heightThreshold_d = 1e-6_wp
    integer, parameter :: TileBuffer_d = 1
    real(kind=wp), parameter :: cfl_1d_d = 0.5_wp
@@ -52,8 +52,6 @@ module solver_settings_module
    real(kind=wp), parameter :: maxdt_d = HUGE(1.0_wp)
    real(kind=wp), parameter :: tstart_d = 0.0_wp
    real(kind=wp), parameter :: SpongeStrength_d = 0.2_wp
-   integer(kind=c_int), parameter :: nBlur_d = 0
-   integer(kind=c_int), parameter :: BlurPixelWidth_d = 1
    logical, parameter :: Restart_d = .FALSE.
    integer(kind=c_int), parameter :: nthreads_d = 1
 
@@ -87,8 +85,6 @@ contains
       logical :: set_tend
       logical :: set_Restart
       logical :: set_InitialCondition
-      logical :: set_nBlur
-      logical :: set_BlurWidth
       logical :: set_nthreads
 
       N = size(SolverValues)
@@ -104,8 +100,6 @@ contains
       set_tend=.FALSE.
       set_Restart=.FALSE.
       set_InitialCondition=.FALSE.
-      set_nBlur = .FALSE.
-      set_BlurWidth = .FALSE.
       set_nthreads = .FALSE.
 
       do J=1,N
@@ -148,21 +142,21 @@ contains
                 select case (desingularization_label%s)
                     case ('l1','chertock')
                         RunParams%desingularization = varString('L1')
-                        DesingularizeFunc => Desingularize_L1
+                        Reciprocal => Desingularize_L1
                     case ('l2','kurganov')
                         RunParams%desingularization = varString('L2')
-                        DesingularizeFunc => Desingularize_L2
+                        Reciprocal => Desingularize_L2
                     case ('linf','linfty','infinity')
                         RunParams%desingularization = varString('Linfty')
-                        DesingularizeFunc => Desingularize_Linfty
+                        Reciprocal => Desingularize_Linfty
                     case ('step','bollermann')
                         RunParams%desingularization = varString('Step')
-                        DesingularizeFunc => Desingularize_step
+                        Reciprocal => Desingularize_step
                     case default
                         call WarningMessage("In the 'Solver' block the value of 'desingularization' is not recognized.  " &
                            // "Using the default desingularization formula = " // desingularization_d)
                         RunParams%desingularization = varString(desingularization_d)
-                        DesingularizeFunc => desingularize_dfunc
+                        Reciprocal => reciprocal_dfunc
                 end select
 
             case ('height threshold')
@@ -206,15 +200,6 @@ contains
                set_InitialCondition = .true.
                RunParams%InitialCondition = SolverValues(J)
 
-            
-            case ('curvature blur iterates')
-                set_nBlur = .TRUE.
-                RunParams%nBlur = SolverValues(J)%to_int()
-
-            case ('curvature blur width')
-                  set_BlurWidth = .TRUE.
-                  RunParams%BlurPixelWidth = SolverValues(J)%to_int()
-
             case ('nthreads')
                 set_nthreads = .TRUE.
                 RunParams%nthreads = SolverValues(J)%to_int()
@@ -237,7 +222,7 @@ contains
 
       if (.not.set_desingularization) then
         RunParams%desingularization = varString(desingularization_d)
-        DesingularizeFunc => desingularize_dfunc
+        Reciprocal => reciprocal_dfunc
      end if
 
       if (.not.set_heightThreshold) RunParams%heightThreshold = heightThreshold_d
@@ -264,10 +249,6 @@ contains
          // " The block variable 't end' must be greater than the block variable 't start'.")
         
       if (.not. set_Restart) RunParams%Restart = Restart_d
-
-      if (.not. set_nBlur) RunParams%nBlur = nBlur_d
-
-      if (.not. set_BlurWidth) RunParams%BlurPixelWidth = BlurPixelWidth_d
 
       if (.not. set_nthreads) RunParams%nthreads = nthreads_d
 
@@ -323,18 +304,6 @@ contains
       if (RunParams%SpongeLayer) then
          if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " The block variable 'Sponge Strength' must be positive.")
-      end if
-
-      ! nBlur >= 0
-      if (RunParams%nBlur < 0) then
-         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-            // " The block variable 'curvature blur iterates' must be a non-negative integer.")
-      end if
-
-      ! BlurPixelWidth >= 1
-      if (RunParams%BlurPixelWidth < 1) then
-         call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-            // " The block variable 'curvature blur width' must be a positive integer.")
       end if
 
       ! nthreads only used if _OPENMP

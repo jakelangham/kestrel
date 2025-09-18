@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -43,11 +43,12 @@ module parameters_module
    character(len=4), parameter :: morpho_damp_d = 'tanh'
    procedure(MorphoDamping), pointer :: morpho_damp_dfunc => tanhMorphoDamping
    logical, parameter :: geometric_factors_d = .true.
-   logical, parameter :: curvature_d = .true.
    real(kind=wp), parameter :: g_d = 9.81_wp
    real(kind=wp), parameter :: chezyco_d = 0.01_wp
    real(kind=wp), parameter :: manningco_d = 0.03_wp
    real(kind=wp), parameter :: coulombco_d = 0.1_wp
+   real(kind=wp), parameter :: powerlawco_d = 0.1_wp
+   real(kind=wp), parameter :: powerlawpower_d = 1.0_wp
    real(kind=wp), parameter :: pouliquenMinSlope_d = 0.1_wp
    real(kind=wp), parameter :: pouliquenMaxSlope_d = 0.4_wp
    real(kind=wp), parameter :: pouliquenIntermediateSlope_d = 0.2_wp
@@ -94,7 +95,7 @@ contains
 
       type(varString) :: label
       type(varString) :: DragChoice, DepositionChoice, ErosionChoice
-      type(varString) :: geometric_factors, curvature, switcher, eroTransition
+      type(varString) :: geometric_factors, switcher, eroTransition
       type(varString) :: morpho_damp
 
       integer :: J, N
@@ -105,6 +106,8 @@ contains
       logical :: set_chezyco
       logical :: set_manningco
       logical :: set_coulombco
+      logical :: set_powerlawco
+      logical :: set_powerlawpower
       logical :: set_pouliquenMinSlope
       logical :: set_pouliquenMaxSlope
       logical :: set_pouliquenIntermediateSlope
@@ -129,7 +132,6 @@ contains
       logical :: set_SolidDiameter
       logical :: set_EddyViscosity
       logical :: set_geometric_factors
-      logical :: set_curvature
       logical :: set_SettlingSpeed
       logical :: set_MorphoDamp
 
@@ -143,6 +145,8 @@ contains
       set_chezyco=.FALSE.
       set_manningco=.FALSE.
       set_coulombco=.FALSE.
+      set_powerlawco=.FALSE.
+      set_powerlawpower=.FALSE.
       set_pouliquenMinSlope=.FALSE.
       set_pouliquenMaxSlope=.FALSE.
       set_pouliquenIntermediateSlope=.FALSE.
@@ -167,7 +171,6 @@ contains
       set_SolidDiameter=.FALSE.
       set_EddyViscosity=.FALSE.
       set_geometric_factors = .false.
-      set_curvature = .false.
       set_SettlingSpeed = .false.
       set_MorphoDamp = .false.
 
@@ -266,19 +269,6 @@ contains
                      GeometricCorrectionFactor_gradin_array => IversonOuyangGeometricCorrectionFactor_gradin_array
                end select
 
-            case ('curvature')
-               curvature = ParamValues(J)%to_lower()
-               select case(curvature%s)
-                  case ('off')
-                     set_curvature=.true.
-                     RunParams%curvature=.false.
-                  case ('on')
-                     set_curvature=.true.
-                     RunParams%curvature=.true.
-                  case default
-                     set_curvature=.false.
-               end select
-                
             case ('g')
                set_g=.TRUE.
                RunParams%g = ParamValues(J)%to_real()
@@ -294,6 +284,9 @@ contains
                   case ('coulomb')
                      RunParams%DragChoice = varString('Coulomb')
                      DragClosure => CoulombDrag
+                  case ('power law')
+                     RunParams%DragChoice = varString('Power Law')
+                     DragClosure => PowerLawDrag
                   case ('voellmy')
                      RunParams%DragChoice = varString('Voellmy')
                      DragClosure => VoellmyDrag
@@ -312,7 +305,7 @@ contains
                   case default
                      call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
                         // "The block value for the variable 'Drag' " // DragChoice%s // " is not recognized." // new_line('A') &
-                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Voellmy', 'Pouliquen', 'Manning' and 'Variable'")
+                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning' and 'Variable'")
                end select
 
             case ('chezy co')
@@ -329,6 +322,14 @@ contains
                set_coulombco=.TRUE.
                RunParams%CoulombCo = ParamValues(J)%to_real()
                if (RunParams%CoulombCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Coulomb Co")
+            case ('power law co')
+               set_powerlawco=.TRUE.
+               RunParams%PowerLawCo = ParamValues(J)%to_real()
+               if (RunParams%PowerLawCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Co")
+            case ('power law power')
+               set_powerlawpower=.TRUE.
+               RunParams%PowerLawPower = ParamValues(J)%to_real()
+               if (RunParams%PowerLawPower<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Power")
           
             case ('pouliquen min')
                set_pouliquenMinSlope=.TRUE.
@@ -512,11 +513,6 @@ contains
             GeometricCorrectionFactor_gradin_array => NoGeometricCorrectionFactor_gradin_array
          end if
       end if
-
-      if (.not.set_curvature) then
-         RunParams%curvature=curvature_d
-      end if
-
       if (.not.set_g) RunParams%g = g_d
       if (.not.set_drag) then
          RunParams%DragChoice = varString('Chezy')
@@ -532,6 +528,16 @@ contains
       if ((RunParams%DragChoice%s=="Coulomb").and.(.not.set_coulombco)) then
          RunParams%CoulombCo = coulombco_d
          call Warning_DragDefaultValue("Coulomb","Coulomb Co",RunParams%CoulombCo)
+      end if
+
+      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawco)) then
+         RunParams%PowerLawCo = powerlawco_d
+         call Warning_DragDefaultValue("Power Law","Power Law Co",RunParams%PowerLawCo)
+      end if
+
+      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawpower)) then
+         RunParams%PowerLawPower = powerlawpower_d
+         call Warning_DragDefaultValue("Power Law","Power Law Power",RunParams%PowerLawPower)
       end if
 
       if (RunParams%DragChoice%s=="Voellmy") then

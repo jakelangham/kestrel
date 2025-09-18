@@ -1,7 +1,7 @@
 ! This file is part of the Kestrel software for simulations
 ! of sediment-laden Earth surface flows.
 !
-! Version v1.1.1
+! Version v1.1.2
 !
 ! Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 !
@@ -847,36 +847,6 @@ contains
          stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
          stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
 
-         if (RunParams%curvature) then
-            ! Determine the curvature terms and add it on to the momentum
-            ! equations.
-            d2bdxx = uvect(RunParams%Vars%d2bdxx)
-            d2bdyy = uvect(RunParams%Vars%d2bdyy)
-            d2bdxy = uvect(RunParams%Vars%d2bdxy)
-
-            u = uvect(iu)
-            if (RunParams%isOneD) then
-               v = 0.0_wp
-            else
-               v = uvect(iv)
-            end if
-
-            if (RunParams%MorphodynamicsOn) then
-               d2bdtx = uvect(RunParams%Vars%d2bdtx)
-               if (RunParams%isOneD) then
-                  d2bdty = 0.0_wp
-               else
-                  d2bdty = uvect(RunParams%Vars%d2bdty)
-               end if
-            else
-               d2bdtx = 0.0_wp
-               d2bdty = 0.0_wp
-            end if
-
-            curvatureTerm = uvect(irho)*hp_o_gam*(u*u*d2bdxx + 2.0_wp*u*v*d2bdxy + v*v*d2bdyy + u*d2bdtx + v*d2bdty)
-            stvect(irhoHnu) = stvect(irhoHnu) - curvatureTerm * dbdx
-            stvect(irhoHnv) = stvect(irhoHnv) - curvatureTerm * dbdy
-        end if
     end if
 
    end subroutine ExplicitSourceTerms
@@ -897,7 +867,7 @@ contains
 
       integer :: irhoHnu, irhoHnv, iHn
 
-      real(kind=wp) :: Hn, modu, hr
+      real(kind=wp) :: Hn, modu, f
       real(kind=wp) :: rhs
 
       irhoHnu = RunParams%Vars%rhoHnu
@@ -908,17 +878,13 @@ contains
 
       stvect(:) = 0.0_wp
 
-      if (Hn > RunParams%heightThreshold) then
-         
-         modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
+      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
-         if (modu > 1.0e-8_wp) then
-            hr = 1.0_wp / Hn ! hr = 1/Hn calculated using desingularization
-            rhs = -friction * hr / modu
-            stvect(irhoHnu) = rhs
-            stvect(irhoHnv) = rhs
-         end if
-      end if
+      ! Desingularize 1/(Hn*modu)
+      f = Reciprocal(Hn*modu, 1.0e-8_wp)
+      rhs = -friction * f
+      stvect(irhoHnu) = rhs
+      stvect(irhoHnv) = rhs
 
    end subroutine ImplicitSourceTerms
 
