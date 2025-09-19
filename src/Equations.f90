@@ -705,10 +705,7 @@ contains
 
       real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, dbdx, dbdy
-      real(kind=wp) :: d2bdxx, d2bdyy, d2bdxy
-      real(kind=wp) :: d2bdtx, d2bdty
       real(kind=wp) :: u, v
-      real(kind=wp) :: curvatureTerm
 
       stvect(:) = 0.0_wp
 
@@ -836,18 +833,14 @@ contains
       stvect(iw) = stvect(iw) + Qt / (gam * gam)
       stvect(iHnpsi) = stvect(iHnpsi) + psiQt / gam
 
-      if (uvect(iHn) > RunParams%heightThreshold) then
-
-         ! Determine the gravitational forcing and add it on to the momentum
-         ! equations.
-         g = RunParams%g
-         hp_o_gam = -uvect(ibt)
-         hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
-         hp_o_gam = hp_o_gam / gam
-         stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
-         stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
-
-    end if
+      ! Determine the gravitational forcing and add it on to the momentum
+      ! equations.
+      g = RunParams%g
+      hp_o_gam = -uvect(ibt)
+      hp_o_gam = hp_o_gam + (uvect(iw) - uvect(ib0))
+      hp_o_gam = hp_o_gam / gam
+      stvect(irhoHnu) = stvect(irhoHnu) - g*uvect(irho)*hp_o_gam*dbdx
+      stvect(irhoHnv) = stvect(irhoHnv) - g*uvect(irho)*hp_o_gam*dbdy
 
    end subroutine ExplicitSourceTerms
 

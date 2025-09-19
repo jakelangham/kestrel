@@ -749,11 +749,7 @@ contains
       !   (N.B. This process can get bogged down if erosionCriticalHeight is
       !   small. In general it should probably be set so it's at least greater
       !   than the solid diameter.)
-!!$omp parallel do schedule(auto), default(none), &
-!!$omp reduction(.or.:refineTimeStep), &
-!!$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, Hn_new, excess_dep, deltaBt, psiold, relhdiff), &
-!!$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, intermed0, intermed1, intermed2, intermed3, thisdt, redistcells, relhdiffmax, GeometricCorrectionFactor)
-      !!! LIKELY PROBLEM !!!!!
+
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          do j = 1, RunParams%nYpertile
@@ -780,12 +776,9 @@ contains
                   ! Otherwise, we must refine the time step.
                   if (Hn_old < RunParams%EroCriticalHeight .or. &
                       abs(Hn_new - Hn_old) < RunParams%EroCriticalHeight) then
-                     !!$omp critical
-                        call AddToRedistList(redistcells, ttk, i, j, excess_dep)
-                     !!$omp end critical
+                     call AddToRedistList(redistcells, ttk, i, j, excess_dep)
                   else
-                     ! refineTimeStep = .true.
-                     refineTimeStep = refineTimeStep .or. .true.
+                     refineTimeStep = .true.
                      exit
                   end if
                   cycle
@@ -795,17 +788,13 @@ contains
                if (Hn_old < RunParams%EroCriticalHeight) cycle
                relhdiff = abs(Hn_new - Hn_old) / abs(Hn_old)
                if (relhdiff > 0.1_wp .and. relhdiff > relhdiffmax) then
-                  !!$omp atomic write
-                     relhdiffmax = relhdiff
-
-                  ! refineTimeStep = .true.
-                  refineTimeStep = refineTimeStep .or. .true.
+                  relhdiffmax = relhdiff
+                  refineTimeStep = .true.
                   exit
                end if
             end do
          end do
       end do
-!!$omp end parallel do
 
       ! Some cells may have been marked for redistribution in the loop above.
       ! This is handled by RedistributeGrid, which makes a small correction to
@@ -1058,15 +1047,15 @@ contains
 !$omp shared(ActiveTiles, tileContainer, RunParams, nYpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ttN = tileContainer(ttk)%North 
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (.not. tileContainer(ttk)%NorthOn) then
+         if (ttN > 0 .and. (.not. tileContainer(ttN)%TileOn)) then
 
             Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, (nYpertile - buffer + 1):nYpertile)
 
             if (any(Hn > RunParams%heightThreshold)) then
 !$omp critical
-               ttN = tileContainer(ttk)%North 
                call AddToVector_i(tilesToAdd, ttN)
 !$omp end critical
             end if
@@ -1117,15 +1106,15 @@ contains
 !$omp shared(ActiveTiles, tileContainer, RunParams, nXpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ttE = tileContainer(ttk)%East
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (.not. tileContainer(ttk)%EastOn) then
+         if (ttE > 0 .and. (.not. tileContainer(ttE)%TileOn)) then
             
             Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, (nXpertile-buffer+1):nXpertile, :)
 
             if (any(Hn>RunParams%heightThreshold)) then
 !$omp critical
-               ttE = tileContainer(ttk)%East
                call AddToVector_i(tilesToAdd, ttE)
 !$omp end critical
             end if
@@ -1175,15 +1164,15 @@ contains
 !$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ttS = tileContainer(ttk)%South
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (.not. tileContainer(ttk)%SouthOn) then
+         if (ttS > 0 .and. (.not. tileContainer(ttS)%TileOn)) then
 
             Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, 1:buffer)
 
             if (any(Hn>RunParams%heightThreshold)) then
 !$omp critical
-               ttS = tileContainer(ttk)%South
                call AddToVector_i(tilesToAdd, ttS)
 !$omp end critical
             end if
@@ -1233,15 +1222,15 @@ contains
 !$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ttW = tileContainer(ttk)%West
 
          ! Check if there exists an inactive neighbour that needs activating.
-         if (.not. tileContainer(ttk)%WestOn) then
+         if (ttW > 0 .and. (.not. tileContainer(ttW)%TileOn)) then
 
             Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, 1:buffer, :)
 
             if (any(Hn>RunParams%heightThreshold)) then
 !$omp critical
-               ttW = tileContainer(ttk)%West
                call AddToVector_i(tilesToAdd, ttW)
 !$omp end critical
             end if

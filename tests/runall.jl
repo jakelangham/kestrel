@@ -154,7 +154,7 @@ function run_parallel()
        testname = tests_parallel[i][1]
        rm(joinpath(["./", tests_parallel[i][2], "/*"]), force=true)
        rm(joinpath(["./", tests_parallel[i][3], "/*"]), force=true)
-       testfunc = test_identical_simulations
+       testfunc = test_parallel_simulations
        args = tests_parallel[i]
        numpassed += run_test(i, testname, testfunc, args...)
     end

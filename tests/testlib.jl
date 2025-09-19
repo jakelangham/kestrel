@@ -2,6 +2,9 @@ using DelimitedFiles
 
 prog = "../src/kestrel"
 
+prog_serial = "../src/kestrel_serial"
+prog_paral = "../src/kestrel_paral"
+
 # Basic checks for conservativity and positivity of the solution output when
 # simulating with the input file Input_$testname.txt
 # dim = spatial dimension of simulation
@@ -42,6 +45,31 @@ function test_identical_simulations(testname, infile1, infile2, tol, dim)
    return result
 end
 
+# Parallel simulations
+# Take two equivalent input files, testname1 & testname2 and check if they produce the same
+# output when one is run using multithreaded kestrel and the other is serial kestrel.
+# This can be used for checking that simulations are independent of openmp parallelisation.
+function test_parallel_simulations(testname, infile1, infile2, tol, dim)
+
+   t0 = time()
+   if run_simulation_serial(infile1)
+      return 1
+   end
+   t_serial = time() - t0
+
+   t0 = time()
+   if run_simulation_paral(infile2)
+      return 1
+   end
+   t_paral = time() - t0
+
+   result = check_identical_simulations(infile1, infile2, tol, dim)
+
+   println("OpenMP speedup factor = ", t_serial/t_paral)
+
+   return result
+end
+
 # This test runs the same simulation twice. In the second instance, an interrupt
 # is called and the simulation is restarted. If both outputs are the same,
 # return 0.
@@ -70,6 +98,52 @@ function run_simulation(testname)
       catch
          println("Simulation exited unexpectedly.")
          println("The command was $prog $infile.")
+         println("Any output has been logged in $logfile.")
+         error = true
+      end
+   end
+   wait_for_task(t)
+
+   return error
+end
+
+# Run $prog_serial on the input file corresponding to the test with name testname and
+# log the output in "$testname.log". Return a helpful error if the command
+# fails.
+function run_simulation_serial(testname)
+   infile = test_inputfile(testname)
+   logfile = "$testname.log"
+
+   error = false
+   t = @async begin
+      try
+         run(pipeline(`$prog_serial $infile`, stdout = logfile, stderr = logfile));
+      catch
+         println("Simulation exited unexpectedly.")
+         println("The command was $prog_serial $infile.")
+         println("Any output has been logged in $logfile.")
+         error = true
+      end
+   end
+   wait_for_task(t)
+
+   return error
+end
+
+# Run $prog_paral on the input file corresponding to the test with name testname and
+# log the output in "$testname.log". Return a helpful error if the command
+# fails.
+function run_simulation_paral(testname)
+   infile = test_inputfile(testname)
+   logfile = "$testname.log"
+
+   error = false
+   t = @async begin
+      try
+         run(pipeline(`$prog_paral $infile`, stdout = logfile, stderr = logfile));
+      catch
+         println("Simulation exited unexpectedly.")
+         println("The command was $prog_paral $infile.")
          println("Any output has been logged in $logfile.")
          error = true
       end

@@ -204,10 +204,10 @@ contains
             ttE = tiles(tID)%East
             ttS = tiles(tID)%South
             ttN = tiles(tID)%North
-            ttSW = tiles(tID)%SouthWest
-            ttSE = tiles(tID)%SouthEast
-            ttNW = tiles(tID)%NorthWest
-            ttNE = tiles(tID)%NorthEast
+            ttSW = tiles(ttW)%South
+            ttSE = tiles(ttE)%South
+            ttNW = tiles(ttW)%North
+            ttNE = tiles(ttE)%North
 
             do j = 2, nYpertile
                ! west bdry

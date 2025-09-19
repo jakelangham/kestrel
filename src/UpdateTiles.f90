@@ -67,14 +67,11 @@ contains
          else ! if boundary conditions are not 'halt' this routine fails silently
             return
          end if
-         return
       end if
 
       call AddToActiveTiles(grid, tile)
       call AllocateTile(RunParams, grid, tile)
       call ActivateTile(RunParams, grid, tile)
-      call SetTileBoundaries(RunParams, grid, tile)
-      call UpdateNeighbourTiles(grid, tile)
       grid%xmin = min(grid%tileContainer(tile)%xmin, grid%xmin)
       grid%xmax = max(grid%tileContainer(tile)%xmax, grid%xmax)
       grid%ymin = min(grid%tileContainer(tile)%ymin, grid%ymin)
@@ -111,17 +108,16 @@ contains
       ghostTiles => grid%ghostTiles
 
       ! Is this the first active tile?
-      if (.not. allocated(grid%ActiveTiles%List)) then
-         allocate(grid%ActiveTiles%List(1))
-         grid%ActiveTiles%List(1) = k
-         grid%ActiveTiles%Size = 1
-      else 
+      if (.not. allocated(ActiveTiles%List)) then
+         allocate(ActiveTiles%List(1))
+         ActiveTiles%List(1) = k
+         ActiveTiles%Size = 1
+
          ! Else we add only if it hasn't been added before.
-         if (.not. InVector(ActiveTiles%List, k)) then
-            call AddToOrderedVector(ActiveTiles%List, k)
-            ActiveTiles%Size = ActiveTiles%Size + 1
-         end if
-            
+      else if (.not. InVector(ActiveTiles%List, k)) then
+         call AddToOrderedVector(ActiveTiles%List, k)
+         ActiveTiles%Size = ActiveTiles%Size + 1
+
          ! If it's a ghost tile, remove it.
          if (.not. allocated(ghostTiles%List)) return
          call RemoveFromVector(ghostTiles%List, k, isGhostTile)
@@ -295,6 +291,7 @@ contains
 
       integer :: ii, jj, nXpertile, nYpertile, grid_i, grid_j
       real(kind=wp) :: x, y
+      real(kind=wp) :: half_deltaX, half_deltaY
 
       type(tileType), dimension(:), pointer :: tileContainer
 
@@ -302,6 +299,9 @@ contains
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
+
+      half_deltaX = 0.5_wp * RunParams%deltaX
+      half_deltaY = 0.5_wp * RunParams%deltaY
 
       call GridCoords(k, grid, grid_i, grid_j)
 
@@ -329,21 +329,21 @@ contains
          allocate (tileContainer(k)%x_vertex(nXpertile + 1))
          do ii = 1, nXpertile
             tileContainer(k)%x_vertex(ii) = &
-               tileContainer(k)%x(ii) - 0.5_wp*RunParams%deltaX
+               tileContainer(k)%x(ii) - half_deltaX
          end do
 
          tileContainer(k)%x_vertex(nXpertile + 1) = &
-            tileContainer(k)%x(nXpertile) + 0.5_wp*RunParams%deltaX
+            tileContainer(k)%x(nXpertile) + half_deltaX
       end if
       if (.not. allocated(tileContainer(k)%y_vertex)) then
          allocate (tileContainer(k)%y_vertex(nYpertile + 1))
          do jj = 1, nYpertile
             tileContainer(k)%y_vertex(jj) = &
-               tileContainer(k)%y(jj) - 0.5_wp*RunParams%deltaY
+               tileContainer(k)%y(jj) - half_deltaY
          end do
 
          tileContainer(k)%y_vertex(nYpertile + 1) = &
-            tileContainer(k)%y(nYpertile) + 0.5_wp*RunParams%deltaY
+            tileContainer(k)%y(nYpertile) + half_deltaY
       end if
 
       if (.not. allocated(tileContainer(k)%b0)) then
@@ -535,34 +535,9 @@ contains
       ! for when directions have to be referenced individually
       tileContainer(ttk)%West => tileContainer(ttk)%neighbours(1)
       tileContainer(ttk)%East => tileContainer(ttk)%neighbours(2)
-      if (.not. RunParams%isOneD) then
-         tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
-         tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
-         tileContainer(ttk)%SouthWest => tileContainer(ttk)%cornertiles(1)
-         tileContainer(ttk)%SouthEast => tileContainer(ttk)%cornertiles(2)
-         tileContainer(ttk)%NorthWest => tileContainer(ttk)%cornertiles(3)
-         tileContainer(ttk)%NorthEast => tileContainer(ttk)%cornertiles(4)
-      end if
-
-      call UpdateNeighbourTiles(grid, ttk)
-
+      tileContainer(ttk)%North => tileContainer(ttk)%neighbours(3)
+      tileContainer(ttk)%South => tileContainer(ttk)%neighbours(4)
    end subroutine SetTileBoundaries
-
-   ! For a tile in the get, workout if the neigbour tiles are active
-   pure subroutine UpdateNeighbourTiles(grid, ttk)
-      implicit none
-      type(GridType), target, intent(inout) :: grid
-      integer, intent(in) :: ttk
-
-      type(tileType), dimension(:), pointer :: tileContainer
-
-      tileContainer => grid%tileContainer
-
-      if (associated(tileContainer(ttk)%West)) tileContainer(ttk)%WestOn => tileContainer(tileContainer(ttk)%West)%TileOn
-      if (associated(tileContainer(ttk)%East)) tileContainer(ttk)%EastOn => tileContainer(tileContainer(ttk)%East)%TileOn
-      if (associated(tileContainer(ttk)%North)) tileContainer(ttk)%NorthOn => tileContainer(tileContainer(ttk)%North)%TileOn
-      if (associated(tileContainer(ttk)%South)) tileContainer(ttk)%SouthOn => tileContainer(tileContainer(ttk)%South)%TileOn
-   end subroutine UpdateNeighbourTiles
 
    ! Determine if tile is on the edge of the domain and if so, set its
    ! neighbours to wrap around.
@@ -708,10 +683,10 @@ contains
       integer, intent(in) :: tID ! tileID
 
       integer :: i, j, iw, neighbour, nXpertile, nYpertile
-      real(kind=wp) :: deltaX, deltaY
+      real(kind=wp) :: half_deltaX, half_deltaY
 
-      deltaX = grid%deltaX
-      deltaY = grid%deltaY
+      half_deltaX = 0.5_wp * grid%deltaX
+      half_deltaY = 0.5_wp * grid%deltaY
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
@@ -727,9 +702,9 @@ contains
             end do
 
             tiles(tID)%uPlusX(iw, 1, :) = tiles(tID)%u(iw, 1, :) - &
-               tiles(tID)%uLimX(iw, 1, :) * 0.5_wp * deltaX
+               tiles(tID)%uLimX(iw, 1, :) * half_deltaX
             tiles(tID)%uMinusX(iw, 2, :) = tiles(tID)%u(iw, 1, :) + &
-               tiles(tID)%uLimX(iw, 1, :) * 0.5_wp * deltaX
+               tiles(tID)%uLimX(iw, 1, :) * half_deltaX
          end if
       end if
 
@@ -742,9 +717,9 @@ contains
             end do
 
             tiles(tID)%uPlusX(iw, nXpertile, :) = tiles(tID)%u(iw, nXpertile, :) - &
-               tiles(tID)%uLimX(iw, nXpertile, :) * 0.5_wp * deltaX
+               tiles(tID)%uLimX(iw, nXpertile, :) * half_deltaX
             tiles(tID)%uMinusX(iw, nXpertile+1, :) = tiles(tID)%u(iw, nXpertile, :) + &
-               tiles(tID)%uLimX(iw, nXpertile, :) * 0.5_wp * deltaX
+               tiles(tID)%uLimX(iw, nXpertile, :) * half_deltaX
          end if
       end if
 
@@ -759,9 +734,9 @@ contains
                end do
 
                tiles(tID)%uPlusY(iw, :, 1) = tiles(tID)%u(iw, :, 1) - &
-                  tiles(tID)%uLimY(iw, :, 1) * 0.5_wp * deltaY
+                  tiles(tID)%uLimY(iw, :, 1) * half_deltaY
                tiles(tID)%uMinusY(iw, :, 2) = tiles(tID)%u(iw, :, 1) + &
-                  tiles(tID)%uLimY(iw, :, 1) * 0.5_wp * deltaY
+                  tiles(tID)%uLimY(iw, :, 1) * half_deltaY
             end if
          end if
 
@@ -774,9 +749,9 @@ contains
                end do
 
                tiles(tID)%uPlusY(iw, :, nYpertile) = tiles(tID)%u(iw, :, nYpertile) - &
-                  tiles(tID)%uLimY(iw, :, nYpertile) * 0.5_wp * deltaY
+                  tiles(tID)%uLimY(iw, :, nYpertile) * half_deltaY
                tiles(tID)%uMinusY(iw, :, nYpertile+1) = tiles(tID)%u(iw, :, nYpertile) + &
-                  tiles(tID)%uLimY(iw, :, nYpertile) * 0.5_wp * deltaY
+                  tiles(tID)%uLimY(iw, :, nYpertile) * half_deltaY
             end if
          end if
       end if

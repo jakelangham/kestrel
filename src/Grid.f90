@@ -61,15 +61,12 @@ module grid_module
 
       ! Navigation data.
       ! Locations of adjacent tiles, ordered: W, E, N, S
-      integer :: neighbours(4)
-      logical :: activeneighbours(4)
+      integer :: neighbours(4) 
       ! Locations of diagonal neighbours, ordered: SW, SE, NW, NE
-      integer :: cornertiles(4)
+      integer :: cornertiles(4) 
       ! Pointers to the neighbours array for easy reading when they need to be
       ! referenced individually
       integer, pointer :: North, South, East, West
-      integer, pointer :: NorthWest, NorthEast, SouthWest, SouthEast
-      logical, pointer :: NorthOn, SouthOn, EastOn, WestOn
 
       ! x, y values at cell centres.
       real(kind=wp), dimension(:), allocatable :: x, y
