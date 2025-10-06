@@ -53,7 +53,6 @@ module solver_settings_module
    real(kind=wp), parameter :: tstart_d = 0.0_wp
    real(kind=wp), parameter :: SpongeStrength_d = 0.2_wp
    logical, parameter :: Restart_d = .FALSE.
-   integer(kind=c_int), parameter :: nthreads_d = 1
 
 contains
 
@@ -70,7 +69,6 @@ contains
       type(varString) :: limiter_label
       type(varString) :: desingularization_label
       type(varString) :: Restart_label
-      type(varString) :: nthreads_label
 
       integer :: J, N
 
@@ -85,7 +83,6 @@ contains
       logical :: set_tend
       logical :: set_Restart
       logical :: set_InitialCondition
-      logical :: set_nthreads
 
       N = size(SolverValues)
 
@@ -100,7 +97,6 @@ contains
       set_tend=.FALSE.
       set_Restart=.FALSE.
       set_InitialCondition=.FALSE.
-      set_nthreads = .FALSE.
 
       do J=1,N
          label = SolverLabels(J)%to_lower()
@@ -200,10 +196,6 @@ contains
                set_InitialCondition = .true.
                RunParams%InitialCondition = SolverValues(J)
 
-            case ('nthreads')
-                set_nthreads = .TRUE.
-                RunParams%nthreads = SolverValues(J)%to_int()
-
             case default
                call InputLabelUnrecognized(SolverLabels(J)%s)
 
@@ -249,8 +241,6 @@ contains
          // " The block variable 't end' must be greater than the block variable 't start'.")
         
       if (.not. set_Restart) RunParams%Restart = Restart_d
-
-      if (.not. set_nthreads) RunParams%nthreads = nthreads_d
 
       ! Validate Solver settings
 
@@ -305,20 +295,6 @@ contains
          if (RunParams%SpongeStrength.le.0) call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " The block variable 'Sponge Strength' must be positive.")
       end if
-
-      ! nthreads only used if _OPENMP
-#ifndef _OPENMP
-      if (set_nthreads) then
-         call WarningMessage("In the 'Solver' block input file " // trim(RunParams%InputFile%s) // new_line('A') &
-            // " The block variable 'nthreads' requires OPENMP, enabled with --enable-parallel in configure.")
-      end if
-#else
-      ! nthreads >= 1
-      if (RunParams%nthreads < 1) then
-        call FatalErrorMessage("In the 'Solver' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
-           // " The block variable 'nthreads' must be a positive integer.")
-     end if
-#endif
 
    end subroutine Solver_Set
 

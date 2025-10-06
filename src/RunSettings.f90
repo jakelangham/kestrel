@@ -291,7 +291,6 @@ module runsettings_module
       ! Settings for 'sponge layer' to damp out flow near domain edge.
       logical :: SpongeLayer
       real(kind=wp) :: SpongeStrength
-      integer :: nthreads
 
    ! -- Output settings. --
       ! Various output file names.
@@ -384,10 +383,6 @@ contains
       RunParams%ImplicitStep(RunParams%Vars%rhoHnv) = .true.
 
       RunParams%nSubsteps = 4
-
-#ifdef _OPENMP
-   call omp_set_num_threads(RunParams%nthreads)
-#endif
 
    end subroutine SetImmutableRunSettings
 

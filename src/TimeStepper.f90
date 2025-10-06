@@ -371,7 +371,7 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, k, var), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -411,7 +411,7 @@ contains
       end if
 
       ! Compute second substep.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, k, var, hp_old, hp_new, w_update), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -474,7 +474,7 @@ contains
       end if
 
       ! Compute third substep.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, k, var, hp_old, hp_new, w_update), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, intermed3, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -516,7 +516,7 @@ contains
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, k, var, w_update), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, intermed3, thisdt, nextT)
       do tt = 1, ActiveTiles%Size
@@ -585,7 +585,7 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed0)
 
       ! Compute first substep for the bed evolution equation.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -607,7 +607,7 @@ contains
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
       ! These updates are linearly dependent on the update to bt, so they may
       ! be explicitly determined in a conservative way.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
@@ -639,7 +639,7 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed1)
 
       ! Compute second substep for the bed evolution equation.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, intermed2, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -661,7 +661,7 @@ contains
 !$omp end parallel do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, intermed2, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
@@ -692,7 +692,7 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed2)
 
       ! Compute third substep for the bed evolution equation.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j), &
 !$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, intermed2, intermed3, thisdt)
       do tt = 1, ActiveTiles%Size
@@ -713,7 +713,7 @@ contains
 !$omp end parallel do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi) &
 !$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, intermed2, intermed3, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
@@ -817,7 +817,7 @@ contains
       end if
 
       ! Update u{Plus,Minus}{X,Y}, b and grad(b) data since the bed has changed.
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, RunParams, grid)
       do tt = 1, ActiveTiles%Size
@@ -839,7 +839,7 @@ contains
       integer :: tt, ttk
 
       ! Copy data over to the intermediate time stepping arrays
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(grid)
       do tt = 1, nActiveTiles
@@ -850,7 +850,7 @@ contains
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
 !$omp end parallel do
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(grid)
       do tt = 1, grid%ghostTiles%size
@@ -879,7 +879,7 @@ contains
 
       call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, tilesto, tilesfrom, RunParams)
       do tt = 1, ActiveTiles%Size
@@ -909,7 +909,7 @@ contains
 
       activeTiles => grid%activeTiles
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk), &
 !$omp shared(ActiveTiles, tilesto, tilesfrom, RunParams)
       do tt = 1, ActiveTiles%Size
@@ -1042,7 +1042,7 @@ contains
 
       allocate(Hn(nXpertile, buffer))
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, Hn, ttN), &
 !$omp shared(ActiveTiles, tileContainer, RunParams, nYpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
@@ -1101,7 +1101,7 @@ contains
 
       allocate(Hn(buffer, nYpertile))
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, Hn, ttE), &
 !$omp shared(ActiveTiles, tileContainer, RunParams, nXpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
@@ -1159,7 +1159,7 @@ contains
 
       allocate(Hn(nXpertile, buffer))
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, Hn, ttS), &
 !$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
@@ -1217,7 +1217,7 @@ contains
 
       allocate(Hn(buffer,nYpertile))
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, ttk, Hn, ttW), &
 !$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size

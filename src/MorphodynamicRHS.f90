@@ -94,7 +94,7 @@ contains
       HnS = 0.0_wp
       HnN = 0.0_wp
 
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, tID, i, j, ttW, HnW, ttE, HnE, ttS, HnS, ttN, HnN, gam, Friction, Ero, Depo), &
 !$omp shared(ActiveTiles, RunParams, tiles, grid, iHn, Hneps, nd, GeometricCorrectionFactor, DragClosure)
       do tt = 1, ActiveTiles%Size
@@ -180,7 +180,7 @@ contains
       psib = 1.0_wp - RunParams%BedPorosity
 
    if (.not. RunParams%isOneD) then
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, tID, i, j, dbdx, dbdy, gam, ttW, ttE, ttS, ttN, ttSW, ttSE, ttNW, ttNE), &
 !$omp shared(ActiveTiles, tiles, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
       do tt = 1, ActiveTiles%Size
@@ -283,7 +283,7 @@ contains
          end do
 !$omp end parallel do
       else
-!$omp parallel do schedule(auto), default(none), &
+!$omp parallel do schedule(runtime), default(none), &
 !$omp private(tt, tID, dbdx, gam, ttW, ttE), &
 !$omp shared(ActiveTiles, tiles, grid, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
          do tt = 1, ActiveTiles%Size
