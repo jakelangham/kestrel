@@ -18,4 +18,5 @@ Contents
    physical model
    settings and parameters
    output
+   openmp
    contributing
