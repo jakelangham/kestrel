@@ -50,21 +50,21 @@ tests_parallel = [
     # These tests check:
     # (i) openmp runs complete
     # (ii) simulations with openmp parallelization produce the same output as serial runs
-    ("parallel_flat_depositional", "flat_depositional", "flat_depositional_parallel", 1e-13, 1)
-    ("parallel_cap_dilute", "cap_dilute", "cap_dilute_parallel", 1e-13, 1)
-    ("parallel_cap_conc", "cap_conc", "cap_conc_parallel", 1e-13, 1)
-    ("parallel_cap_morpho", "cap_morpho", "cap_morpho_parallel", 1e-13, 1)
-    ("parallel_flux_hydro", "flux_hydro", "flux_hydro_parallel", 1e-13, 1)
-    ("parallel_flux_edwards2019", "flux_edwards2019", "flux_edwards2019_parallel", 1e-13, 1)
-    ("parallel_flux_morpho", "flux_morpho", "flux_morpho_parallel", 1e-13, 1)
-    ("parallel_flat_depositional_2d", "flat_depositional_2d", "flat_depositional_2d_parallel", 1e-13, 2)
-    ("parallel_cap_dilute_2d", "cap_dilute_2d", "cap_dilute_2d_parallel", 1e-13, 2)
-    ("parallel_cap_conc_2d", "cap_conc_2d", "cap_conc_2d_parallel", 1e-13, 2)
-    ("parallel_cap_morpho_2d", "cap_morpho_2d", "cap_morpho_2d_parallel", 1e-12, 2) # NOTE: FAILS AT 1e-13 tolerance
-    ("parallel_flux_hydro_2d", "flux_hydro_2d", "flux_hydro_2d_parallel", 1e-13, 2)
-    ("parallel_flux_edwards2019_2d", "flux_edwards2019_2d", "flux_edwards2019_2d_parallel", 1e-13, 2)
-    ("parallel_flux_morpho_2d", "flux_morpho_2d", "flux_morpho_2d_parallel", 1e-13, 2)
-    ("parallel_flux_single_pt", "flux_single_pt", "flux_single_pt_parallel", 1e-13, 2)
+    ("parallel_flat_depositional", "flat_depositional", 1e-13, 1)
+    ("parallel_cap_dilute", "cap_dilute", 1e-13, 1)
+    ("parallel_cap_conc", "cap_conc", 1e-13, 1)
+    ("parallel_cap_morpho", "cap_morpho", 1e-13, 1)
+    ("parallel_flux_hydro", "flux_hydro", 1e-13, 1)
+    ("parallel_flux_edwards2019", "flux_edwards2019", 1e-13, 1)
+    ("parallel_flux_morpho", "flux_morpho", 1e-13, 1)
+    ("parallel_flat_depositional_2d", "flat_depositional_2d", 1e-13, 2)
+    ("parallel_cap_dilute_2d", "cap_dilute_2d", 1e-13, 2)
+    ("parallel_cap_conc_2d", "cap_conc_2d", 1e-13, 2)
+    ("parallel_cap_morpho_2d", "cap_morpho_2d", 1e-12, 2) # NOTE: FAILS AT 1e-13 tolerance
+    ("parallel_flux_hydro_2d", "flux_hydro_2d", 1e-13, 2)
+    ("parallel_flux_edwards2019_2d", "flux_edwards2019_2d", 1e-13, 2)
+    ("parallel_flux_morpho_2d", "flux_morpho_2d", 1e-13, 2)
+    ("parallel_flux_single_pt", "flux_single_pt", 1e-13, 2)
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
@@ -153,7 +153,6 @@ function run_parallel()
     for i = 1:length(tests_parallel)
        testname = tests_parallel[i][1]
        rm(joinpath(["./", tests_parallel[i][2], "/*"]), force=true)
-       rm(joinpath(["./", tests_parallel[i][3], "/*"]), force=true)
        testfunc = test_parallel_simulations
        args = tests_parallel[i]
        numpassed += run_test(i, testname, testfunc, args...)
