@@ -595,6 +595,8 @@ contains
       LastFile = 0
       tstart = 0.0_wp
 
+      InfoVersion = varString("Unknown")
+
       do ! Run through info file
          call ReadFileLine(51, line, iostat=iostatus) ! Read line of input file
          if (iostatus /= 0) exit ! If iostat returns read error, exit loop
@@ -603,10 +605,8 @@ contains
             if (line%contains("=")) then ! ignore that are not in keyword = value format
                call line%split("=", label, remain=val)
                label = label%to_lower()
-               if (label%contains("Kestrel version")) then
+               if (label%contains("kestrel version")) then
                   InfoVersion = val
-               else
-                  InfoVersion = varString("Unknown")
                end if
                if (label%contains("time step between outputs")) then
                   FileTimeStep = val%to_real()
