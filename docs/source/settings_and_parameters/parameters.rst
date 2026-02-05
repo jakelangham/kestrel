@@ -36,6 +36,42 @@ There are two **required** settings in the *Parameters* block:
             is used to set the value of the constant drag coefficient
             :math:`C_d`. It is required to be strictly positive.
 
+        :code:`manning`
+
+            Sets the Manning drag law
+            
+                :math:`\mathcal{F} = \dfrac{g_\perp n^2}{H^{1/3}}`,
+
+            where :math:`g_\perp` is gravitational acceleration resolved
+            perpendicular to the local slope.
+
+            The **conditionally optional** setting
+
+                :code:`manning co = 0.03`
+     
+            is used to set the *dimensional* constant coefficient :math:`n`.  It
+            is required to be strictly positive.
+
+        :code:`power law`
+
+            Sets a power law drag
+
+                :math:`\mathcal{F} = \nu \left(\dfrac{|\mathbf{u}|}{H}\right)^n`.
+
+            The **conditionally optional** settings
+
+                :code:`power law co = 0.1`
+
+            and
+
+                :code:`power law power = 1.0`
+
+            are used to set :math:`\nu` and :math:`n`, respectively. Note that
+            the default option :math:`n = 1` corresponds to the basal resistance
+            felt by a linearly sheared viscous fluid, while the cases :math:`0 <
+            n < 1` and :math:`n > 1` respectively correspond to shear thinning
+            and shear thickening behaviours.
+
         :code:`coulomb`
 
             Sets the Coulomb drag law
@@ -52,22 +88,6 @@ There are two **required** settings in the *Parameters* block:
 
             is used to set the value of the constant friction coefficient
             :math:`\mu`. It is required to be strictly positive.
-
-        :code:`manning`
-
-            Sets the Manning drag law
-            
-                :math:`\mathcal{F} = \dfrac{g_\perp n^2}{H^{1/3}}`,
-
-            where :math:`g_\perp` is gravitational acceleration resolved
-            perpendicular to the local slope.
-
-            The **conditionally optional** setting
-
-                :code:`manning co = 0.03`
-     
-            is used to set the *dimensional* constant coefficient :math:`n`.  It
-            is required to be strictly positive.
 
         :code:`pouliquen`
 

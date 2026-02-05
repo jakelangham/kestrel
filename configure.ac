@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-m4_define([DEFAULT_VERSION], [v1.1.1])
+m4_define([DEFAULT_VERSION], [v1.1.2])
 AC_INIT([Kestrel],
         [m4_esyscmd_s([git --version > /dev/null 2>&1 && git describe --tags || echo DEFAULT_VERSION])],
         [Mark.Woodhouse@bristol.ac.uk, J.Langham@bristol.ac.uk])
@@ -14,10 +14,6 @@ AC_PREFIX_DEFAULT([..])
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
 AC_PROG_CXX
-
-# Detect builds on linux
-AC_CANONICAL_HOST
-AM_CONDITIONAL([LINUX], [test x$host_os = xlinux-gnu])
 
 # Check c++17, which we require.
 AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
@@ -65,7 +61,6 @@ esac],[parallel=false])
 AM_CONDITIONAL([PARAL], [test x$parallel = xtrue])
 
 if test x$parallel = xtrue; then
-#   FC_PARALLEL_FLAGS="-ftree-parallelize-loops=$threads -fopenmp"
   FC_PARALLEL_FLAGS="-fopenmp"
 else
   FC_PARALLEL_FLAGS=""
@@ -90,6 +85,23 @@ else
 fi
 
 AC_SUBST([FC_OPT_REPORT_FLAGS])
+
+# Check for -march=native -mtune=native,
+# otherwise try -mcpu=native -mtune=native, or else give up. 
+# N.B. These flags seem to conflict for some compilers so must be tested
+# together.
+AC_LANG(C++)
+AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
+                      [AC_SUBST([CXX_ARCH_FLAGS], ["-march=native -mtune=native"])],
+                      [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
+                        [AC_SUBST([CXX_ARCH_FLAGS], ["-mcpu=native -mtune=native"])],
+                       )])
+AC_LANG(Fortran)
+AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
+                      [AC_SUBST([FC_ARCH_FLAGS], ["-march=native -mtune=native"])],
+                      [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
+                        [AC_SUBST([FC_ARCH_FLAGS], ["-mcpu=native -mtune=native"])],
+                       )])
 
 AC_CONFIG_FILES([
  Makefile

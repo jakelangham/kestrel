@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgdal-dev libproj22 libproj-dev netcdf-bin libnetcdff-dev
+          sudo apt-get install -y libgdal-dev libproj25 libproj-dev netcdf-bin libnetcdff-dev
 
       - name: Build configure script
         run: autoreconf -fi
