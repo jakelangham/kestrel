@@ -515,9 +515,11 @@ contains
          call WarningMessage("In the 'Parameters' block 'Drag' is not given.  Using default 'Chezy' drag.")
       end if
 
-      if ((RunParams%DragChoice%s=='Chezy').and.(.not.set_chezyco)) then
-         RunParams%ChezyCo = chezyco_d
-         call Warning_DragDefaultValue("Chezy","Chezy Co",RunParams%ChezyCo)
+      if ((RunParams%DragChoice%s=='Chezy').or.(RunParams%DragChoice%s=="Variable")) then
+         if (.not.set_chezyco) then
+            RunParams%ChezyCo = chezyco_d
+            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Chezy Co",RunParams%ChezyCo)
+         end if
       end if
 
       if ((RunParams%DragChoice%s=="Coulomb").and.(.not.set_coulombco)) then
