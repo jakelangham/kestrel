@@ -807,6 +807,76 @@ void BuildDEM_raster(const char *path,
 	return;
 }
 
+void BuildDEM_srtm(const char *path,
+				 const char *SRTMpath,
+                 int *utmEPSG,
+                 bool *vrt,
+				 int *nthreads,
+				 double *minE, double *maxE, double *minN, double *maxN,
+				 double *xres, double *yres)
+{
+	fs::path OutputDir = path;
+	fs::path SRTMdir = SRTMpath;
+
+    fs::path OutFile = (*vrt) ? fs::path("DEM.vrt") : fs::path("DEM.tif");
+
+	fs::path OutputFile = OutputDir / OutFile;
+
+    proj_transformer PT = proj_transformer(*utmEPSG);
+
+    std::string dem_to_warp;
+
+    // Create SRTM.vrt that gathers the required SRTM tiles
+    std::vector<std::string> InputSRTMfiles = GatherSRTMtiles(path, SRTMpath, utmEPSG, minE, maxE, minN, maxN);
+	BuildSRTMVRT(path, InputSRTMfiles);
+
+    fs::path srtm_vrt = OutputDir / fs::path("SRTM.vrt");
+
+	/// Warp the SRTM.vrt file
+	/// to the required CRS and resolution.
+	/// The ouput is DEM.vrt if vrt, else DEM.tif.
+	std::ostringstream gdal_exec_str;
+    gdal_exec_str << "gdalwarp -overwrite -et 0 -r cubic -ot Float64 "; // use cubic interpolation and set output format to 64-bit float
+    if (*vrt) {
+    	gdal_exec_str << "-of VRT ";
+    } else {
+        gdal_exec_str << "-of GTiff -co COMPRESS=LZW ";
+    }
+
+    gdal_exec_str << "-wo NUM_THREADS=" << *nthreads << " ";
+
+	// set resolution
+	std::ostringstream tr_str;
+	tr_str.precision(17); // Store at sufficient resolution
+	tr_str << std::fixed;
+	tr_str << "-tr " << *xres << " " << *yres; // Set resolution to match required grid resolution
+	// Set extent
+	std::ostringstream te_str;
+	te_str.precision(17); // Store at sufficient resolution
+	te_str << " -te " << *minE << " " << *minN << " " << *maxE << " " << *maxN << " "; // set extent to match required domain
+	// Append to gdal command line string
+	gdal_exec_str << tr_str.str();
+	gdal_exec_str << te_str.str();
+	
+	gdal_exec_str << " -t_srs EPSG:" << std::to_string(*utmEPSG) << " "; // Add CRS from required utmEPSG
+    gdal_exec_str << " -q "; // Quiet gdalwarp
+	gdal_exec_str << srtm_vrt.string() << " "; // Add SRTM.vrt
+	gdal_exec_str << OutputFile.string(); // Set output name
+	// Execute gdal command, report if fail
+	int gdal_ret = system((gdal_exec_str).str().c_str());
+	if (gdal_ret != 0) {
+		std::cerr << "Error: could not create " << OutFile.c_str() << std::endl;
+        std::cerr << "The failed call to gdalwarp is:" << std::endl;
+        std::cerr << gdal_exec_str.str() << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	else {
+		std::cerr << "Successfully executed gdalwarp with command" << std::endl;
+		std::cerr << gdal_exec_str.str() << std::endl;
+	}
+	return;
+}
+
 bool GetSrcDstWin(DatasetProperty *psDP,
 				 double we_res, double ns_res,
 				 double minX, double minY, double maxX, double maxY,
