@@ -34,7 +34,7 @@ module dem_module
    use messages_module, only: InfoMessage, WarningMessage, FatalErrorMessage
    use varstring_module, only: varString
    use interpolate_2d_module, only: Bicubic
-   use geotiffread_module, only: RasterInfo, GetRasterSection, BuildDEMVRT_srtm, BuildDEMVRT_raster, BuildDEM_raster
+   use geotiffread_module, only: RasterInfo, GetRasterSection, BuildDEMVRT_srtm, BuildDEMVRT_raster, BuildDEM_raster, BuildDEM_srtm
    use topog_funcs_module, only: TopogFunc
 
    implicit none
@@ -168,7 +168,7 @@ contains
             good_dem = CheckDEMProperties(RunParams, deltaX, deltaY, RunParams%out_path, demfile)
             if (good_dem) then
                ! DEM is good -- report and return
-               call InfoMessage("Using existing DEM.vrt file.")
+               call InfoMessage("Using existing file " // demfile%s)
                return
             else
                ! DEM is not good -- warn and move on to rebuild
@@ -184,9 +184,11 @@ contains
        case ('srtm')
          raster = .FALSE.
 
-         call BuildDEMVRT_srtm(cpath, &
+         call BuildDEM_srtm(cpath, &
                           csrtmpath, &
                           RunParams%utmEPSG, &
+                          RunParams%VRTfile, &
+                          RunParams%GdalThreads, &
                           minE, maxE, minN, maxN, &
                           real(res%first, kind=c_double), real(res%second, kind=c_double))
 
@@ -342,11 +344,14 @@ contains
       tileSE%first  = RunParams%centerUTM%first + (xtile(nXpertile+1) + 0.5_wp * deltaX)
       tileSE%second = RunParams%centerUTM%second + (ytile(1) - 0.5_wp * deltaY)
 
-      call GetRasterData(path=RunParams%out_path, filename=fname, tileNW=tileNW, tileSE=tileSE, rdata=rasterFull, &
+      call GetRasterData(path=RunParams%out_path, filename=fname, &
+         tileNW=tileNW, tileSE=tileSE, &
+         rdata=rasterFull, &
          defaultValue=0.0_wp, &
          bandSection=Elev, &
          rdX=rasterDeltaX, rdY=rasterDeltaY, &
-         rOX=rasterOX, rOY=rasterOY, outsideRaster=outsideRaster)
+         rOX=rasterOX, rOY=rasterOY, &
+         outsideRaster=outsideRaster)
 
       if (size(Elev)>1) then
          do i=1,nXpertile+1
@@ -370,7 +375,7 @@ contains
          end do
       else
 
-        b0(:,:) = -999_wp
+         b0(:,:) = -999_wp
 
       end if
 
