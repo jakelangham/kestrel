@@ -428,8 +428,6 @@ contains
       ghostTiles => grid%ghostTiles
 
       nGhosts = 0
-    !   allocate (newGhostTiles(8))
-    !   newGhostTiles(:) = 0
 
       ! Work out which of the surrounding tiles need to be ghost tiles.
       do i = 1, grid%dim*2 + 4*(grid%dim - 1)
@@ -457,7 +455,6 @@ contains
                   (.not. InVector(newGhostTiles, tile))) then
             nGhosts = nGhosts + 1
             call AddToVector(newGhostTiles, tile)
-            ! newGhostTiles(nGhosts) = tile
          end if
       end do
 
@@ -608,10 +605,14 @@ contains
       integer, intent(in) :: k
 
       integer :: i, j
+      integer :: nXpertile, nYpertile
       real(kind=wp), dimension(:, :, :), pointer :: u
       real(kind=wp) :: Hnval, hpval, uval, vval, psival, rho
 
       real(kind=wp) :: w
+
+      nXpertile = RunParams%nXpertile
+      nYpertile = RunParams%nYpertile
 
       u => grid%tileContainer(k)%u
 
@@ -628,8 +629,8 @@ contains
          rho = Density(RunParams, psival)
 
          ! these only really need to update the outside grid pts
-         do i = 1, RunParams%nXpertile
-            do j = 1, RunParams%nYpertile
+         do i = 1, nXpertile
+            do j = 1, nYpertile
                hpval = Hnval/GeometricCorrectionFactor(RunParams, u(:, i, j))
             !    u(RunParams%Vars%w, i, j) = hpval + u(RunParams%Vars%b0, i, j) + u(RunParams%Vars%bt, i, j)
                w = u(RunParams%Vars%bt, i, j) + hpval
