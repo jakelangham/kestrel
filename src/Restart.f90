@@ -35,7 +35,7 @@ module restart_module
    use output_module, only: GenerateOutputFilename
    use closures_module, only : GeometricCorrectionFactor
    use grid_module, only: GridCoords, GridType, TileList, TileType
-   use update_tiles_module, only: ActivateTile, AddTile, AddToActiveTiles, AllocateTile
+   use update_tiles_module, only: ActivateTile, AddTile, AddTiles, AddToActiveTiles, AllocateTile
    use morphodynamic_rhs_module, only: ComputeInterfacialTopographicData
 #if HAVE_NETCDF4
    use netcdf
@@ -408,8 +408,6 @@ contains
       tile_left = maxval(tiles)
       tile_bottom = tile_left
 
-      allocate (x(nXpertile), y(nYpertile))
-
       ! Get leftmost and bottommost tile coordinates for determining extent of
       ! simulation data.
       do n = 1, nTiles
@@ -420,13 +418,13 @@ contains
          if (tile_j < tile_bottom) tile_bottom = tile_j
       end do
 
+      call AddTiles(grid, tiles, RunParams)
+
+      allocate (x(nXpertile), y(nYpertile))
+
       ! Read all the solution data in from the NetCDF, tile per tile.
-      !$omp parallel do schedule(dynamic), default(none), &
-      !$omp private(n, ttk, tile_i, tile_j, x_start, y_start, xy_start, x_vertex_start, y_vertex_start, x, y), &
-      !$omp shared(RunParams, grid, tiles, nTiles, tile_left, tile_bottom, tileContainer, ncid, maxncid, central_easting, central_northing, nXpertile, nYpertile, nXYpertile, nXY_vertex_pertile)
       do n = 1, nTiles
          ttk = tiles(n)
-         call AddTile(grid,ttk,RunParams)
 
          call GridCoords(ttk, grid, tile_i, tile_j)
 
@@ -481,7 +479,6 @@ contains
          end if
 
       end do
-      !$omp end parallel do
 
       call get_nc_att(ncid, 'DeltaT', RunParams%DeltaT)
 
