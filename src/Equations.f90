@@ -703,13 +703,9 @@ contains
       integer :: iw, irhoHnu, irhoHnv, iHnpsi, irho
       integer :: iHn, iu, iv, ib0, ibt
 
-      real(kind=wp) :: heightThreshold
       real(kind=wp) :: g, hp_o_gam, dbdx, dbdy
-      real(kind=wp) :: u, v
 
       stvect(:) = 0.0_wp
-
-      heightThreshold = RunParams%heightThreshold
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
