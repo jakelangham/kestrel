@@ -32,6 +32,7 @@ module read_input_file_module
    use messages_module, only: InfoMessage, WarningMessage, FatalErrorMessage
    use varstring_module, only: varString, ReadFileLine
    use utilities_module, only: pair, AddToVector
+   use dict_module, only: Dict
    use runsettings_module, only: RunSet, SourceStr, CapStr, CubeStr
    use domain_settings_module, only: DomainSettings_Set
    use initial_conditions_module, only: Source_Set, Cap_Set, Cube_Set
@@ -151,9 +152,12 @@ contains
     !   character(len=MaxLineLength) :: line
       type(varString) :: line
 
+    ! Recognized Block names
+      character(len=10), parameter :: block_names(8) = [ character(len=10) :: &
+      'Domain','Source','Cap','Cube','Parameters','Solver','Topog','Output' ]
+
       ! BlockNames are the block names in input file
-      integer, parameter :: BlocksNumber = 8
-      type(varString), dimension(:) :: InputBlocks(BlocksNumber)
+      type(varString), dimension(:), allocatable :: InputBlocks
       type(varString) :: currentBlock
 
       type(varString) :: variableName
@@ -161,7 +165,6 @@ contains
 
       ! Block Labels
       type(varString), dimension(:), allocatable :: DomainLabels ! Domain block labels
-      type(varString), dimension(:), allocatable :: ParamLabels ! Parameters block labels
       type(varString), dimension(:), allocatable :: SolverLabels ! Solver block labels
       type(varString), dimension(:), allocatable :: OutputLabels ! Output block labels
       type(varString), dimension(:), allocatable :: TopogLabels ! Topog labels
@@ -172,10 +175,13 @@ contains
 
       ! Block values
       type(varString), dimension(:), allocatable :: DomainValues
-      type(varString), dimension(:), allocatable :: ParamValues
       type(varString), dimension(:), allocatable :: SolverValues
       type(varString), dimension(:), allocatable :: OutputValues
       type(varString), dimension(:), allocatable :: TopogValues
+
+      type(Dict) :: ParamsDict ! Assorted parameters
+
+      integer :: I
 
       FoundDomain = .FALSE.
       FoundIC = .FALSE.
@@ -186,14 +192,10 @@ contains
       Nsources = 0
 
       ! Blocks
-      InputBlocks = [varString('Domain'), &
-         varString('Source'), &
-         varString('Cap'), &
-         varString('Cube'), &
-         varString('Parameters'), &
-         varString('Solver'), &
-         varString('Topog'), &
-         varString('Output')]
+      allocate(InputBlocks(size(block_names)))
+      do I = 1, size(block_names)
+         call InputBlocks(I)%init(block_names(I), trim_str=.TRUE.)
+      end do
 
       inquire(File=RunParams%InputFile%s, Exist=FileExists)
       if (.not.FileExists) call FatalErrorMessage('The requested input file ' // RunParams%InputFile%s // ' cannot be found.')
@@ -278,8 +280,7 @@ contains
             ! If currentBlock is "Parameters", read the Parameters keyword=value
             if (currentBlock=='Parameters') then
                FoundParams = .TRUE.
-               call addToVector(ParamLabels,variableName)
-               call addToVector(ParamValues,variableValue)
+               call ParamsDict%append(variableName%to_lower(), variableValue%to_lower(), warn=.TRUE.)
             end if
 
             ! If currentBlock is "Solver", read the Solver keyword=value
@@ -323,6 +324,9 @@ contains
       end if
 
       FoundIC = FoundSource .or. FoundCap .or. FoundCube
+      RunParams%set_Caps = .FALSE.
+      RunParams%set_Cubes = .FALSE.
+      RunParams%set_Sources = .FALSE.
       if (FoundIC) then
          if (FoundCap) then
             call Cap_Set(CapStrings,RunParams) ! Use CapStrings to populate the RunParams structure
@@ -344,8 +348,7 @@ contains
       end if
 
       if (FoundParams) then
-         call Params_Set(ParamLabels,ParamValues,RunParams) ! Use ParamLabels and ParamValues to populate the RunParams structure
-         deallocate(ParamLabels,ParamValues) ! Don't need ParamLabels and ParamValues anymore so deallocate
+         call Params_Set(ParamsDict, RunParams) ! Use ParamsDict to populate the RunParams structure and instantiate model closures
       end if
 
       if (FoundSolver) then
