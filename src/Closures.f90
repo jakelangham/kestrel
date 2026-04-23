@@ -53,94 +53,47 @@ module closures_module
    public :: ErosionTransition
    public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
 
-   public :: DragClosure
-   public :: ChezyDrag, ManningDrag, PowerLawDrag
-   public :: CoulombDrag, PouliquenDrag, Edwards2019Drag
-   public :: VoellmyDrag, VariableDrag
-
-   public :: fswitch
+   public :: fSwitch
    public :: tanhSwitch, rat3Switch, cosSwitch
    public :: equalSwitch, zeroSwitch, oneSwitch, linearSwitch, stepSwitch
 
    public :: MorphoDamping
    public :: NoMorphoDamping, tanhMorphoDamping, rat3MorphoDamping
 
+   ! public :: ErosionTransition
+   ! public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
+
    public :: Reciprocal
    public :: Desingularize_L1, Desingularize_L2, Desingularize_Linfty, Desingularize_step
 
    pointer :: GeometricCorrectionFactor
    interface
-       pure function GeometricCorrectionFactor(RunParams, u) result(gam)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), dimension(:), intent(in) :: u
-           real(kind=wp) :: gam
-       end function GeometricCorrectionFactor
+      pure function GeometricCorrectionFactor(RunParams, u) result(gam)
+         import :: wp
+         import :: RunSet
+         type(RunSet), intent(in) :: RunParams
+         real(kind=wp), dimension(:), intent(in) :: u
+         real(kind=wp) :: gam
+      end function GeometricCorrectionFactor
    end interface
 
    pointer :: GeometricCorrectionFactor_gradin
    interface
-       pure function GeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
-           import :: wp
-           real(kind=wp), intent(in) :: dbdx, dbdy
-           real(kind=wp) :: gam
-       end function GeometricCorrectionFactor_gradin
+      pure function GeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
+         import :: wp
+         real(kind=wp), intent(in) :: dbdx, dbdy
+         real(kind=wp) :: gam
+      end function GeometricCorrectionFactor_gradin
    end interface
-
-   pointer :: DepositionClosure
-   interface
-       pure function DepositionClosure(RunParams, psi) result(deposition)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), intent(in) :: psi
-           real(kind=wp) :: deposition
-       end function DepositionClosure
-   end interface
-
-   pointer :: ErosionClosure
-   interface
-       pure function ErosionClosure(RunParams, uvect) result(erosion)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), dimension(:), intent(in) :: uvect
-           real(kind=wp) :: erosion
-       end function ErosionClosure
-   end interface
-
-   pointer :: ErosionTransition
-   interface
-       pure function ErosionTransition(RunParams, uvect) result(erosionRate)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), dimension(:), intent(in) :: uvect
-           real(kind=wp) :: erosionRate
-       end function ErosionTransition
-   end interface
-
-   pointer :: fswitch
-   interface
-       pure function fswitch(RunParams, psi) result(f)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), intent(in) :: psi
-           real(kind=wp) :: f
-       end function fswitch
-   end interface
-
-   pointer :: DragClosure
-   interface
-       pure function DragClosure(RunParams, uvect) result(friction)
-           import :: wp
-           import :: RunSet
-           type(RunSet), intent(in) :: RunParams
-           real(kind=wp), dimension(:), intent(in) :: uvect
-           real(kind=wp) :: friction
-       end function DragClosure
+   
+   abstract interface
+      pure function fswitch(rate, location, psi) result(f)
+         import :: wp
+         real(kind=wp), intent(in) :: rate
+         real(kind=wp), intent(in) :: location
+         real(kind=wp), intent(in) :: psi
+         real(kind=wp) :: f
+      end function fswitch
    end interface
 
    pointer :: MorphoDamping
@@ -153,6 +106,17 @@ module closures_module
            real(kind=wp) :: damping
        end function MorphoDamping
    end interface
+
+   ! pointer :: ErosionTransition
+   ! interface
+   !    pure function ErosionTransition(RunParams, uvect) result(erosionRate)
+   !       import :: wp
+   !       import :: RunSet
+   !       type(RunSet), intent(in) :: RunParams
+   !       real(kind=wp), dimension(:), intent(in) :: uvect
+   !       real(kind=wp) :: erosionRate
+   !    end function ErosionTransition
+   ! end interface
 
    pointer :: Reciprocal
    interface
@@ -217,42 +181,6 @@ contains
          modu2 = modu2 + v*v
       end if
    end function FlowSquaredSpeedSlopeAligned
-
-   ! Shields number for dilute flow.
-   pure function FlowShieldsNumber(RunParams, uvect) result(shields)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: shields
-
-      real(kind=wp) :: gred, modu2, chezy_friction
-
-      ! g' -> g'_\perp = g' cos(theta)
-      gred = RunParams%gred / GeometricCorrectionFactor(RunParams, uvect)
-
-      modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
-      chezy_friction = RunParams%ChezyCo * modu2
-
-      shields = chezy_friction / (gred * RunParams%SolidDiameter)
-   end function FlowShieldsNumber
-
-   ! Flow particle speed, u_p = sqrt(g' d) where g' = reduced gravity and d is
-   ! the particle diamter.
-   pure function FlowParticleSpeed(RunParams, uvect) result(u_p)
-       implicit none
-
-       type(RunSet), intent(in) :: RunParams
-       real(kind=wp), dimension(:), intent(in) :: uvect
-       real(kind=wp) :: u_p
-
-       real(kind=wp) :: gred
-
-       ! g' -> g'_\perp = g' cos(theta)
-       gred = RunParams%gred / GeometricCorrectionFactor(RunParams, uvect)
-
-       u_p = sqrt(gred * RunParams%SolidDiameter)
-   end function FlowParticleSpeed
 
    ! Bulk density. This varies linearly with solid concentration psi on the
    ! interval 0<=psi<=1, but note psi is bounded to psi <= maximum packing.
@@ -367,226 +295,7 @@ contains
       a = 2.7_wp - 0.15_wp * RunParams%nsettling
       b = 0.62_wp * RunParams%nsettling - 1.46_wp
       deposition = psi * (1.0_wp - psi)**a * (1.0_wp - psi / RunParams%maxPack)**b
-   end function SpearmanManningHinderedSettling
-
-! -- Drag closures --
-!
-!    N.B. Because of the way the time stepper works (treating the drag
-!    implicitly), these are required to define a 'friction' function F such that
-!    the basal stress is \tau_x = -F \rho u/|(u,v)|.
-
-   ! Chezy drag has friction function F = Cd * |u|^2.
-   pure function ChezyDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: modu2
-
-      modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
-      
-      friction = RunParams%ChezyCo * modu2
-   end function ChezyDrag
-
-   ! Coulomb drag has friction function F = \mu * g * Hn.
-   pure function CoulombDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: Hn
-      real(kind=wp) :: gam
-      real(kind=wp) :: g
-
-      Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
-      
-      friction = RunParams%CoulombCo * g * Hn
-   end function CoulombDrag
-
-   ! Voellmy drag is the sum of Chezy and Coulomb drag.
-   pure function VoellmyDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      friction = ChezyDrag(RunParams, uvect) + CoulombDrag(RunParams, uvect)
-   end function VoellmyDrag
-
-   ! Pouliquen drag has friction function F = \mu(I) * g * Hn, where mu(I) is a
-   ! flow-dependent friction coefficient, I is the inertial number.
-   ! See e.g. Pouliquen & Forterre, J. Fluid Mech. (2002).
-   pure function PouliquenDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: Hn
-      real(kind=wp) :: modu2
-      real(kind=wp) :: gam
-      real(kind=wp) :: g
-      real(kind=wp) :: mu
-
-      Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
-
-      modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
-
-      mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
-
-      friction = mu * g * Hn
-   end function PouliquenDrag
-
-   ! Pouliquen's intertial number dependent friction coefficient.
-   pure function PouliquenFrictionCoefficient(RunParams, gcostheta, Hn, modu) result(mu)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), intent(in) :: gcostheta
-      real(kind=wp), intent(in) :: Hn
-      real(kind=wp), intent(in) :: modu
-
-      real(kind=wp) :: mu, mu1, mu2, beta, Fr, I
-
-      mu1 = RunParams%PouliquenMinSlope
-      mu2 = RunParams%PouliquenMaxSlope
-      beta = RunParams%PouliquenBeta
-
-      if (Hn > RunParams%heightThreshold) then
-         ! Froude number
-         Fr = modu / sqrt(gcostheta * Hn)
-         ! Inertial number
-         I = Fr * RunParams%SolidDiameter / Hn
-         mu = mu1 + (mu2 - mu1) * I / (beta + I)
-      else
-         mu = mu1
-      end if
-   end function PouliquenFrictionCoefficient
-
-   ! Extended 'Pouliquen'-like law featuring velocity-weakening behaviour at 
-   ! low Froude number.
-   ! See Edwards, Russell, Johnson, Gray, J. Fluid Mech. (2019).
-   ! N.B. The Fr = 0 is omitted, since stopped regions require special 
-   ! attention and this is difficult to implement in Kestrel currently.
-   pure function Edwards2019Drag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: Hn, modu, gam, gperp, Hn_recip, mu, Fr
-      real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
-
-      Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      gperp = RunParams%g / gam
-      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
-
-      mu1 = RunParams%PouliquenMinSlope
-      mu2 = RunParams%PouliquenMaxSlope
-      mu3 = RunParams%PouliquenIntermediateSlope
-      beta = RunParams%Pouliquenbeta
-      betastar = RunParams%Edwards2019betastar
-      kappa = RunParams%Edwards2019kappa
-      capgam = RunParams%Edwards2019Gamma
-      L = RunParams%SolidDiameter
-
-      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
-      Fr = modu * sqrt(Hn_recip / gperp)
-
-      if (Fr > betastar) then
-         friction = mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (Fr + capgam)))
-      else
-         friction = ((Fr / betastar)**kappa) * &
-             (mu1 + (mu2 - mu1) / (1.0_wp + Hn * beta / (L * (betastar + capgam))) - &
-             mu3 - (mu2 - mu1) / (1.0_wp + Hn / L)) + &
-             mu3 + (mu2 - mu1) / (1.0_wp + Hn / L)
-      end if
-
-      friction = friction * gperp * Hn
-   end function Edwards2019Drag
-
-   ! Manning drag has friction function F = g * n^2 / (Hn^{1/3}) where n is the
-   ! Manning coefficient.
-   pure function ManningDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: Hn, Hn_recip
-      real(kind=wp) :: gam
-      real(kind=wp) :: g
-      real(kind=wp) :: ManningCo
-
-      Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
-
-      ManningCo = RunParams%ManningCo
-      
-      Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
-
-      friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
-
-   end function ManningDrag
-
-   ! Variable drag parameterization. This is a concentration-dependent
-   ! variation from Chezy drag for dilute flows to Pouliquen drag for
-   ! concentrated flow. The transition is specified by a switching function
-   ! fSwitch.
-   pure function VariableDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: psi
-      real(kind=wp) :: chezy_friction
-      real(kind=wp) :: pouliquen_friction
-      real(kind=wp) :: fc
-
-      psi = uvect(RunParams%Vars%psi)
-      
-      chezy_friction = ChezyDrag(RunParams, uvect)
-      pouliquen_friction = PouliquenDrag(RunParams, uvect)
-      
-      fc = fswitch(RunParams, psi)
-
-      friction = chezy_friction * (1.0_wp - fc) + pouliquen_friction * fc
-   end function VariableDrag
-
-   pure function PowerLawDrag(RunParams, uvect) result(friction)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: friction
-
-      real(kind=wp) :: modu, Hn, Hneps, hr
-
-      modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
-      Hn = uvect(RunParams%Vars%Hn)
-      Hneps = RunParams%heightThreshold
-
-      hr = Reciprocal(Hn, RunParams%heightThreshold)
-      friction = RunParams%PowerLawCo * (modu * hr)**RunParams%PowerLawPower
-
-   end function PowerLawDrag
-
+   end function SpearmanManningHinderedSettling! -- Switching functions for damping morphodynamics near critical erosion height
 ! -- Erosion closures --
 
    ! A fluid (Shields number) based erosion *without* a critical Shields number.
@@ -761,8 +470,7 @@ contains
       erosionRate = 1.0_wp
    end function NoErosionTransition
 
-! -- Switching functions for damping morphodynamics near critical erosion height
-!    (RunParam%EroCriticalHeight). --
+! -- Switching functions for damping morphodynamics near critical erosion height!    (RunParam%EroCriticalHeight). --
 !
 !    These functions define damping terms for Hn -> EroCriticalHeight
 !    with damping = 0 => no morphodynamics;
@@ -818,36 +526,63 @@ contains
            t = Hn / Hncrit - 1.0_wp
            damping = (t**3) / ((1.0_wp - t)**3 + t**3)
        end if
-    end function rat3MorphoDamping
+   end function rat3MorphoDamping
 
 ! -- Switching functions -- 
 !    Chezy-Pouliquen switching term as a function of the solid fraction psi.
 
+   subroutine set_switcher(label, switcher)
+      character(len=*), intent(in) :: label
+      procedure(fswitch), pointer, intent(out) :: switcher
+      
+      select case (label)
+         case ('tanh')
+            switcher => tanhSwitch
+         case ('rat3')
+            switcher => rat3Switch
+         case ('cos')
+            switcher => cosSwitch
+         case ('linear')
+            switcher => linearSwitch
+         case ('equal', '0.5')
+            switcher => equalSwitch
+         case ('off', '0', 'zero')
+            switcher => zeroSwitch
+         case ('1', 'one')
+            switcher => oneSwitch
+         case ('step')
+            switcher => stepSwitch
+         case default
+            switcher => tanhSwitch
+      end select
+   end subroutine set_switcher
+
    ! tanh form.
-   pure function tanhSwitch(RunParams, psi) result(f)
+   pure function tanhSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
 
-      f = 0.5_wp * (1.0_wp + &
-          tanh(RunParams%VoellmySwitchRate*(psi - RunParams%VoellmySwitchValue)))
+      f = 0.5_wp * (1.0_wp + tanh(rate * (psi - location)))
    end function tanhSwitch
 
    ! Cubic rational function form.
-   pure function rat3Switch(RunParams, psi) result(f)
+   pure function rat3Switch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
 
       real(kind=wp) :: a, b
       real(kind=wp) :: x
 
-      a = RunParams%VoellmySwitchValue - 1.5_wp/RunParams%VoellmySwitchRate
-      b = RunParams%VoellmySwitchValue + 1.5_wp/RunParams%VoellmySwitchRate
+      a = location - 1.5_wp/rate
+      b = location + 1.5_wp/rate
 
       if (psi<=a) then
           f = 0.0_wp
@@ -860,18 +595,19 @@ contains
    end function rat3Switch
 
    ! Cosine form.
-   pure function cosSwitch(RunParams, psi) result(f)
+   pure function cosSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
 
       real(kind=wp) :: a, b
       real(kind=wp) :: x
 
-      a = RunParams%VoellmySwitchValue - 0.25_wp*pi/RunParams%VoellmySwitchRate
-      b = RunParams%VoellmySwitchValue + 0.25_wp*pi/RunParams%VoellmySwitchRate
+      a = location - 0.25_wp*pi/rate
+      b = location + 0.25_wp*pi/rate
 
       if (psi<=a) then
           f = 0.0_wp
@@ -884,10 +620,11 @@ contains
    end function cosSwitch
 
    ! 50--50 weighting.
-   pure function equalSwitch(RunParams, psi) result(f)
+   pure function equalSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
       
@@ -895,10 +632,11 @@ contains
    end function equalSwitch
 
    ! No switch, f(psi) = 0.
-   pure function zeroSwitch(RunParams, psi) result(f)
+   pure function zeroSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
       
@@ -906,38 +644,42 @@ contains
    end function zeroSwitch
 
    ! Linear on 0<= psi <= maximum packing.
-   pure function linearSwitch(RunParams, psi) result(f)
+   ! with rate = 1/maxPack
+   pure function linearSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
       
-      f = psi / RunParams%maxPack
+      f = rate * psi
    end function linearSwitch
 
    ! No switch, f(psi) = 1.
-   pure function oneSwitch(RunParams, psi) result(f)
+   pure function oneSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
       
       f = 1.0_wp
    end function oneSwitch
 
-   ! Abrupt switch as RunParams%VoellmySwitchValue,
-   ! f = 0 if psi < VoellmySwitchValue
-   ! f = 1 if psi >= VoellmySwitchValue.
-   pure function stepSwitch(RunParams, psi) result(f)
+   ! Abrupt switch at location,
+   ! f = 0 if psi < location
+   ! f = 1 if psi >= location.
+   pure function stepSwitch(rate, location, psi) result(f)
       implicit none
 
-      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), intent(in) :: rate
+      real(kind=wp), intent(in) :: location
       real(kind=wp), intent(in) :: psi
       real(kind=wp) :: f
 
-      if (psi < RunParams%VoellmySwitchValue) then
+      if (psi < location) then
          f = 0.0_wp
       else
          f = 1.0_wp
