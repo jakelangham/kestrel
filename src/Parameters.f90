@@ -30,8 +30,11 @@ module parameters_module
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use varstring_module, only: varString
+   use dict_module
    use runsettings_module, only: RunSet
    use closures_module
+   use drag_interface, only: DragModel, drag_model
+   use drag_types
 
    implicit none
 
@@ -81,405 +84,62 @@ module parameters_module
 contains
 
 
-   subroutine Params_Set(ParamLabels,ParamValues,RunParams)
+   subroutine Params_Set(ParamsDict, RunParams)
       ! Set parameters from input file.
-      ! Inputs: ParamLabels [type: varString] - Labels for Parameters;
-      !         ParamValues [type: varString] - The values associated with the labels.
+      ! Inputs: ParamsDict [type: Dict] - Dictionary (key-value lists) of parameters
       ! Output: Params [type ParamSet] - The parameters information.
 
       implicit none
 
-      type(varString), dimension(:), intent(in) :: ParamLabels
-      type(varString), dimension(:), intent(in) :: ParamValues
+      type(Dict), intent(inout) :: ParamsDict
       type(RunSet), intent(inout) :: RunParams
 
-      type(varString) :: label
       type(varString) :: DragChoice, DepositionChoice, ErosionChoice
       type(varString) :: geometric_factors, switcher, eroTransition
       type(varString) :: morpho_damp
 
-      integer :: J, N
+      integer :: J
 
-      logical :: set_fswitch
-      logical :: set_g
-      logical :: set_drag
-      logical :: set_chezyco
-      logical :: set_manningco
-      logical :: set_coulombco
-      logical :: set_powerlawco
-      logical :: set_powerlawpower
-      logical :: set_pouliquenMinSlope
-      logical :: set_pouliquenMaxSlope
-      logical :: set_pouliquenIntermediateSlope
-      logical :: set_pouliquen_beta
-      logical :: set_pouliquen_L
-      logical :: set_edwards2019_betastar
-      logical :: set_edwards2019_kappa
-      logical :: set_edwards2019_Gamma
-      logical :: set_deposition
-      logical :: set_erosion
-      logical :: set_EroRate
-      logical :: set_EroRateGranular
-      logical :: set_EroDepth
-      logical :: set_EroTransition
-      logical :: set_EroCriticalHeight
-      logical :: set_VoellmySwitchRate
-      logical :: set_VoellmySwitchValue
-      logical :: set_maxPack
-      logical :: set_rhow
-      logical :: set_rhos
-      logical :: set_BedPorosity
-      logical :: set_SolidDiameter
-      logical :: set_EddyViscosity
-      logical :: set_geometric_factors
-      logical :: set_SettlingSpeed
-      logical :: set_MorphoDamp
+      ! Set defaults if not set
+      call ParamsDict%append('rhow', rhow_d)
+      call ParamsDict%append('rhos', rhos_d)
+      call ParamsDict%append('bed porosity', BedPorosity_d)
+      call ParamsDict%append('maxPack', maxPack_d)
+      call ParamsDict%append('eddy viscosity', EddyViscosity_d)
+      call ParamsDict%append('erosion', 'off')
+      call ParamsDict%append('solid diameter', SolidDiameter_d)
+      call ParamsDict%append('g', g_d)
+      call ParamsDict%append('switch function', fswitch_d)
 
-      real(kind=wp) :: R
+      ! set gravity
+      call ParamsDict%get('g', RunParams%g)
 
-      N = size(ParamValues)
+      ! set densities
+      call ParamsDict%get('rhow', RunParams%rhow)
+      call ParamsDict%get('rhos', RunParams%rhos)
 
-      set_fswitch=.FALSE.
-      set_g=.FALSE.
-      set_drag=.FALSE.
-      set_chezyco=.FALSE.
-      set_manningco=.FALSE.
-      set_coulombco=.FALSE.
-      set_powerlawco=.FALSE.
-      set_powerlawpower=.FALSE.
-      set_pouliquenMinSlope=.FALSE.
-      set_pouliquenMaxSlope=.FALSE.
-      set_pouliquenIntermediateSlope=.FALSE.
-      set_pouliquen_beta=.FALSE.
-      set_pouliquen_L=.FALSE.
-      set_edwards2019_betastar=.FALSE.
-      set_edwards2019_kappa=.FALSE.
-      set_edwards2019_Gamma=.FALSE.
-      set_deposition=.FALSE.
-      set_erosion=.FALSE.
-      set_EroRate=.FALSE.
-      set_EroRateGranular=.FALSE.
-      set_EroDepth=.FALSE.
-      set_EroTransition=.FALSE.
-      set_EroCriticalHeight=.FALSE.
-      set_VoellmySwitchRate=.FALSE.
-      set_VoellmySwitchValue=.FALSE.
-      set_maxPack=.FALSE.
-      set_rhow=.FALSE.
-      set_rhos=.FALSE.
-      set_BedPorosity=.FALSE.
-      set_SolidDiameter=.FALSE.
-      set_EddyViscosity=.FALSE.
-      set_geometric_factors = .false.
-      set_SettlingSpeed = .false.
-      set_MorphoDamp = .false.
+      ! set solid diameter
+      call ParamsDict%get('solid diameter', RunParams%SolidDiameter)
 
-      do J=1,N
-         label = ParamLabels(J)%to_lower()
-         select case (label%s)
+      ! set bed porosity
+      call ParamsDict%get('bed porosity', RunParams%BedPorosity)
 
-            case ('switch function')
-               set_fswitch=.TRUE.
-               switcher = ParamValues(J)%to_lower()
-               select case (switcher%s)
-                  case ('tanh')
-                     RunParams%fswitch = varString('tanh')
-                     fswitch => tanhSwitch
-                  case ('rat3')
-                     RunParams%fswitch = varString('rat3')
-                     fswitch => rat3Switch
-                  case ('cos')
-                     RunParams%fswitch = varString('cos')
-                     fswitch => cosSwitch
-                  case ('linear')
-                     RunParams%fswitch = varString('linear')
-                     fswitch => linearSwitch
-                  case ('equal', '0.5')
-                     RunParams%fswitch = varString('equal')
-                     fswitch => equalSwitch
-                  case ('off', '0', 'zero')
-                     RunParams%fswitch = varString('zero')
-                     fswitch => zeroSwitch
-                  case ('1', 'one')
-                     RunParams%fswitch = varString('one')
-                     fswitch => oneSwitch
-                  case ('step')
-                     RunParams%fswitch = varString('step')
-                     fswitch => stepSwitch
-                  case default
-                     RunParams%fswitch = varString(fswitch_d)
-                     fswitch => fswitch_dfunc
-               end select
-         
-            case ('deposition')
-               set_deposition=.true.
-               DepositionChoice = ParamValues(J)%to_lower()
-               select case (DepositionChoice%s)
-                  case ('none')
-                     RunParams%DepositionChoice = varString('None')
-                     DepositionClosure => NoDeposition
-                  case ('simple')
-                     RunParams%DepositionChoice = varString('Simple')
-                     DepositionClosure => SimpleHinderedSettling
-                  case ('spearman manning')
-                     RunParams%DepositionChoice = varString('Spearman Manning')
-                     DepositionClosure => SpearmanManningHinderedSettling
-                  case default
-                     RunParams%DepositionChoice = varString(DepositionClosure_d)
-                     DepositionClosure => DepositionClosure_dfunc
-               end select
+      ! set maxPack
+      call ParamsDict%get('maxPack', RunParams%maxPack)
 
-            case ('morphodynamic damping')
-               set_MorphoDamp=.true.
-               morpho_damp = ParamValues(J)%to_lower()
-               select case (morpho_damp%s)
-                  case ('none', 'off')
-                     RunParams%MorphoDamp = varString('None')
-                     MorphoDamping => NoMorphoDamping
-                  case ('tanh')
-                     RunParams%MorphoDamp = varString('tanh')
-                     MorphoDamping => tanhMorphoDamping
-                  case ('rat3')
-                     RunParams%MorphoDamp = varString('rat3')
-                     MorphoDamping => rat3MorphoDamping
-                  case default
-                     RunParams%MorphoDamp = varString(morpho_damp_d)
-                     MorphoDamping => morpho_damp_dfunc
-               end select
+      ! set eddy viscosity
+      call ParamsDict%get('eddy viscosity', RunParams%EddyViscosity)
 
-            case ('iverson', 'geometric factors')
-               set_geometric_factors=.true.
-               geometric_factors = ParamValues(J)%to_lower()
-               !0=Off, 1=On (perhaps will change in future for different formulations
-               select case (geometric_factors%s)
-                case ('off')
-                  RunParams%geometric_factors = .false.
-                  GeometricCorrectionFactor => NoGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
-                case ('on')
-                  RunParams%geometric_factors = .true.
-                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
-                case default
-                  set_geometric_factors = geometric_factors_d
-                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
-            end select
+      ! set erosion on/off
+      call ParamsDict%get('erosion', RunParams%ErosionChoice)
+      if (RunParams%ErosionChoice /= 'off') then
+         RunParams%MorphodynamicsOn = .TRUE.
+      else
+         RunParams%MorphodynamicsOn = .FALSE.
+      end if
 
-            case ('g')
-               set_g=.TRUE.
-               RunParams%g = ParamValues(J)%to_real()
-               if (RunParams%g<=0) call FatalError_Positive(RunParams%InputFile%s,"g")
-            
-            case ('drag')
-               set_drag=.TRUE.
-               DragChoice = ParamValues(J)%to_lower()
-               select case (DragChoice%s)
-                  case ('chezy')
-                     RunParams%DragChoice = varString('Chezy')
-                     DragClosure => ChezyDrag
-                  case ('coulomb')
-                     RunParams%DragChoice = varString('Coulomb')
-                     DragClosure => CoulombDrag
-                  case ('power law')
-                     RunParams%DragChoice = varString('Power Law')
-                     DragClosure => PowerLawDrag
-                  case ('voellmy')
-                     RunParams%DragChoice = varString('Voellmy')
-                     DragClosure => VoellmyDrag
-                  case ('pouliquen')
-                     RunParams%DragChoice = varString('Pouliquen')
-                     DragClosure => PouliquenDrag
-                  case ('edwards2019')
-                     RunParams%DragChoice = varString('Edwards2019')
-                     DragClosure => Edwards2019Drag
-                  case ('variable')
-                     RunParams%DragChoice = varString('Variable')
-                     DragClosure => VariableDrag
-                  case ('manning')
-                     RunParams%DragChoice = varString('Manning')
-                     DragClosure => ManningDrag
-                  case default
-                     call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
-                        // "The block value for the variable 'Drag' " // DragChoice%s // " is not recognized." // new_line('A') &
-                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning' and 'Variable'")
-               end select
-
-            case ('chezy co')
-               set_chezyco=.TRUE.
-               RunParams%ChezyCo = ParamValues(J)%to_real()
-               if (RunParams%ChezyCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Chezy Co")
-          
-            case ('manning co')
-               set_manningco=.TRUE.
-               RunParams%ManningCo = ParamValues(J)%to_real()
-               if (RunParams%ManningCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Manning Co")
-            
-            case ('coulomb co')
-               set_coulombco=.TRUE.
-               RunParams%CoulombCo = ParamValues(J)%to_real()
-               if (RunParams%CoulombCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Coulomb Co")
-            case ('power law co')
-               set_powerlawco=.TRUE.
-               RunParams%PowerLawCo = ParamValues(J)%to_real()
-               if (RunParams%PowerLawCo<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Co")
-            case ('power law power')
-               set_powerlawpower=.TRUE.
-               RunParams%PowerLawPower = ParamValues(J)%to_real()
-               if (RunParams%PowerLawPower<=0) call FatalError_Positive(RunParams%InputFile%s,"Power Law Power")
-          
-            case ('pouliquen min')
-               set_pouliquenMinSlope=.TRUE.
-               RunParams%PouliquenMinSlope = ParamValues(J)%to_real()
-               if (RunParams%PouliquenMinSlope<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen Min")
-          
-            case ('pouliquen max')
-               set_pouliquenMaxSlope=.TRUE.
-               RunParams%PouliquenMaxSlope = ParamValues(J)%to_real()
-               if (RunParams%PouliquenMaxSlope<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen Max")
-          
-            case ('pouliquen intermediate')
-               set_pouliquenIntermediateSlope=.TRUE.
-               RunParams%PouliquenIntermediateSlope = ParamValues(J)%to_real()
-               if (RunParams%PouliquenIntermediateSlope<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen Intermediate")
-
-            case ('pouliquen beta')
-               set_pouliquen_beta=.TRUE.
-               RunParams%PouliquenBeta = ParamValues(J)%to_real()
-               if (RunParams%PouliquenBeta<=0) call FatalError_Positive(RunParams%InputFile%s,"Pouliquen beta")
-
-            case ('edwards2019 betastar')
-               set_edwards2019_betastar=.TRUE.
-               RunParams%Edwards2019betastar = ParamValues(J)%to_real()
-               if (RunParams%Edwards2019betastar<=0) call FatalError_Positive(RunParams%InputFile%s,"Edwards2019 betastar")
-
-            case ('edwards2019 kappa')
-               set_edwards2019_kappa=.TRUE.
-               RunParams%Edwards2019kappa = ParamValues(J)%to_real()
-               if (RunParams%Edwards2019kappa<=0) call FatalError_Positive(RunParams%InputFile%s,"Edwards2019 kappa")
-
-            case ('edwards2019 gamma')
-               set_edwards2019_gamma=.TRUE.
-               RunParams%Edwards2019gamma = ParamValues(J)%to_real()
-          
-            case ('voellmy switch rate')
-               set_VoellmySwitchRate=.TRUE.
-               RunParams%VoellmySwitchRate = ParamValues(J)%to_real()
-               if (RunParams%VoellmySwitchRate<=0) call FatalError_Positive(RunParams%InputFile%s,"Voellmy Switch Rate")
-          
-            case ('voellmy switch value')
-               set_VoellmySwitchValue=.TRUE.
-               RunParams%VoellmySwitchValue = ParamValues(J)%to_real()
-               if (RunParams%VoellmySwitchValue<0) call FatalError_Positive(RunParams%InputFile%s,"Voellmy Switch Value")
-               if (RunParams%VoellmySwitchValue>1) call FatalError_MaxValue(RunParams%InputFile%s,"Voellmy Switch Value",1)
-          
-            case ('erosion')
-               set_erosion=.TRUE.
-               ErosionChoice = ParamValues(J)%to_lower()
-               select case (ErosionChoice%s)
-                  case ('mixed', 'on')
-                     RunParams%ErosionChoice = varString('Mixed')
-                     RunParams%MorphodynamicsOn = .TRUE.
-                     ErosionClosure => MixedErosion
-                  case ('simple')
-                     RunParams%ErosionChoice = varString('Simple')
-                     RunParams%MorphodynamicsOn = .TRUE.
-                     ErosionClosure => SimpleErosion
-                  case ('fluid')
-                     RunParams%ErosionChoice = varString('Fluid')
-                     RunParams%MorphodynamicsOn = .TRUE.
-                     ErosionClosure => FluidErosion
-                  case ('granular')
-                     RunParams%ErosionChoice = varString('Granular')
-                     RunParams%MorphodynamicsOn = .TRUE.
-                     ErosionClosure => GranularErosion
-                  case ('off')
-                     RunParams%ErosionChoice = varString('Off')
-                     RunParams%MorphodynamicsOn = .FALSE.
-                     ErosionClosure => NoErosion
-                  case default
-                     call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
-                        // "The block value for the variable 'Erosion' is not recognized." // new_line('A') &
-                        // "Currently accepted 'Erosion' values are 'On, Off, Mixed, Simple, Fluid, Granular'.")
-               end select
-          
-            case ('erosion rate')
-               set_EroRate=.TRUE.
-               RunParams%EroRate = ParamValues(J)%to_real()
-               if (RunParams%EroRate<=0) call FatalError_Positive(RunParams%InputFile%s,"Erosion Rate")
-          
-            case ('granular erosion rate')
-               set_EroRateGranular=.TRUE.
-               RunParams%EroRateGranular = ParamValues(J)%to_real()
-               if (RunParams%EroRateGranular<=0) call FatalError_Positive(RunParams%InputFile%s,"Granular Erosion Rate")
-          
-            case ('erosion depth')
-               set_EroDepth=.TRUE.
-               RunParams%EroDepth = ParamValues(J)%to_real()
-               if (RunParams%EroDepth<0) call FatalError_NonNegative(RunParams%InputFile%s,"Erosion Depth")
-
-            case ('erosion transition')
-               set_EroTransition=.TRUE.
-               eroTransition = ParamValues(J)%to_lower()
-               select case (eroTransition%s)
-                  case ('smooth')
-                     RunParams%ErosionTransition = varString('smooth')
-                     ErosionTransition => SmoothErosionTransition
-                  case ('step')
-                     RunParams%ErosionTransition = varString('step')
-                     ErosionTransition => StepErosionTransition
-                  case ('off')
-                     RunParams%ErosionTransition = varString('off')
-                     ErosionTransition => NoErosionTransition
-                  case default
-                     RunParams%ErosionTransition = varString(EroTransition_d)
-                     ErosionTransition => EroTransition_dfunc
-               end select
-         
-            case ('erosion critical height')
-               set_EroCriticalHeight=.TRUE.
-               RunParams%EroCriticalHeight = ParamValues(J)%to_real()
-               if (RunParams%EroCriticalHeight<=0) call FatalError_Positive(RunParams%InputFile%s,"Erosion Critical Height")
-          
-            case ('bed porosity')
-               set_BedPorosity=.TRUE.
-               RunParams%BedPorosity = ParamValues(J)%to_real()
-               if (RunParams%BedPorosity<0) call FatalError_NonNegative(RunParams%InputFile%s,"Bed Porosity")
-               if (RunParams%BedPorosity>=1) call FatalError_MaxValue(RunParams%InputFile%s,"Bed Porosity",1)
-          
-            case ('rhow')
-               set_rhow=.TRUE.
-               RunParams%rhow = ParamValues(J)%to_real()
-               if (RunParams%rhow<=0) call FatalError_Positive(RunParams%InputFile%s,"rhow")
-          
-            case ('rhos')
-               set_rhos=.TRUE.
-               RunParams%rhos = ParamValues(J)%to_real()
-               if (RunParams%rhos<=0) call FatalError_Positive(RunParams%InputFile%s,"rhos")
-          
-            case ('maxpack', 'max pack')
-               set_maxPack=.TRUE.
-               RunParams%maxPack = ParamValues(J)%to_real()
-               if (RunParams%maxPack<=0) call FatalError_Positive(RunParams%InputFile%s,"maxPack")
-               if (RunParams%maxPack>1) call FatalError_MaxValue(RunParams%InputFile%s,"maxPack",1)
-          
-            case ('solid diameter')
-               set_SolidDiameter=.TRUE.
-               RunParams%SolidDiameter = ParamValues(J)%to_real()
-               if (RunParams%SolidDiameter<=0) call FatalError_Positive(RunParams%InputFile%s,"Solid Diameter")
-          
-            case ('eddy viscosity')
-               set_EddyViscosity=.TRUE.
-               RunParams%EddyViscosity = ParamValues(J)%to_real()
-               if (RunParams%EddyViscosity<0) call FatalError_NonNegative(RunParams%InputFile%s,"Eddy Viscosity")
-          
-            case ('settling speed')
-               set_SettlingSpeed=.TRUE.
-               RunParams%ws0 = ParamValues(J)%to_real()
-          
-            case default
-               call InputLabelUnrecognized(ParamLabels(J)%s)
-
+      ! set fswitch
+      call ParamsDict%get('switch function', RunParams%fswitch)
          end select
       end do
 
@@ -527,142 +187,11 @@ contains
          call Warning_DragDefaultValue("Coulomb","Coulomb Co",RunParams%CoulombCo)
       end if
 
-      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawco)) then
-         RunParams%PowerLawCo = powerlawco_d
-         call Warning_DragDefaultValue("Power Law","Power Law Co",RunParams%PowerLawCo)
-      end if
-
-      if ((RunParams%DragChoice%s=="Power Law").and.(.not.set_powerlawpower)) then
-         RunParams%PowerLawPower = powerlawpower_d
-         call Warning_DragDefaultValue("Power Law","Power Law Power",RunParams%PowerLawPower)
-      end if
-
-      if (RunParams%DragChoice%s=="Voellmy") then
-         if (.not.set_chezyco) then
-            RunParams%ChezyCo = chezyco_d
-            call Warning_DragDefaultValue("Voellmy","Chezy Co",RunParams%ChezyCo)
-         end if
-         if (.not.set_coulombco) then
-            RunParams%CoulombCo = coulombco_d
-            call Warning_DragDefaultValue("Voellmy","Coulomb Co",RunParams%CoulombCo)
-         end if
-      end if
-
-      if ((RunParams%DragChoice%s=="Pouliquen").or.(RunParams%DragChoice%s=="Variable").or.(RunParams%DragChoice%s=="Edwards2019")) then
-         if (.not.set_pouliquenMinSlope) then
-            RunParams%PouliquenMinSlope = pouliquenMinSlope_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Min",RunParams%pouliquenMinSlope)
-         end if
-         if (.not.set_pouliquenMaxSlope) then
-            RunParams%PouliquenMaxSlope = pouliquenMaxSlope_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Max",RunParams%pouliquenMaxSlope)
-         end if
-         if (.not.set_pouliquen_beta) then
-            RunParams%PouliquenBeta = pouliquen_beta_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Beta",RunParams%PouliquenBeta)
-         end if
-      end if
-      if (RunParams%DragChoice%s=="Edwards2019") then
-         if (.not.set_pouliquenIntermediateSlope) then
-            RunParams%PouliquenIntermediateSlope = pouliquenIntermediateSlope_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Pouliquen Intermediate",RunParams%pouliquenIntermediateSlope)
-         end if
-         if (.not.set_edwards2019_betastar) then
-            RunParams%Edwards2019betastar = edwards2019_betastar_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 betastar",RunParams%Edwards2019betastar)
-         end if
-         if (.not.set_edwards2019_kappa) then
-            RunParams%Edwards2019kappa = edwards2019_kappa_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 kappa",RunParams%Edwards2019kappa)
-         end if
-         if (.not.set_edwards2019_gamma) then
-            RunParams%Edwards2019gamma = edwards2019_gamma_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Edwards2019 Gamma",RunParams%Edwards2019Gamma)
-         end if
-      end if
-
-      if (RunParams%DragChoice%s=="Variable") then
-         if (.not.set_VoellmySwitchRate) then
-            RunParams%VoellmySwitchRate = VoellmySwitchRate_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Voellmy switch rate",RunParams%VoellmySwitchRate)
-         end if
-         if (.not.set_VoellmySwitchValue) then
-            RunParams%VoellmySwitchValue = VoellmySwitchValue_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Voellmy switch value",RunParams%VoellmySwitchValue)
-         end if
-      end if
-
-      if ((RunParams%DragChoice%s=="Manning").and.(.not.set_manningco)) then
-         RunParams%ManningCo = manningco_d
-         call Warning_DragDefaultValue("Manning","Manning Co",RunParams%ManningCo)
-      end if
-
-      if (.not.set_deposition) then
-         RunParams%DepositionChoice = varString(DepositionClosure_d)
-         DepositionClosure => DepositionClosure_dfunc
-      end if
-
-      if (.not.set_erosion) then
-         RunParams%ErosionChoice = varString(ErosionClosure_d)
-         RunParams%MorphodynamicsOn = .TRUE.
-         ErosionClosure => ErosionClosure_dfunc
-      end if
-      
-      if (((RunParams%ErosionChoice%s=='Fluid').or.(RunParams%ErosionChoice%s=='Mixed')).and.(.not.set_EroRate)) then
-         RunParams%EroRate = EroRate_d
-         call Warning_ErosionDefaultValue("Erosion Rate",RunParams%EroRate)
-      end if
-      if (((RunParams%ErosionChoice%s=='Granular').or.(RunParams%ErosionChoice%s=='Mixed')).and.(.not.set_EroRateGranular)) then
-         RunParams%EroRateGranular = EroRateGranular_d
-         call Warning_ErosionDefaultValue("Granular Erosion Rate",RunParams%EroRateGranular)
-      end if
-      if ((RunParams%ErosionChoice%s/="Off").and.(.not.set_EroDepth)) then
-         RunParams%EroDepth = EroDepth_d
-         call Warning_ErosionDefaultValue("Erosion Depth",RunParams%EroDepth)
-      end if
-      if ((RunParams%ErosionChoice%s/="Off").and.(.not.set_EroCriticalHeight)) then
-         RunParams%EroCriticalHeight = EroCriticalHeight_d
-         call Warning_ErosionDefaultValue("Erosion Critical Height",RunParams%EroCriticalHeight)
-      end if
-
-      if (.not.set_BedPorosity) then
-         RunParams%BedPorosity = BedPorosity_d
-         call Warning_DefaultValue("BedPorosity",RunParams%BedPorosity)
-      end if
-
-      if (.not.set_rhow) then
-         RunParams%rhow = rhow_d
-         call Warning_DefaultValue("rhow",RunParams%rhow)
-      end if
-
-      if (.not.set_rhos) then
-         RunParams%rhos = rhos_d
-         call Warning_DefaultValue("rhos",RunParams%rhos)
-      end if
-
-      if (.not.set_maxPack) then
-         RunParams%maxPack = maxPack_d
-         call Warning_DefaultValue("maxPack",RunParams%maxPack)
-      end if
-
-      if (.not.set_SolidDiameter) then
-         RunParams%SolidDiameter = SolidDiameter_d
-         call Warning_DefaultValue("Solid Diameter",RunParams%SolidDiameter)
-      end if
-
-      if (.not.set_EddyViscosity) then
-         RunParams%EddyViscosity = EddyViscosity_d
-         call Warning_DefaultValue("Eddy Viscosity",RunParams%EddyViscosity)
-      end if
-
-      RunParams%gred = (RunParams%rhos/RunParams%rhow-1.0_wp)*RunParams%g
-
-      RunParams%Rep = sqrt(RunParams%g*RunParams%SolidDiameter)*RunParams%SolidDiameter/visc_w ! Particle Reynolds number
-
-      R = (RunParams%gred/visc_w/visc_w)**(1.0_wp/3.0_wp)*RunParams%SolidDiameter ! Scaled grain size
-
-      if (.not.set_SettlingSpeed) then
-         RunParams%ws0 = visc_w/RunParams%SolidDiameter*(sqrt(10.36_wp*10.36_wp + 1.048_wp*R*R*R) - 10.36_wp) ! Clear water settling velocity
+      ! Set drag model
+      call ParamsDict%get('drag', DragChoice)
+      DragChoice = DragChoice%to_lower()   
+      call create_drag_model(DragChoice%s, ParamsDict, drag_model)
+      call drag_model%validate()
       end if
 
       RunParams%nsettling = (4.7_wp+0.41_wp*RunParams%Rep**(0.75_wp))/(1.0_wp + 0.175_wp*RunParams%Rep**(0.75_wp)) ! Exponent in hindered settling form (Rowe 1987; A convenient empirical equation for estimation of the Richardson-Zaki exponent)
