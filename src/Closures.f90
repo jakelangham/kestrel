@@ -44,15 +44,7 @@ module closures_module
    public :: IversonOuyangGeometricCorrectionFactor, NoGeometricCorrectionFactor
    public :: IversonOuyangGeometricCorrectionFactor_gradin, NoGeometricCorrectionFactor_gradin
 
-   public :: DepositionClosure
-   public :: NoDeposition, SimpleHinderedSettling, SpearmanManningHinderedSettling
-
-   public :: ErosionClosure
-   public :: SimpleErosion, FluidErosion, GranularErosion, MixedErosion, NoErosion
-
-   public :: ErosionTransition
-   public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
-
+   public :: set_switcher
    public :: fSwitch
    public :: tanhSwitch, rat3Switch, cosSwitch
    public :: equalSwitch, zeroSwitch, oneSwitch, linearSwitch, stepSwitch
@@ -85,7 +77,7 @@ module closures_module
          real(kind=wp) :: gam
       end function GeometricCorrectionFactor_gradin
    end interface
-   
+
    abstract interface
       pure function fswitch(rate, location, psi) result(f)
          import :: wp
@@ -256,221 +248,8 @@ contains
 
    end function NoGeometricCorrectionFactor_gradin
 
-! -- Closures for the deposition law. --
-
-   ! No deposition, return 0
-   pure function NoDeposition(RunParams, psi) result(deposition)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: deposition
-
-      deposition = 0.0_wp
-   end function NoDeposition
-
-   ! Simple quadratic hindered settling function, with zeros at 
-   ! psi = 0 and psi = maximum packing
-   pure function SimpleHinderedSettling(RunParams, psi) result(deposition)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: deposition
-
-      deposition = psi * (1.0_wp - psi / RunParams%maxPack)
-   end function SimpleHinderedSettling
-
-   ! Hindered settling function from Spearman & Manning (2017)
-   ! doi:10.1007/s10236-017-1034-7.
-   pure function SpearmanManningHinderedSettling(RunParams, psi) result(deposition)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), intent(in) :: psi
-      real(kind=wp) :: deposition
-
-      real(kind=wp) :: a, b
-
-      a = 2.7_wp - 0.15_wp * RunParams%nsettling
-      b = 0.62_wp * RunParams%nsettling - 1.46_wp
-      deposition = psi * (1.0_wp - psi)**a * (1.0_wp - psi / RunParams%maxPack)**b
-   end function SpearmanManningHinderedSettling! -- Switching functions for damping morphodynamics near critical erosion height
-! -- Erosion closures --
-
-   ! A fluid (Shields number) based erosion *without* a critical Shields number.
-   ! The erosion rate is given by E = up * eps * S where up is the particle
-   ! speed scale (= sqrt(g' d)) eps is the user defined erosion rate S is the
-   ! Shields number.
-   pure function SimpleErosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      real(kind=wp) :: shields
-
-      shields = FlowShieldsNumber(RunParams, uvect)
-
-      ero = RunParams%EroRate * shields
-      ero = ero * FlowParticleSpeed(RunParams, uvect)
-   end function SimpleErosion
-   
-   ! A fluid (Shields number) based erosion *with* a critical Shields number. The
-   ! erosion rate is given by E = up * eps * (S - S_c) for S>S_c where up is the
-   ! particle speed scale (= sqrt(g' d)) eps is the user defined erosion rate S
-   ! is the Shields number, S_c is the critical shields.
-   pure function FluidErosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      real(kind=wp) :: shields
-
-      shields = FlowShieldsNumber(RunParams, uvect)
-      if (shields > RunParams%CriticalShields) then
-         ero = RunParams%EroRate * (shields - RunParams%CriticalShields)
-   
-         ero = ero * FlowParticleSpeed(RunParams, uvect)
-      else
-         ero = 0.0_wp
-      end if
-   end function FluidErosion
-
-   ! A granular erosion based on a critical friction coefficient (from a
-   ! 'neutral angle' so known as the neutral coefficient). The erosion rate is
-   ! given by E = up * eps_g * (mu - mu_N) for mu>mu_N, where up is the particle
-   ! speed scale (= sqrt(g' d)), eps is the user defined granular erosion rate,
-   ! mu is the Pouliquen granular friction coefficient and mu_N is the neutral
-   ! friction coefficient.
-   pure function GranularErosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      real(kind=wp) :: Hn, modu2
-      real(kind=wp) :: PouliquenMaxSlope, PouliquenMinSlope, PouliquenStaticSlope
-      real(kind=wp) :: t1, gcostheta, mu, muNeutral
-
-      Hn = uvect(RunParams%Vars%Hn)
-      modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
-
-      PouliquenMinSlope = RunParams%PouliquenMinSlope
-      PouliquenMaxSlope = RunParams%PouliquenMaxSlope
-      t1 = tan(pi / 180.0_wp) ! t1 = tan(1 deg)
-      PouliquenStaticSlope = (PouliquenMinSlope + t1) / (1.0_wp - PouliquenMinSlope * t1)
-      ! granular erosion, eps_g*(mu - mu_n)
-      gcostheta = RunParams%g / GeometricCorrectionFactor(RunParams, uvect)
-      mu = PouliquenFrictionCoefficient(RunParams, gcostheta, Hn, sqrt(modu2))
-      muNeutral = PouliquenMinSlope + (PouliquenStaticSlope - PouliquenMinSlope) /  &
-         (1.0_wp + (Hn / 25.0_wp / RunParams%SolidDiameter)**2.0_wp)
-      if (mu > muNeutral) then
-         ero = RunParams%EroRateGranular * (mu - muNeutral)
-         ero = ero*FlowParticleSpeed(RunParams, uvect)
-      else
-         ero = 0.0_wp
-      end if
-   end function GranularErosion
-
-   ! Solid concentration weighted combination of fluid and granular erosion.
-   ! The weighting is determined using the switching function.
-   pure function MixedErosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      real(kind=wp) :: psi
-      real(kind=wp) :: fc
-      real(kind=wp) :: fluid_ero
-      real(kind=wp) :: granular_ero
-
-      psi = uvect(RunParams%Vars%psi)
-
-      ! Get the weighting.
-      fc = fswitch(RunParams, psi)
-
-      fluid_ero = FluidErosion(RunParams, uvect)
-      granular_ero = GranularErosion(RunParams, uvect)
-
-      ero = (1.0_wp - fc) * fluid_ero + fc * granular_ero
-   end function MixedErosion
-
-   ! Set erosion rate to zero.
-   pure function NoErosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      ero = 0.0_wp
-   end function NoErosion
-
-! -- Transition functions from erodible to inerodible at the maximum erosion
-!    depth (RunParams%EroDepth). --
-!
-!    These functions specify how to transition when the elevation decrease
-!    approaches the erosion depth.
-
-   ! Rapid tanh transition.
-   pure function SmoothErosionTransition(RunParams, uvect) result(erosionRate)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: erosionRate
-
-      real(kind=wp) :: Bt
-      real(kind=wp) :: eroDepth
-
-      Bt = uvect(RunParams%Vars%Bt)
-
-      eroDepth = RunParams%EroDepth
-
-      erosionRate = 0.5_wp * (1.0_wp + tanh(1e5_wp * (Bt + eroDepth)))
-   end function SmoothErosionTransition
-
-   ! Step transition.
-   pure function StepErosionTransition(RunParams, uvect) result(erosionRate)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: erosionRate
-
-      real(kind=wp) :: Bt
-      real(kind=wp) :: eroDepth
-
-      Bt = uvect(RunParams%Vars%Bt)
-
-      eroDepth = RunParams%EroDepth
-
-      if (Bt < -eroDepth) then
-         erosionRate = 0.0_wp
-      else
-         erosionRate = 1.0_wp
-      end if
-   end function StepErosionTransition
-
-   ! No transition.
-   pure function NoErosionTransition(RunParams, uvect) result(erosionRate)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: erosionRate
-
-      erosionRate = 1.0_wp
-   end function NoErosionTransition
-
-! -- Switching functions for damping morphodynamics near critical erosion height!    (RunParam%EroCriticalHeight). --
+! -- Switching functions for damping morphodynamics near critical erosion height
+!    (RunParam%EroCriticalHeight). --
 !
 !    These functions define damping terms for Hn -> EroCriticalHeight
 !    with damping = 0 => no morphodynamics;
