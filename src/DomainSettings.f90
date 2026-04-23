@@ -83,6 +83,9 @@ contains
       set_bcs_vval=.FALSE.
       set_bcs_psival=.FALSE.
 
+      ! Set default SpongeLayer = .FALSE.
+      RunParams%SpongeLayer=.FALSE.
+
       do J=1,N
          label = DomainLabels(J)%to_lower()
          select case (label%s)
