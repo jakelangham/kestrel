@@ -35,6 +35,10 @@ module parameters_module
    use closures_module
    use drag_interface, only: DragModel, drag_model
    use drag_types
+   use erosion_interface, only: ErosionModel, erosion_model
+   use erosion_types
+   use deposition_interface, only: DepositionModel, deposition_model
+   use deposition_types
 
    implicit none
 
@@ -42,10 +46,10 @@ module parameters_module
    public :: Params_Set
 
    character(len=4), parameter :: fswitch_d = 'tanh'
-   procedure(fswitch), pointer :: fswitch_dfunc => tanhSwitch
    character(len=4), parameter :: morpho_damp_d = 'tanh'
    procedure(MorphoDamping), pointer :: morpho_damp_dfunc => tanhMorphoDamping
-   logical, parameter :: geometric_factors_d = .true.
+
+   logical, parameter :: geometric_factors_d = .false.
    real(kind=wp), parameter :: g_d = 9.81_wp
    real(kind=wp), parameter :: chezyco_d = 0.01_wp
    real(kind=wp), parameter :: manningco_d = 0.03_wp
@@ -63,12 +67,6 @@ module parameters_module
    real(kind=wp), parameter :: EroRateGranular_d = 4.0_wp
    real(kind=wp), parameter :: EroDepth_d = 1.0_wp
 
-   character(len=16), parameter :: DepositionClosure_d = 'Spearman Manning'
-   procedure(DepositionClosure), pointer :: DepositionClosure_dfunc => SpearmanManningHinderedSettling
-   character(len=5), parameter :: ErosionClosure_d = 'Mixed'
-   procedure(ErosionClosure), pointer :: ErosionClosure_dfunc => MixedErosion
-   character(len=6), parameter :: EroTransition_d = 'smooth'
-   procedure(ErosionTransition), pointer :: EroTransition_dfunc => SmoothErosionTransition
    real(kind=wp), parameter :: EroCriticalHeight_d = 0.01_wp
    real(kind=wp), parameter :: VoellmySwitchRate_d = 3.0_wp
    real(kind=wp), parameter :: VoellmySwitchValue_d = 0.2_wp
@@ -95,10 +93,8 @@ contains
       type(RunSet), intent(inout) :: RunParams
 
       type(varString) :: DragChoice, DepositionChoice, ErosionChoice
-      type(varString) :: geometric_factors, switcher, eroTransition
+      type(varString) :: geometric_factors
       type(varString) :: morpho_damp
-
-      integer :: J
 
       ! Set defaults if not set
       call ParamsDict%append('rhow', rhow_d)
@@ -140,51 +136,69 @@ contains
 
       ! set fswitch
       call ParamsDict%get('switch function', RunParams%fswitch)
-         end select
-      end do
 
-      if (.not.set_fswitch) then
-         RunParams%fswitch = varString(fswitch_d)
-         fswitch => fswitch_dfunc
-      end if
+      ! set morphodynamic parameters, if needed
+      if (RunParams%MorphodynamicsOn) then
+         ! set Erosion critical height
+         call ParamsDict%append('erosion critical height', EroCriticalHeight_d)
+         call ParamsDict%get('erosion critical height', RunParams%EroCriticalHeight)
 
-      if (.not.set_EroTransition) then
-         RunParams%ErosionTransition = varString(EroTransition_d)
-         ErosionTransition => EroTransition_dfunc
-      end if
+         ! set erosion depth
+         call ParamsDict%append('erosion depth', EroDepth_d)
+         call ParamsDict%get('erosion depth', RunParams%EroDepth)
 
-      if (.not.set_MorphoDamp) then
-         RunParams%MorphoDamp = varString(morpho_damp_d)
-         MorphoDamping => morpho_damp_dfunc
-      end if
-
-      if (.not.set_geometric_factors) then
-         RunParams%geometric_factors = geometric_factors_d
-         if (geometric_factors_d) then
-            GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-            GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+         ! set morphodynamic damping
+         if (ParamsDict%has_key('morphodynamic damping')) then
+            
+            call ParamsDict%get('morphodynamic damping', morpho_damp)
+            morpho_damp = morpho_damp%to_lower()
+            select case (morpho_damp%s)
+               case ('none', 'off')
+                  RunParams%MorphoDamp = varString('None')
+                  MorphoDamping => NoMorphoDamping
+               case ('tanh')
+                  RunParams%MorphoDamp = varString('tanh')
+                  MorphoDamping => tanhMorphoDamping
+               case ('rat3')
+                  RunParams%MorphoDamp = varString('rat3')
+                  MorphoDamping => rat3MorphoDamping
+               case default
+                  RunParams%MorphoDamp = varString(morpho_damp_d)
+                  MorphoDamping => morpho_damp_dfunc
+            end select
          else
-            GeometricCorrectionFactor => NoGeometricCorrectionFactor
-            GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
-         end if
-      end if
-      if (.not.set_g) RunParams%g = g_d
-      if (.not.set_drag) then
-         RunParams%DragChoice = varString('Chezy')
-         DragClosure => ChezyDrag
-         call WarningMessage("In the 'Parameters' block 'Drag' is not given.  Using default 'Chezy' drag.")
-      end if
-
-      if ((RunParams%DragChoice%s=='Chezy').or.(RunParams%DragChoice%s=="Variable")) then
-         if (.not.set_chezyco) then
-            RunParams%ChezyCo = chezyco_d
-            call Warning_DragDefaultValue(RunParams%DragChoice%s,"Chezy Co",RunParams%ChezyCo)
+            RunParams%MorphoDamp = varString(morpho_damp_d)
+            MorphoDamping => morpho_damp_dfunc
          end if
       end if
 
-      if ((RunParams%DragChoice%s=="Coulomb").and.(.not.set_coulombco)) then
-         RunParams%CoulombCo = coulombco_d
-         call Warning_DragDefaultValue("Coulomb","Coulomb Co",RunParams%CoulombCo)
+      ! set geometric factors
+      if (ParamsDict%has_key('geometric factors')) then
+         call ParamsDict%get('geometric factors', geometric_factors)
+         geometric_factors = geometric_factors%to_lower()
+         !0=Off, 1=On (perhaps will change in future for different formulations
+         select case (geometric_factors%s)
+            case ('off')
+               RunParams%geometric_factors = .false.
+               GeometricCorrectionFactor => NoGeometricCorrectionFactor
+               GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
+            case ('on')
+               RunParams%geometric_factors = .true.
+               GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
+               GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+            case default
+               call WarningMessage("In the 'Parameters' block 'geometric factors = " // geometric_factors%s // "' is not recognized. " // new_line('a') // &
+                                   " Using default 'geometric factors = off'")
+               RunParams%geometric_factors = geometric_factors_d
+               GeometricCorrectionFactor => NoGeometricCorrectionFactor
+               GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
+         end select
+      else
+         call WarningMessage("In the 'Parameters' block 'geometric factors' is not given. " // new_line('a') // &
+                             " Using default 'geometric factors = off'")
+         RunParams%geometric_factors = geometric_factors_d
+         GeometricCorrectionFactor => NoGeometricCorrectionFactor
+         GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
       end if
 
       ! Set drag model
@@ -192,11 +206,21 @@ contains
       DragChoice = DragChoice%to_lower()   
       call create_drag_model(DragChoice%s, ParamsDict, drag_model)
       call drag_model%validate()
+      
+
+      if (RunParams%MorphodynamicsOn) then
+         ! set deposition closure
+         call ParamsDict%get('deposition', DepositionChoice)
+         DepositionChoice = DepositionChoice%to_lower()
+         call create_deposition_model(DepositionChoice%s, ParamsDict, RunParams, deposition_model)
+         call deposition_model%validate()
+
+         ! set erosion closure
+         call ParamsDict%get('erosion', ErosionChoice)
+         ErosionChoice = ErosionChoice%to_lower()
+         call create_erosion_model(ErosionChoice%s, ParamsDict, erosion_model)
+         call erosion_model%validate()
       end if
-
-      RunParams%nsettling = (4.7_wp+0.41_wp*RunParams%Rep**(0.75_wp))/(1.0_wp + 0.175_wp*RunParams%Rep**(0.75_wp)) ! Exponent in hindered settling form (Rowe 1987; A convenient empirical equation for estimation of the Richardson-Zaki exponent)
-
-      RunParams%CriticalShields = 0.3_wp/(1.0_wp+1.2_wp*R) + 0.055_wp*(1.0_wp - exp(-0.02_wp*R))
 
       RunParams%diffusiveTimeScale = huge(RunParams%diffusiveTimeScale)
       if (RunParams%EddyViscosity > 0.0_wp) then
