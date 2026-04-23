@@ -30,6 +30,10 @@
 !     c = "test"
 !     v = varString(c)
 !
+! v = varString("test") is convenient for scalars.
+! Avoid inside array constructors; for arrays prefer 
+!     call v_array(i)%init('test')
+!
 ! A varString can be copied to a new varString using the = assignment, e.g.
 !     type(varString) :: old, new
 !     old = varString('Hello world')
@@ -170,6 +174,11 @@ module varstring_module
    type varString
       character(len=:), allocatable :: s
    contains
+      ! In place initializer
+      procedure, public :: init => varString_init
+
+      ! Destructor
+      final :: varString_finalize
       
       procedure :: get_extension => varString_get_extension ! extracts an extension (substring following '.')
 
@@ -266,6 +275,10 @@ module varstring_module
       ! convert to upper case
       procedure, public, pass(this) :: to_upper => varstring_to_upper
 
+      ! to_logical
+      ! convert to logical
+      procedure, public, pass(this) :: to_logical => varstring_to_logical
+
       ! to_int
       ! convert to int
       procedure, public, pass(this) :: to_int => varstring_to_int
@@ -295,10 +308,16 @@ module varstring_module
 
    ! Interface to varString constructor
    interface varString
-      procedure constructor
+      procedure constructor, constructor_real, constructor_int
    end interface varString
 
 contains
+
+   ! Destructor
+   subroutine varstring_finalize(this)
+      type(varString), intent(inout) :: this
+      if (allocated(this%s)) deallocate(this%s)
+   end subroutine
 
    ! Create a varString from a inferred length character string
    ! Inputs: character string str
@@ -308,6 +327,7 @@ contains
       logical, intent(in), optional :: trim_str
       type(varString) :: this
 
+      character(len=:), allocatable :: tmp
       logical :: do_trim
 
       if (present(trim_str)) then
@@ -317,18 +337,69 @@ contains
       end if
       
       if (do_trim) then
-         this%s = trim(str)
+         tmp = trim(str)
       else
-         this%s = str
+         tmp = str
       end if
+
+      call move_alloc(tmp, this%s)
    end function constructor
+
+   pure function constructor_real(val) result(this)
+      real(kind=wp), intent(in) :: val
+      type(varString) :: this
+
+      character(len=64) :: str
+
+      write(str, '(G0)') val
+
+      this = varString(str)
+   end function constructor_real
+
+   pure function constructor_int(val) result(this)
+      integer, intent(in) :: val
+      type(varString) :: this
+
+      character(len=64) :: str
+
+      write(str, '(I0)') val
+
+      this = varString(str)
+   end function constructor_int
+
+   subroutine varString_init(this, str, trim_str)
+      class(varString), intent(out) :: this
+      character(len=*), intent(in) :: str
+      logical, intent(in), optional :: trim_str
+
+      character(len=:), allocatable :: tmp
+      logical :: do_trim
+
+      if (present(trim_str)) then
+         do_trim = trim_str
+      else
+         do_trim = .FALSE.
+      end if
+
+      if (do_trim) then
+         tmp = trim(str)
+      else
+         tmp = str
+      end if
+
+      call move_alloc(tmp, this%s)
+   end subroutine varString_init
    
    ! Private method to copy a varString
    !  new_varString = old_varString
    pure subroutine varString_copy(this, from)
       class(varString), intent(inout) :: this
       class(varString), intent(in) :: from
-      this%s = from%s
+
+      if (allocated(this%s)) deallocate(this%s)
+      if (allocated(from%s)) then
+         this%s = from%s
+      end if
    end subroutine varString_copy
 
    ! Private method to concatenate this varString with another
@@ -853,6 +924,23 @@ contains
       end do
       str = varString(str_tmp)
    end function varstring_to_upper
+
+   ! Convert this containing an logical to an integer.
+   ! Called as val = this%to_logical()
+   ! If the string is blank, a fatal error occurs.
+   ! Input: this - varstring
+   ! Output: val - integer
+   function varstring_to_logical(this) result(val)
+      class(varString), intent(in) :: this
+      logical :: val
+
+      if (this%to_lower() == varString("true")) then
+        val = .TRUE.
+      else
+        val = .FALSE.
+      end if
+
+   end function varstring_to_logical
 
    ! Convert this containing an integer to an integer.
    ! Called as val = this%to_int()
