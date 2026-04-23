@@ -213,40 +213,19 @@ module runsettings_module
       type(Sources), dimension(:), allocatable :: FluxSources
 
    ! -- Parameters. --
+
       ! Use geometrically corrected coordinates?
       logical :: geometric_factors
       real(kind=wp) :: g ! gravity
       real(kind=wp) :: rhow ! Density of water
       real(kind=wp) :: rhos ! Density of solids
-      real(kind=wp) :: gred ! reduced gravity g' = (rhos-rhow)*g/rhow
-      ! Drag parameters.
-      real(kind=wp) :: ChezyCo ! Chezy coefficient
-      real(kind=wp) :: ManningCo ! Manning coefficient
-      real(kind=wp) :: CoulombCo ! Coulomb coefficient
-      real(kind=wp) :: PowerLawCo ! Power law viscosity coefficient
-      real(kind=wp) :: PowerLawPower ! i.e. n where drag propto (u/h)^n
-      real(kind=wp) :: PouliquenMinSlope ! Minimum slope angle for steady flow with Pouliquen friction
-      real(kind=wp) :: PouliquenMaxSlope ! Maximum slope angle for steady flow with Pouliquen friction
-      real(kind=wp) :: PouliquenIntermediateSlope ! Intermediate slope angle for Pouliquen friction
-      real(kind=wp) :: PouliquenBeta ! beta parameter in Pouliquen friction
-      real(kind=wp) :: Edwards2019betastar ! beta* parameter in Edwards' 2019 JFM friction model
-      real(kind=wp) :: Edwards2019kappa ! smoothing power in Edwards' 2019 JFM friction model
-      real(kind=wp) :: Edwards2019Gamma ! Gamma parameter in Edwards' 2019 JFM friction model
-      real(kind=wp) :: VoellmySwitchRate ! Steepness of transition in Voellmy drag
-      real(kind=wp) :: VoellmySwitchValue ! Centre value of transition in Voellmy drag
       ! Morphodynamic parameters.
       logical :: MorphodynamicsOn ! Whether or not to time step the morphodynamics.
-      real(kind=wp) :: EroRate ! Erosion rate (dimensional mass flux)
-      real(kind=wp) :: EroRateGranular ! Granular erosion rate (dimensional mass flux)
-      real(kind=wp) :: CriticalShields ! Threshold on Shield number above which erosion occurs
       real(kind=wp) :: EroDepth ! Maximum depth of material that can be eroded
       real(kind=wp) :: EroCriticalHeight ! Flow depth that must be exceeded for erosion to occur
       real(kind=wp) :: BedPorosity ! Porosity of the bed
       real(kind=wp) :: maxPack ! maximum packing volume fraction
       real(kind=wp) :: SolidDiameter ! Diameter of solids
-      real(kind=wp) :: Rep ! Particle Reynolds number
-      real(kind=wp) :: ws0 ! Particle settling speed in clear water
-      real(kind=wp) :: nsettling ! Exponent in hindered settling term
       ! Sets a simple turbulent diffusivity \nabla (\nu \rho h \nabla u)
       real(kind=wp) :: EddyViscosity 
 
