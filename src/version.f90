@@ -33,9 +33,9 @@ module version_module
 
 contains
 
-   function GetVersion() result(tag)
+   subroutine GetVersion(tag)
       implicit none
-      character(len=:), allocatable :: tag
+      character(len=:), allocatable, intent(out) :: tag
       character(kind=c_char), dimension(:), allocatable :: str_buffer
       integer(c_int) :: length
 
@@ -52,6 +52,6 @@ contains
 
       deallocate(str_buffer)
       
-   end function GetVersion
+   end subroutine GetVersion
 
 end module version_module
