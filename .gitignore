@@ -28,7 +28,6 @@ missing
 docs/build
 
 # Cmake
-cmake/
 build/
 /CMakeCache.txt
 /CMakeFiles/
