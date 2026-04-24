@@ -32,7 +32,8 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, Reciprocal
+   use drag_interface, only: drag_model
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -770,8 +771,6 @@ contains
 
       integer :: i, j, nXPoints, nYPoints
 
-      real(kind=wp) :: rhow, rhos
-
       real(kind=wp) :: rhoHnu, rhoHnv, Hnpsi
       real(kind=wp) :: rho, Hn, u, v, psi
       real(kind=wp) :: Hneps, gam
@@ -785,9 +784,6 @@ contains
       nYPoints = RunParams%nYpertile
 
       Hneps = RunParams%heightThreshold
-
-      rhow = RunParams%rhow
-      rhos = RunParams%rhos
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -1274,7 +1270,7 @@ contains
                                         tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE)
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
-               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
+               Friction = drag_model%friction(RunParams, tiles(tID)%u(:,i,j))
                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,j), Friction, STI)
                tiles(tID)%ddtImplicit(1:nFlux,i,j) = STI(1:nFlux)
             end do
@@ -1300,8 +1296,8 @@ contains
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
                                      tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE)
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
-
-            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
+            
+            Friction = drag_model%friction(RunParams, tiles(tID)%u(:,i,1))
             call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
             tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
          end do
