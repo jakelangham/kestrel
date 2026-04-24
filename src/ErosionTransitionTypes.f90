@@ -13,7 +13,7 @@ module erosion_transition_types
    public :: create_erosion_transition
 
    type, extends(ErosionTransition) :: SmoothErosionTransition
-      real(kind=wp) :: rate = 1e5_wp
+      real(kind=wp) :: rate
    contains
       procedure :: validate => SmoothErosionTransition_validate
       procedure :: transition => SmoothErosionTransition_transition

@@ -12,7 +12,7 @@ contains
       type(SmoothErosionTransition) :: this
       call this%initialize(params)
       this%name = varString('smooth transition')
-      call params%get_or_default('smooth transition rate', this%rate, this%rate)
+      call params%get_or_default('smooth transition rate', this%rate, default=1e5_wp)
    end function SmoothErosionTransition_constructor
 
    module subroutine SmoothErosionTransition_validate(this)
