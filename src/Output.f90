@@ -39,12 +39,16 @@ module output_module
 
    use set_precision_module, only: wp
    use utilities_module, only: AddToOrderedVector, CheckFileExists, PathTrail, Int2String, KahanAdd, pair
+   use dict_module, only: Dict
    use grid_module, only: GridCoords, GridType, TileList, TileType
    use closures_module, only : FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use runsettings_module, only : RunSet
    use varstring_module, only: varString
    use messages_module, only: InfoMessage, WarningMessage
    use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData
+   use drag_interface, only: drag_model
+   use erosion_interface, only: erosion_model
+   use deposition_interface, only: deposition_model
 #if HAVE_NETCDF4
    use netcdf_utils_module
    use netcdf
@@ -292,6 +296,7 @@ contains
             write (101, fmt="(a,a)") "capShape = ", RunParams%CapSources(J)%Shape
          end do
       end if
+      
       if (RunParams%set_Cubes) then
          do J = 1, RunParams%nCubes
             write (101, fmt="(a)") "Cube:"
@@ -339,78 +344,24 @@ contains
       write (101, fmt="(a,G0)") "g = ", RunParams%g
       write (101, fmt="(a,G0)") "rhow = ", RunParams%rhow
       write (101, fmt="(a,G0)") "rhos = ", RunParams%rhos
-      select case (RunParams%DragChoice%s)
-      case ("Chezy")
-         write (101, fmt="(a)") "Drag = Chezy"
-         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
-      case ("Manning")
-         write (101, fmt="(a)") "Drag = Manning"
-         write (101, fmt="(a,G0)") "Manning co = ", RunParams%ManningCo
-      case ("Power Law")
-         write (101, fmt="(a)") "Drag = Power Law"
-         write (101, fmt="(a,G0)") "Power law co = ", RunParams%PowerLawCo
-         write (101, fmt="(a,G0)") "Power law power = ", RunParams%PowerLawPower
-      case ("Coulomb")
-         write (101, fmt="(a)") "Drag = Coulomb"
-         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
-      case ("Pouliquen")
-         write (101, fmt="(a)") "Drag = Pouliquen"
-         write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
-         write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
-         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
-      case ("Edwards2019")
-         write (101, fmt="(a)") "Drag = Edwards2019"
-         write (101, fmt="(a,G0)") "Pouliquen min = ", RunParams%PouliquenMinSlope
-         write (101, fmt="(a,G0)") "Pouliquen max = ", RunParams%PouliquenMaxSlope
-         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
-         write (101, fmt="(a,G0)") "Pouliquen intermediate = ", RunParams%PouliquenIntermediateSlope
-         write (101, fmt="(a,G0)") "Edwards2019 betastar = ", RunParams%Edwards2019betastar
-         write (101, fmt="(a,G0)") "Edwards2019 kappa = ", RunParams%Edwards2019kappa
-         write (101, fmt="(a,G0)") "Edwards2019 gamma = ", RunParams%Edwards2019Gamma
-      case ("Variable")
-         write (101, fmt="(a)") "Drag = Variable"
-         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
-         write (101, fmt="(a,G0)") "Pouliquen Min = ", RunParams%PouliquenMinSlope
-         write (101, fmt="(a,G0)") "Pouliquen Max = ", RunParams%PouliquenMaxSlope
-         write (101, fmt="(a,G0)") "Pouliquen beta = ", RunParams%PouliquenBeta
-         write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
-         write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
-      case ("Voellmy")
-         write (101, fmt="(a)") "Drag = Voellmy"
-         write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
-         write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
-         write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
-         write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
-      end select
-      if ((RunParams%DragChoice%s=="Variable") .or. (RunParams%ErosionChoice%s=="Mixed")) then
-         write (101, fmt="(a,a)") "Switch function = ", RunParams%fswitch%s
-      end if
-      write (101, fmt="(a,a)") "Erosion = ", RunParams%ErosionChoice%s
+
+      write (101, fmt="(a)") "Drag = " // drag_model%name%s
+      do J=1, drag_model%parameters%len()
+         write (101, fmt="(a)") drag_model%parameters%keys(J)%s // " = " // drag_model%parameters%values(J)%s
+      end do
+
       if (RunParams%MorphodynamicsOn) then
-         if (RunParams%ErosionChoice%s=="Fluid") then
-            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
-         end if
-         if (RunParams%ErosionChoice%s=="Granular") then
-            write (101, fmt="(a,G0)") "Granular erosion rate = ", RunParams%EroRateGranular
-         end if
-         if (RunParams%ErosionChoice%s=="Mixed") then
-            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
-            write (101, fmt="(a,G0)") "Granular erosion rate = ", RunParams%EroRateGranular
-         end if
-         if (RunParams%ErosionChoice%s=="Simple") then
-            write (101, fmt="(a,G0)") "Erosion rate = ", RunParams%EroRate
-         end if
-         write (101, fmt="(a,G0)") "Erosion critical height = ", RunParams%EroCriticalHeight
-         write (101, fmt="(a,G0)") "Morphodynamic damping = ", RunParams%MorphoDamp%s
-         write (101, fmt="(a,G0)") "Erosion depth = ", RunParams%EroDepth
-         write (101, fmt="(a,a)") "Erosion transition = ", RunParams%ErosionTransition%s
-         write (101, fmt="(a,G0)") "Bed porosity = ", RunParams%BedPorosity
+         write (101, fmt="(a,a)") "Erosion = ", erosion_model%name%s
+         do J=1, erosion_model%parameters%len()
+            write (101, fmt="(a)") erosion_model%parameters%keys(J)%s // " = " // erosion_model%parameters%values(J)%s
+         end do
+
+         write (101, fmt="(a,a)") "Deposition = ", deposition_model%name%s
+         do J=1, deposition_model%parameters%len()
+            write (101, fmt="(a)") deposition_model%parameters%keys(J)%s // " = " // deposition_model%parameters%values(J)%s
+         end do
       end if
-      write (101, fmt="(a,a)") "Deposition = ", RunParams%DepositionChoice%s
-      if (RunParams%MorphodynamicsOn) then
-         write (101, fmt="(a,G0)") "Settling speed = ", RunParams%ws0
-         write (101, fmt="(a,G0)") "maxPack = ", RunParams%maxPack
-      end if
+    
       write (101, fmt="(a,G0)") "Eddy viscosity = ", RunParams%EddyViscosity
       write (101, fmt="(a,G0)") "Solid diameter = ", RunParams%SolidDiameter
       
@@ -593,14 +544,6 @@ contains
             end do
          end if
       end if
-
-      write (101, fmt='(a)') "#"
-      write (101, fmt="(a)") "# Parameters:"
-      write (101, fmt="(a,G0)") "# reduced g = ", RunParams%gred
-      if (RunParams%MorphodynamicsOn) then
-         write (101, fmt="(a,G0)") "# Critical shields = ", RunParams%CriticalShields
-      end if
-      write (101, fmt="(a,G0)") "# Particle Reynolds number = ", RunParams%Rep
 
       write (101, fmt="(a)") "#"
       write (101, fmt="(a)") "# Output:"
@@ -2003,6 +1946,9 @@ contains
 
       integer, intent(in) :: ncid
       type(RunSet), intent(in) :: RunParams
+      type(Dict) :: drag_params, erosion_params, deposition_params
+      integer :: J
+      type(varString) :: key
 
       call put_nc_att(ncid, "time", RunParams%tstart + RunParams%CurrentOut * RunParams%DeltaT)
 
@@ -2056,70 +2002,35 @@ contains
       call put_nc_att(ncid, "g", RunParams%g)
       call put_nc_att(ncid, "water density", RunParams%rhow) ! Density of water
       call put_nc_att(ncid, "solids density", RunParams%rhos) ! Density of solids
-      call put_nc_att(ncid, "reduced gravity", RunParams%gred) ! reduced gravity g' = (rhos-rhow)*g/rhow
       call put_nc_att(ncid, "bed porosity", RunParams%BedPorosity)
       call put_nc_att(ncid, "maximum packing", RunParams%maxPack)
       call put_nc_att(ncid, "solid diameter", RunParams%SolidDiameter)
       call put_nc_att(ncid, "eddy viscosity", RunParams%EddyViscosity)
-      call put_nc_att(ncid, "particle Reynolds number", RunParams%Rep)
-      call put_nc_att(ncid, "drag choice", RunParams%DragChoice%s)
-      select case (RunParams%DragChoice%s)
-         case ("Chezy")
-            call put_nc_att(ncid, "Chezy coefficient", RunParams%ChezyCo)
-         case ("Manning")
-            call put_nc_att(ncid, "Manning coefficient", RunParams%ManningCo)
-         case ("Power Law")
-            call put_nc_att(ncid, "Power law coefficient", RunParams%PowerLawCo)
-            call put_nc_att(ncid, "Power law power", RunParams%PowerLawPower)
-         case ("Coulomb")
-            call put_nc_att(ncid, "Coulomb coefficient", RunParams%CoulombCo)
-         case ("Voellmy")
-            call put_nc_att(ncid, "Chezy coefficient", RunParams%ChezyCo)
-            call put_nc_att(ncid, "Coulomb coefficient", RunParams%CoulombCo)
-         case ("Pouliquen")
-            call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)
-            call put_nc_att(ncid, "Pouliquen maximum slope", RunParams%PouliquenMaxSlope)
-            call put_nc_att(ncid, "Pouliquen beta", RunParams%PouliquenBeta)
-         case ("Edwards2019")
-            call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)
-            call put_nc_att(ncid, "Pouliquen maximum slope", RunParams%PouliquenMaxSlope)
-            call put_nc_att(ncid, "Pouliquen beta", RunParams%PouliquenBeta)
-            call put_nc_att(ncid, "Pouliquen intermediate", RunParams%PouliquenIntermediateSlope)
-            call put_nc_att(ncid, "Edwards2019 betastar", RunParams%Edwards2019betastar)
-            call put_nc_att(ncid, "Edwards2019 kappa", RunParams%Edwards2019kappa)
-            call put_nc_att(ncid, "Edwards2019 gamma", RunParams%Edwards2019Gamma)
-         case ("Variable")
-            call put_nc_att(ncid, "Chezy coefficient", RunParams%ChezyCo)
-            call put_nc_att(ncid, "Pouliquen minimum slope", RunParams%PouliquenMinSlope)
-            call put_nc_att(ncid, "Pouliquen maximum slope", RunParams%PouliquenMaxSlope)
-            call put_nc_att(ncid, "Pouliquen beta", RunParams%PouliquenBeta)
-            call put_nc_att(ncid, "Voellmy switch function", RunParams%fswitch%s)
-            call put_nc_att(ncid, "Voellmy switch rate", RunParams%VoellmySwitchRate)
-            call put_nc_att(ncid, "Voellmy switch value", RunParams%VoellmySwitchValue)
-      end select
-      call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice%s)
+
+      call put_nc_att(ncid, "drag", drag_model%name)
+      drag_params = drag_model%parameters
+      do J=1,drag_params%len()
+         key = drag_params%keys(J)
+         call put_nc_att(ncid, key%s, drag_params%values(J))
+      end do
+
+      call put_nc_att(ncid, "erosion choice", RunParams%ErosionChoice)
       if (RunParams%MorphodynamicsOn) then
          call put_nc_att(ncid, "morphodynamics time stepping", "on")
-         select case (RunParams%ErosionChoice%s)
-            case ('Fluid')
-               call put_nc_att(ncid, "fluid erosion rate", RunParams%EroRate)
-               call put_nc_att(ncid, "critical Shields number", RunParams%CriticalShields)
-            case ('Granular')
-               call put_nc_att(ncid, "granular erosion rate", RunParams%EroRateGranular)
-            case ('Mixed')
-               call put_nc_att(ncid, "fluid erosion rate", RunParams%EroRate)
-               call put_nc_att(ncid, "granular erosion rate", RunParams%EroRateGranular)
-               call put_nc_att(ncid, "critical Shields number", RunParams%CriticalShields)
-         end select
-         select case (RunParams%ErosionChoice%s)
-            case ('Fluid', 'Granular', 'Mixed')
-               call put_nc_att(ncid, "erosion depth", RunParams%EroDepth)
-               call put_nc_att(ncid, "erosion critical height", RunParams%EroCriticalHeight)
-               call put_nc_att(ncid, "erosion transition function", RunParams%ErosionTransition)
-         end select
-         call put_nc_att(ncid, "deposition closure", RunParams%DepositionChoice%s)
-         call put_nc_att(ncid, "clear water settling speed", RunParams%ws0)
-         call put_nc_att(ncid, "hindered settling exponent", RunParams%nsettling)
+
+         call put_nc_att(ncid, "erosion", erosion_model%name%s)
+         erosion_params = erosion_model%parameters
+         do J=1,erosion_params%len()
+            key = erosion_params%keys(J)
+            call put_nc_att(ncid, key%s, erosion_params%values(J))
+         end do
+
+         call put_nc_att(ncid, "deposition closure", deposition_model%name)
+         deposition_params = deposition_model%parameters
+         do J=1,deposition_params%len()
+            key = deposition_params%keys(J)
+            call put_nc_att(ncid, key%s, deposition_params%values(J))
+         end do
          call put_nc_att(ncid, "morphodynamic damping function", RunParams%MorphoDamp)
       else
          call put_nc_att(ncid, "morphodynamics time stepping", "off")
