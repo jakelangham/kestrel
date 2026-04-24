@@ -276,7 +276,7 @@ contains
       real(kind=wp), intent(in) :: t
       real(kind=wp), intent(in) :: dt
    
-      write(stdout, fmt='(a4, f20.12, a7, f20.12)') &
+      write(stdout, fmt='(a4, f20.12, a7, G20.12)') &
          't = ', t, ', dt = ', dt
 
       return
@@ -289,7 +289,7 @@ contains
       real(kind=wp), intent(in) :: t
       real(kind=wp), intent(in) :: dt
    
-      write (stdout, fmt='(a16,f13.7,a10,f10.7)') &
+      write (stdout, fmt='(a16,f13.7,a10,G13.7)') &
          'revised nextT = ', t, ' new dt = ', dt
       return
    end subroutine RevisedTimestepMessage
