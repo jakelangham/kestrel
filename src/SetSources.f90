@@ -30,7 +30,7 @@ module set_sources_module
    use messages_module, only: FatalErrorMessage
    use grid_module, only: GridToPhysical, GridType, TileID, TileList, TileType
    use runsettings_module, only: RunSet
-   use closures_module, only : GeometricCorrectionFactor
+   use closures_module, only : GeometricCorrectionFactor, Density
    use update_tiles_module, only: AddTile, ReconstructwAtEdges
 
    implicit none
@@ -65,7 +65,7 @@ contains
       real(kind=wp) :: srcX, srcY, srcR
       real(kind=wp) :: R2
 
-      real(kind=wp) :: rho, rhow, rhos, rho_orig, Hn_orig, gam, hp
+      real(kind=wp) :: rho, rho_orig, Hn_orig, gam, hp
 
       ! These pointers and variables simplify notation.
       tileContainer => grid%tileContainer
@@ -80,9 +80,6 @@ contains
       ib0 = RunParams%Vars%b0
       iu = RunParams%Vars%u
       ipsi = RunParams%Vars%psi
-
-      rhow = RunParams%rhow
-      rhos = RunParams%rhos
 
       nCaps = RunParams%nCaps
       nCubes = RunParams%nCubes
@@ -108,7 +105,7 @@ contains
                      capu = RunParams%CapSources(kk)%u
                      call CheckSolidFractionInBounds(cappsi, RunParams)
 
-                     rho = rhow + (rhos - rhow) * cappsi
+                     rho = Density(RunParams, cappsi)
                      Hn = capHn
 
                      R2 = (x-capX)*(x-capX)
@@ -172,7 +169,7 @@ contains
                      cubepsi = RunParams%CubeSources(kk)%psi
                      call CheckSolidFractionInBounds(cubepsi, RunParams)
 
-                     rho = rhow + (rhos - rhow) * cubepsi
+                     rho = Density(RunParams, cubepsi)
                      Hn = cubeHn
 
                      if (abs(x-cubeX) <= 0.5_wp*cubeL) then
@@ -251,7 +248,7 @@ contains
                            capv = RunParams%CapSources(kk)%v
                            call CheckSolidFractionInBounds(cappsi, RunParams)
 
-                           rho = rhow + (rhos - rhow) * cappsi
+                           rho = Density(RunParams, cappsi)
                            Hn = capHn
 
                            R2 = (x-capX)*(x-capX)+(y-capY)*(y-capY)
@@ -314,7 +311,7 @@ contains
 
                            ! n.b. formula is for user-specified volume fraction,
                            ! not concentration
-                           rho = rhow + (rhos - rhow) * cubepsi
+                           rho = Density(RunParams, cubepsi)
                            Hn = cubeHn
 
                            if ((abs(x-CubeX) <= 0.5_wp*cubeL).and.(abs(y-CubeY) <= 0.5_wp*cubeW)) then
