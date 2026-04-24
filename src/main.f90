@@ -38,6 +38,7 @@
 ! Kestrel is free software, provided for research purposes and is intended 
 ! neither for commercial use, nor for sensitive application such as hazards
 ! assessment. The terms of its license confer absolutely no warranty.
+
 program Kestrel
 
    use, intrinsic :: iso_fortran_env, only : stdout=>output_unit, stderr=>error_unit
@@ -63,10 +64,10 @@ program Kestrel
    type(GridType) :: grid
 
    character(len=:), allocatable :: version
-
    ! Set version
-   version = GetVersion()
-   RunParams%version = varString(trim(version))
+   call GetVersion(version)
+   RunParams%version = varString(version, trim_str=.TRUE.)
+   if (allocated(version)) deallocate(version)
 
    ! The following block indexes the fields that are explicitly stored during 
    ! the simulation. There are four primary flow variables (1-4). 
