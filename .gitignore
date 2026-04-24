@@ -1,5 +1,6 @@
 *.o
 *.mod
+*.smod
 *.swp
 *.svg
 *_vimrc_local.vim
@@ -27,9 +28,11 @@ missing
 docs/build
 
 # Cmake
-CMakeLists.txt
 cmake/
 build/
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
 
 # exclude examples/test outputs
 examples/*
