@@ -1,6 +1,6 @@
 using DelimitedFiles
 
-prog = "../src/kestrel"
+prog = "../bin/kestrel"
 
 # Basic checks for conservativity and positivity of the solution output when
 # simulating with the input file Input_$testname.txt

@@ -9,7 +9,7 @@ f2="netcdf_restart2"
 rm -r $f1 2> /dev/null
 rm -r $f2 2> /dev/null
 
-prog=../src/kestrel
+prog=../bin/kestrel
 
 # Run 1
 $prog Input_$f1.txt
