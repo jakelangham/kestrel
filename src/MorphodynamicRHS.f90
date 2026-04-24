@@ -51,7 +51,8 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor_gradin, DragClosure
+   use closures_module, only: GeometricCorrectionFactor_gradin
+   use drag_interface, only: drag_model
 
    implicit none
 
@@ -136,7 +137,7 @@ contains
                   tiles(tID)%EminusD(i,j) = 0.0_wp
                else
                   ! Compute E - D at each cell centre and save it.
-                  Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
+                  Friction = drag_model%friction(RunParams, tiles(tID)%u(:,i,j))
                   call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo)
                   tiles(tID)%EminusD(i,j) = Ero - Depo
                end if
