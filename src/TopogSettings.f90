@@ -183,6 +183,8 @@ contains
          end if
 
          RunParams%Georeference = .TRUE.
+      else
+         RunParams%EmbedRaster = .FALSE.
       end if
          
       ! Check conditionally required settings for Type = SRTM

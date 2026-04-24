@@ -28,6 +28,9 @@ module equations_module
    use grid_module, only: GridType
    use runsettings_module, only: RunSet
    use closures_module
+   use drag_interface, only: drag_model
+   use erosion_interface, only: erosion_model
+   use deposition_interface, only: deposition_model
 
    implicit none
 
@@ -394,8 +397,8 @@ contains
 
       Hn = uvect(RunParams%Vars%Hn)
 
-      E = Erosion(RunParams, uvect)
-      D = Deposition(RunParams, uvect)
+      E = erosion_model%erosion(drag_model, RunParams, uvect)
+      D = deposition_model%rate(RunParams, uvect)
         
       ! Damp morphodynamics at small length scales Hn ~ Hncrit (various
       ! different damping functions are given in Closures.f90).
@@ -404,48 +407,6 @@ contains
       E = E * damping
       D = D * damping
    end subroutine ErosionDepositionTerms
-
-   ! Given a solution vector uvect, compute the corresponding erosion rate,
-   ! returning in ero.
-   pure function Erosion(RunParams, uvect) result(ero)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: ero
-
-      ! Get erosion rate from chosen closure.
-      ero = ErosionClosure(RunParams, uvect)
-
-      ! Alter erosion rate with flow depth and smoothing choice.
-      ero = ero * ErosionTransition(RunParams, uvect)
-      
-   end function Erosion
-
-   ! Given a solution vector uvect, compute the corresponding deposition rate,
-   ! returning in dep.
-   pure function Deposition(RunParams, uvect) result(dep)
-      implicit none
-
-      type(RunSet), intent(in) :: RunParams
-      real(kind=wp), dimension(:), intent(in) :: uvect
-      real(kind=wp) :: dep
-
-      real(kind=wp) :: psi, alpha
-
-      psi = uvect(RunParams%Vars%psi)
-
-      dep = 0.0_wp
-      if (psi >= RunParams%maxPack) then
-         alpha = 0.0_wp
-      else if (psi > 0.0_wp) then
-         alpha = DepositionClosure(RunParams, psi)
-      else
-         alpha = 0.0_wp
-      end if
-
-      dep = RunParams%ws0 * alpha
-   end function
 
    ! Compute (hydraulic) explicit source terms, given flow at (x,y), time t and
    ! with fields in uvect, for each of the governing equations. Store the result
