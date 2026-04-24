@@ -49,7 +49,7 @@ module utilities_module
 
    private
    public :: Int2String
-   public :: AddToVector, InVector, RemoveFromVector
+   public :: AddToVector, InVector, IndexInVector, RemoveFromVector
    public :: AddToOrderedVector
    public :: PathTrail, CheckFileExists
    public :: KahanAdd, KahanSum
@@ -68,8 +68,16 @@ module utilities_module
    end interface
 
    interface InVector
-      module procedure InVector_i, InVector_r
+      module procedure InVector_i, &
+                       InVector_r, &
+                       InVector_vstr, &
+                       InVector_str_str, &
+                       InVector_vstr_str
    end interface InVector
+
+   interface IndexInVector
+      module procedure IndexInVector_i, IndexInVector_r, IndexInVector_vstr
+   end interface IndexInVector
 
    interface CheckFileExists
       module procedure check_file_exists_str, check_file_exists_vstr
@@ -125,13 +133,17 @@ contains
 
       integer :: N
 
-      N = size(vector)
+      if (allocated(vector)) then
+        N = size(vector)
+        allocate(temp(N+1))
+        temp(1:N) = vector
+        temp(N+1) = val
 
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+        call move_alloc(temp,vector)
+      else
+        allocate(vector(1))
+        vector(1) = val
+      end if
 
       return
 
@@ -148,13 +160,16 @@ contains
 
       integer :: N
 
-      N = size(vector)
-
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+      if (allocated(vector)) then
+        N = size(vector)
+        allocate(temp(N+1))
+        temp(1:N) = vector
+        temp(N+1) = val
+        call move_alloc(temp,vector)
+      else
+        allocate(vector(1))
+        vector(1) = val
+      end if
 
       return
 
@@ -219,16 +234,20 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+        Nold = size(vector)
+        Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+        allocate(temp(Nnew))
+        temp(1:Nold) = vector
+        temp(Nold+1:Nnew) = val
+        call move_alloc(temp,vector)
+      else
+        allocate(vector(Nval))
+        vector(:) = val
+      end if
 
    end subroutine AddToVector_rvec
 
@@ -243,16 +262,20 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+        Nold = size(vector)
+        Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+        allocate(temp(Nnew))
+        temp(1:Nold) = vector
+        temp(Nold+1:Nnew) = val
+        call move_alloc(temp,vector)
+      else
+        allocate(vector(Nval))
+        vector(:) = val
+      end if
 
    end subroutine AddToVector_ivec
 
@@ -306,6 +329,11 @@ contains
       integer :: N, i, j
       logical :: removed
 
+      if (.not. allocated(vector)) then
+        removed = .false.
+        return
+      end if
+
       N = size(vector)
 
       j = 0
@@ -327,15 +355,18 @@ contains
 
    end function RemoveFromVector_i
 
-   recursive function InVector_r(vector,val) result(invec)
-
+   pure function InVector_r(vector,val) result(invec)
       implicit none
-
-      real(kind=wp), dimension(:), intent(in) :: vector
+      real(kind=wp), dimension(:), allocatable, intent(in) :: vector
       real(kind=wp), intent(in) :: val
       logical :: invec
 
       integer :: N, I
+
+      if (.not. allocated(vector)) then
+         invec = .FALSE.
+         return
+      end if
 
       N = size(vector)
 
@@ -349,7 +380,7 @@ contains
 
    end function InVector_r
 
-   recursive function InVector_i(vector,val) result(invec)
+   pure function InVector_i(vector,val) result(invec)
 
       implicit none
 
@@ -375,6 +406,168 @@ contains
       end do
 
    end function InVector_i
+
+   pure function InVector_str_str(vector,val) result(invec)
+
+      implicit none
+
+      character(len=*), dimension(:), allocatable, intent(in) :: vector
+      character(len=*), intent(in) :: val
+      logical :: invec
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         invec = .FALSE.
+         return
+      end if
+
+      N = size(vector)
+
+      invec = .FALSE.
+      do I = 1,N
+         if (vector(I) == val) then
+            invec = .TRUE.
+            exit
+         end if
+      end do
+
+   end function InVector_str_str
+
+   pure function InVector_vstr_str(vector,val) result(invec)
+
+      implicit none
+
+      type(varString), dimension(:), allocatable, intent(in) :: vector
+      character(len=*), intent(in) :: val
+      logical :: invec
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         invec = .FALSE.
+         return
+      end if
+
+      N = size(vector)
+
+      invec = .FALSE.
+      do I = 1,N
+         if (vector(I) == val) then
+            invec = .TRUE.
+            exit
+         end if
+      end do
+
+   end function InVector_vstr_str
+
+   pure function InVector_vstr(vector,val) result(invec)
+
+      implicit none
+
+      type(varString), dimension(:), allocatable, intent(in) :: vector
+      type(varString), intent(in) :: val
+      logical :: invec
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         invec = .FALSE.
+         return
+      end if
+
+      N = size(vector)
+
+      invec = .FALSE.
+      do I = 1,N
+         if (vector(I) == val) then
+            invec = .TRUE.
+            exit
+         end if
+      end do
+
+   end function InVector_vstr
+
+   pure function IndexInVector_r(vector,val) result(index)
+
+      implicit none
+
+      real(kind=wp), dimension(:), allocatable, intent(in) :: vector
+      real(kind=wp), intent(in) :: val
+      integer :: index
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         index = 0
+         return
+      end if
+
+      N = size(vector)
+
+      index = 0
+      do I = 1,N
+         if (vector(I) .eq. val) then
+            index = I
+            exit
+         end if
+      end do
+
+   end function IndexInVector_r
+
+   pure function IndexInVector_i(vector,val) result(index)
+
+      implicit none
+
+      integer, dimension(:), allocatable, intent(in) :: vector
+      integer, intent(in) :: val
+      integer :: index
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         index = 0
+         return
+      end if
+
+      N = size(vector)
+
+      index = 0
+      do I = 1,N
+         if (vector(I) .eq. val) then
+            index = I
+            exit
+         end if
+      end do
+
+   end function IndexInVector_i
+
+   pure function IndexInVector_vstr(vector,val) result(index)
+
+      implicit none
+
+      type(varString), dimension(:), allocatable, intent(in) :: vector
+      type(varString), intent(in) :: val
+      integer :: index
+
+      integer :: N, I
+
+      if (.not. allocated(vector)) then
+         index = 0
+         return
+      end if
+
+      N = size(vector)
+
+      index = 0
+      do I = 1,N
+         if (vector(I) == val) then
+            index = I
+            exit
+         end if
+      end do
+
+   end function IndexInVector_vstr
 
    pure function PathTrail(path) result(valid_path)
       type(varString), intent(in) :: path
