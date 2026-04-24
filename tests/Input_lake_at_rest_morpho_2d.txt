@@ -23,11 +23,12 @@ Cube:
 
 Parameters:
 Drag = Variable
+Switch function = cos
 Chezy Co = 0.04
 Pouliquen Min = 0.1
 Pouliquen Max = 0.4
 Pouliquen beta = 0.126
-Voellmy Switch Rate = 3
+Voellmy Switch Rate = 5
 Voellmy Switch Value = 0.2
 Erosion = On
 Erosion Rate = 5e-3
