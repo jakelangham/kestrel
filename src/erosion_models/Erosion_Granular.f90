@@ -66,6 +66,7 @@ contains
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
 
       ! granular erosion, eps_g*(mu - mu_n)
+      mu = 0.0_wp ! Avoid uninitialized warning -- mu will be reset by all allowed drag_model types
       gcostheta = this%g / GeometricCorrectionFactor(RunParams, uvect)
       select type(drag_model)
          type is (PouliquenDrag)
