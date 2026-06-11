@@ -27,7 +27,6 @@ missing
 docs/build
 
 # Cmake
-CMakeLists.txt
 cmake/
 build/
 
