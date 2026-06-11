@@ -41,7 +41,6 @@ set(KESTREL_src
     ${SRC}/RasterData.cpp
     ${SRC}/SetPrecision.f90
     ${SRC}/varStringClass.f90
-    ${SRC}/Dict.f90
 	${SRC}/Messages.f90
     ${SRC}/utilities.f90
     ${SRC}/Interp2d.f90

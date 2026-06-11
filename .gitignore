@@ -1,8 +1,17 @@
+*.a
 *.o
+*.so
 *.mod
+*.smod
 *.swp
 *.svg
 *_vimrc_local.vim
+*.dylib
+*.dll
+.DS_Store
+config.status
+config.log
+libtool
 
 # kestrel binaries
 src/kestrel
@@ -27,8 +36,12 @@ missing
 docs/build
 
 # Cmake
-cmake/
 build/
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/bin/
+/modules/
 
 # exclude examples/test outputs
 examples/*
@@ -37,6 +50,8 @@ tests/*
 !tests/*.txt
 !tests/*.sh
 !tests/*.jl
+!test/CMakeLists.txt
+Testing/
 
 # JOSS paper
 paper/paper.*
