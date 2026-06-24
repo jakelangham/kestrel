@@ -596,6 +596,8 @@ contains
       LastFile = 0
       tstart = 0.0_wp
 
+      InfoVersion = varString("Unknown")
+
       do ! Run through info file
          call ReadFileLine(51, line, iostat=iostatus) ! Read line of input file
          if (iostatus /= 0) exit ! If iostat returns read error, exit loop
@@ -604,10 +606,8 @@ contains
             if (line%contains("=")) then ! ignore that are not in keyword = value format
                call line%split("=", label, remain=val)
                label = label%to_lower()
-               if (label%contains("Kestrel version")) then
+               if (label%contains("kestrel version")) then
                   InfoVersion = val
-               else
-                  InfoVersion = varString("Unknown")
                end if
                if (label%contains("time step between outputs")) then
                   FileTimeStep = val%to_real()
@@ -630,7 +630,9 @@ contains
       if (.not. found_lastfile) call FatalErrorMessage("Could not find 'Last output file' in RunInfo.txt file")
       if (.not. found_tstart) call FatalErrorMessage("Could not find 't start' in RunInfo.txt file")
 
-      if (InfoVersion /= RunParams%version) call WarningMessage("Results associated with RunInfo.txt were made using a different Kestrel version to your current installation")
+      if (InfoVersion /= RunParams%version) then
+         call WarningMessage("Results associated with RunInfo.txt were made using a different Kestrel version to your current installation")
+      end if
 
       RunParams%FirstOut = LastFile
       RunParams%DeltaT = FileTimeStep
