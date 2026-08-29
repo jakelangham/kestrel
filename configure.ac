@@ -103,8 +103,14 @@ AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
                         [AC_SUBST([FC_ARCH_FLAGS], ["-mcpu=native -mtune=native"])],
                        )])
 
+# Set paths for test executables
+AC_SUBST([KESTREL_EXECUTABLE], ["../src/kestrel"])
+AC_SUBST([KESTREL_SERIAL_EXECUTABLE], ["../src/kestrel_serial"])
+AC_SUBST([KESTREL_PARAL_EXECUTABLE], ["../src/kestrel_paral"])
+
 AC_CONFIG_FILES([
  Makefile
  src/Makefile
+ tests/testlib.jl
 ])
 AC_OUTPUT

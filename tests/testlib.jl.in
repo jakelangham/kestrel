@@ -2,10 +2,9 @@ using DelimitedFiles
 using Base.Filesystem
 using Printf
 
-prog = "../src/kestrel"
-
-prog_serial = "../bin/kestrel_serial"
-prog_paral = "../bin/kestrel_paral"
+prog = "@KESTREL_EXECUTABLE@"
+prog_serial = "@KESTREL_SERIAL_EXECUTABLE@"
+prog_paral = "@KESTREL_PARAL_EXECUTABLE@"
 
 # Basic checks for conservativity and positivity of the solution output when
 # simulating with the input file Input_$testname.txt

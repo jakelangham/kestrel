@@ -3,6 +3,11 @@ find_program(JULIA_EXECUTABLE julia REQUIRED)
 # path to your julia test script (adjust as needed)
 set(JULIA_TEST_SCRIPT ${CMAKE_SOURCE_DIR}/tests/runall.jl)
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/testlib.jl.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/testlib.jl
+)
+
 # add_test(NAME tests
 #          # Force color output if Julia supports it; fall back to default behavior
 #          COMMAND ${JULIA_EXECUTABLE} 

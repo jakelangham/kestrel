@@ -47,9 +47,10 @@ build/
 examples/*
 !examples/*.txt
 tests/*
-!tests/*.txt
+!tests/Input*.txt
 !tests/*.sh
-!tests/*.jl
+!tests/runall.jl
+!tests/testlib.jl.in
 !test/CMakeLists.txt
 Testing/
 
