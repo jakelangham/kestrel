@@ -198,9 +198,9 @@ if(DEBUG)
 endif()
 
 # Set up testing
-set(KESTREL_EXECUTABLE "${CMAKE_BINARY_DIR}/bin/kestrel")
-set(KESTREL_SERIAL_EXECUTABLE "${CMAKE_BINARY_DIR}/bin/kestrel_serial")
-set(KESTREL_PARAL_EXECUTABLE "${CMAKE_BINARY_DIR}/bin/kestrel_paral")
+set(KESTREL_EXECUTABLE "${CMAKE_SOURCE_DIR}/bin/kestrel")
+set(KESTREL_SERIAL_EXECUTABLE "${CMAKE_SOURCE_DIR}/bin/kestrel_serial")
+set(KESTREL_PARAL_EXECUTABLE "${CMAKE_SOURCE_DIR}/bin/kestrel_paral")
 
 enable_testing()
 add_subdirectory(tests)
