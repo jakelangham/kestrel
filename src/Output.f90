@@ -955,7 +955,7 @@ contains
       integer :: crs_id
       integer :: w_id, Hn_id, u_id, v_id, spd_id, psi_id
       integer :: rho_id, rhoHnu_id, rhoHnv_id, Hnpsi_id
-      integer :: b0_id, bt_id, dbdx_id, dbdy_id
+      integer :: b0_id, bt_id, dbdx_id, dbdy_id, gamma_id
 
       integer :: x_vertex_id, y_vertex_id
       integer :: B0_vertex_id, Bt_vertex_id
@@ -982,7 +982,9 @@ contains
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
 
-      real(kind=wp), dimension(:, :), allocatable :: spd
+      real(kind=wp), dimension(:, :), allocatable :: spd, gam
+
+      if (grid%ActiveTiles%Size == 0) return
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'
@@ -1000,7 +1002,7 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
       nTiles = grid%ActiveTiles%Size
-
+      
       nXYpertile = [nXpertile, nYpertile]
       nX_vertex_pertile = nXpertile + 1
       nY_vertex_pertile = nYpertile + 1
@@ -1088,7 +1090,7 @@ contains
       dimids = [x_dim_id, y_dim_id]
       vertex_dim_ids = [x_vertex_dim_id, y_vertex_dim_id]
 
-      allocate (spd(nXpertile, nYpertile))
+      allocate (spd(nXpertile, nYpertile), gam(nXpertile, nYpertile))
 
       
 
@@ -1189,7 +1191,14 @@ contains
                               units='1', &
                               coordinates='x y', &
                               grid_mapping='crs')
-
+      
+      call define_nc_var_real(ncid, "gamma", dimids, gamma_id, fill_value=-9999.9_wp, deflate=1, &
+                              long_name='geometric factor', &
+                              standard_name='gamma', &
+                              units='1', &
+                              coordinates='x y', &
+                              grid_mapping='crs')
+      
       call define_nc_var_real(ncid, "B0_vertex", vertex_dim_ids, B0_vertex_id, &
                               fill_value=-9999.9_wp, deflate=1, &
                               units='m', &
@@ -1237,6 +1246,7 @@ contains
          do i = 1, RunParams%nXpertile
             do j = 1, RunParams%nYpertile
                spd(i, j) = sqrt(FlowSquaredSpeedSlopeAligned(Runparams, grid%tileContainer(ttk)%u(:, i, j)))
+               gam(i, j) = GeometricCorrectionFactor(RunParams, grid%tileContainer(ttk)%u(:, i, j))
             end do
          end do
 
@@ -1255,6 +1265,8 @@ contains
 
          call put_nc_var(ncid, dbdx_id, grid%tileContainer(ttk)%u(RunParams%Vars%dbdx, :, :), start=xy_start, count=nXYpertile)
          call put_nc_var(ncid, dbdy_id, grid%tileContainer(ttk)%u(RunParams%Vars%dbdy, :, :), start=xy_start, count=nXYpertile)
+
+         call put_nc_var(ncid, gamma_id, gam(:, :), start=xy_start, count=nXYpertile)
 
          call put_nc_var(ncid, x_vertex_id, grid%tileContainer(ttk)%x_vertex(:), start=[x_vertex_start], count=[nX_vertex_pertile])
          call put_nc_var(ncid, y_vertex_id, grid%tileContainer(ttk)%y_vertex(:), start=[y_vertex_start], count=[nY_vertex_pertile])
@@ -1401,6 +1413,8 @@ contains
       integer :: tile_left, tile_bottom
       integer :: minTileX, maxTileX
       integer :: minTileY, maxTileY
+
+      if (grid%ActiveTiles%Size==0) return
 
       if (RunParams%Lat < 0) then
          hemisphere = 'S'

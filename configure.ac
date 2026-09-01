@@ -51,25 +51,66 @@ AC_ARG_ENABLE([debug],
 esac],[debug=false])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
+AC_ARG_ENABLE([parallel],
+[  --enable-parallel          turn on parallel loops],
+[case "${enableval}" in
+  yes) parallel=true ;;
+  no)  parallel=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-parallel]) ;;
+esac],[parallel=false])
+AM_CONDITIONAL([PARAL], [test x$parallel = xtrue])
+
+if test x$parallel = xtrue; then
+  FC_PARALLEL_FLAGS="-fopenmp"
+else
+  FC_PARALLEL_FLAGS=""
+fi
+
+AC_SUBST([FC_PARALLEL_FLAGS])
+
+AC_ARG_ENABLE([opt-report],
+[  --enable-opt-report        Show missed optimization and vectorization reports],
+[case "${enableval}" in
+  yes) opt_report=true ;;
+  no)  opt_report=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-opt-report]) ;;
+esac],
+[opt_report=false])
+
+# Set Fortran flags accordingly
+if test x$opt_report = xtrue; then
+  FC_OPT_REPORT_FLAGS="-fopt-info-missed -fopt-info-vec-missed"
+else
+  FC_OPT_REPORT_FLAGS=""
+fi
+
+AC_SUBST([FC_OPT_REPORT_FLAGS])
+
 # Check for -march=native -mtune=native,
 # otherwise try -mcpu=native -mtune=native, or else give up. 
 # N.B. These flags seem to conflict for some compilers so must be tested
 # together.
 AC_LANG(C++)
 AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
-                      [AC_SUBST(CXX_ARCH_FLAGS, "-march=native -mtune=native")],
+                      [AC_SUBST([CXX_ARCH_FLAGS], ["-march=native -mtune=native"])],
                       [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
-                        [AC_SUBST(CXX_ARCH_FLAGS, "-mcpu=native -mtune=native")],
+                        [AC_SUBST([CXX_ARCH_FLAGS], ["-mcpu=native -mtune=native"])],
                        )])
 AC_LANG(Fortran)
 AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
-                      [AC_SUBST(FC_ARCH_FLAGS, "-march=native -mtune=native")],
+                      [AC_SUBST([FC_ARCH_FLAGS], ["-march=native -mtune=native"])],
                       [AX_CHECK_COMPILE_FLAG(-mcpu=native -mtune=native,
-                        [AC_SUBST(FC_ARCH_FLAGS, "-mcpu=native -mtune=native")],
+                        [AC_SUBST([FC_ARCH_FLAGS], ["-mcpu=native -mtune=native"])],
                        )])
+
+# Set paths for test executables
+AC_SUBST([KESTREL_EXECUTABLE], ["../bin/kestrel"])
+AC_SUBST([KESTREL_SERIAL_EXECUTABLE], ["../bin/kestrel_serial"])
+AC_SUBST([KESTREL_PARAL_EXECUTABLE], ["../bin/kestrel_paral"])
 
 AC_CONFIG_FILES([
  Makefile
  src/Makefile
+ tests/testlib.jl
 ])
 AC_OUTPUT

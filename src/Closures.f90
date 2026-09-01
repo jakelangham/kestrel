@@ -40,9 +40,9 @@ module closures_module
  
    ! Main model closure declarations, followed by definitions for their interfaces.
    
-   public :: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin
-   public :: IversonOuyangGeometricCorrectionFactor, NoGeometricCorrectionFactor
-   public :: IversonOuyangGeometricCorrectionFactor_gradin, NoGeometricCorrectionFactor_gradin
+   public :: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin_scalar, GeometricCorrectionFactor_gradin_array
+   public :: IversonOuyangGeometricCorrectionFactor, IversonOuyangGeometricCorrectionFactor_gradin_scalar, IversonOuyangGeometricCorrectionFactor_gradin_array
+   public :: NoGeometricCorrectionFactor, NoGeometricCorrectionFactor_gradin_scalar, NoGeometricCorrectionFactor_gradin_array
 
    public :: DepositionClosure
    public :: NoDeposition, SimpleHinderedSettling, SpearmanManningHinderedSettling
@@ -79,13 +79,22 @@ module closures_module
        end function GeometricCorrectionFactor
    end interface
 
-   pointer :: GeometricCorrectionFactor_gradin
+   pointer :: GeometricCorrectionFactor_gradin_scalar
+   interface       
+      pure function GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
+         import :: wp
+         real(kind=wp), intent(in) :: dbdx, dbdy
+         real(kind=wp) :: gam
+      end function GeometricCorrectionFactor_gradin_scalar
+   end interface
+
+   pointer :: GeometricCorrectionFactor_gradin_array
    interface
-       pure function GeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
-           import :: wp
-           real(kind=wp), intent(in) :: dbdx, dbdy
-           real(kind=wp) :: gam
-       end function GeometricCorrectionFactor_gradin
+      pure function GeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+         import :: wp
+         real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+         real(kind=wp), dimension(:,:) :: gam(size(dbdx,1),size(dbdx,2))
+      end function GeometricCorrectionFactor_gradin_array
    end interface
 
    pointer :: DepositionClosure
@@ -101,11 +110,12 @@ module closures_module
 
    pointer :: ErosionClosure
    interface
-       pure function ErosionClosure(RunParams, uvect) result(erosion)
+       pure function ErosionClosure(RunParams, uvect, gam) result(erosion)
            import :: wp
            import :: RunSet
            type(RunSet), intent(in) :: RunParams
            real(kind=wp), dimension(:), intent(in) :: uvect
+           real(kind=wp), intent(in) :: gam
            real(kind=wp) :: erosion
        end function ErosionClosure
    end interface
@@ -134,11 +144,12 @@ module closures_module
 
    pointer :: DragClosure
    interface
-       pure function DragClosure(RunParams, uvect) result(friction)
+       pure function DragClosure(RunParams, uvect, gam) result(friction)
            import :: wp
            import :: RunSet
            type(RunSet), intent(in) :: RunParams
            real(kind=wp), dimension(:), intent(in) :: uvect
+           real(kind=wp), intent(in) :: gam
            real(kind=wp) :: friction
        end function DragClosure
    end interface
@@ -219,17 +230,18 @@ contains
    end function FlowSquaredSpeedSlopeAligned
 
    ! Shields number for dilute flow.
-   pure function FlowShieldsNumber(RunParams, uvect) result(shields)
+   pure function FlowShieldsNumber(RunParams, uvect, gam) result(shields)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: shields
 
       real(kind=wp) :: gred, modu2, chezy_friction
 
       ! g' -> g'_\perp = g' cos(theta)
-      gred = RunParams%gred / GeometricCorrectionFactor(RunParams, uvect)
+      gred = RunParams%gred / gam
 
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
       chezy_friction = RunParams%ChezyCo * modu2
@@ -296,7 +308,7 @@ contains
 
    end function IversonOuyangGeometricCorrectionFactor
 
-   pure function IversonOuyangGeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
+   pure function IversonOuyangGeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
       implicit none
 
       real(kind=wp), intent(in) :: dbdx, dbdy
@@ -304,7 +316,17 @@ contains
 
       gam = sqrt(1.0_wp + dbdx*dbdx + dbdy*dbdy)
 
-   end function IversonOuyangGeometricCorrectionFactor_gradin
+   end function IversonOuyangGeometricCorrectionFactor_gradin_scalar
+
+   pure function IversonOuyangGeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+      implicit none
+
+      real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+      real(kind=wp), dimension(:,:) :: gam(size(dbdx,1), size(dbdx,2))
+
+      gam(:,:) = sqrt(1.0_wp + dbdx(:,:)*dbdx(:,:) + dbdy(:,:)*dbdy(:,:))
+
+   end function IversonOuyangGeometricCorrectionFactor_gradin_array
 
    ! If geometric factors are switched off, set gamma = 1.
    pure function NoGeometricCorrectionFactor(RunParams, u) result(gam)
@@ -318,7 +340,7 @@ contains
 
    end function NoGeometricCorrectionFactor
 
-   pure function NoGeometricCorrectionFactor_gradin(dbdx, dbdy) result(gam)
+   pure function NoGeometricCorrectionFactor_gradin_scalar(dbdx, dbdy) result(gam)
       implicit none
 
       real(kind=wp), intent(in) :: dbdx, dbdy
@@ -326,7 +348,17 @@ contains
 
       gam = 1.0_wp
 
-   end function NoGeometricCorrectionFactor_gradin
+   end function NoGeometricCorrectionFactor_gradin_scalar
+
+   pure function NoGeometricCorrectionFactor_gradin_array(dbdx, dbdy) result(gam)
+      implicit none
+
+      real(kind=wp), dimension(:,:), intent(in) :: dbdx, dbdy
+      real(kind=wp), dimension(:,:) :: gam(size(dbdx,1), size(dbdx,2))
+
+      gam(:,:) = 1.0_wp
+
+   end function NoGeometricCorrectionFactor_gradin_array
 
 ! -- Closures for the deposition law. --
 
@@ -376,11 +408,12 @@ contains
 !    the basal stress is \tau_x = -F \rho u/|(u,v)|.
 
    ! Chezy drag has friction function F = Cd * |u|^2.
-   pure function ChezyDrag(RunParams, uvect) result(friction)
+   pure function ChezyDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: modu2
@@ -391,53 +424,52 @@ contains
    end function ChezyDrag
 
    ! Coulomb drag has friction function F = \mu * g * Hn.
-   pure function CoulombDrag(RunParams, uvect) result(friction)
+   pure function CoulombDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn
-      real(kind=wp) :: gam
       real(kind=wp) :: g
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       g = RunParams%g / gam
       
       friction = RunParams%CoulombCo * g * Hn
    end function CoulombDrag
 
    ! Voellmy drag is the sum of Chezy and Coulomb drag.
-   pure function VoellmyDrag(RunParams, uvect) result(friction)
+   pure function VoellmyDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
-      friction = ChezyDrag(RunParams, uvect) + CoulombDrag(RunParams, uvect)
+      friction = ChezyDrag(RunParams, uvect, gam) + CoulombDrag(RunParams, uvect, gam)
    end function VoellmyDrag
 
    ! Pouliquen drag has friction function F = \mu(I) * g * Hn, where mu(I) is a
    ! flow-dependent friction coefficient, I is the inertial number.
    ! See e.g. Pouliquen & Forterre, J. Fluid Mech. (2002).
-   pure function PouliquenDrag(RunParams, uvect) result(friction)
+   pure function PouliquenDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn
       real(kind=wp) :: modu2
-      real(kind=wp) :: gam
       real(kind=wp) :: g
       real(kind=wp) :: mu
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       g = RunParams%g / gam
 
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
@@ -478,18 +510,18 @@ contains
    ! See Edwards, Russell, Johnson, Gray, J. Fluid Mech. (2019).
    ! N.B. The Fr = 0 is omitted, since stopped regions require special 
    ! attention and this is difficult to implement in Kestrel currently.
-   pure function Edwards2019Drag(RunParams, uvect) result(friction)
+   pure function Edwards2019Drag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
-      real(kind=wp) :: Hn, modu, gam, gperp, Hn_recip, mu, Fr
+      real(kind=wp) :: Hn, modu, gperp, Hn_recip, mu, Fr
       real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       gperp = RunParams%g / gam
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
@@ -519,20 +551,19 @@ contains
 
    ! Manning drag has friction function F = g * n^2 / (Hn^{1/3}) where n is the
    ! Manning coefficient.
-   pure function ManningDrag(RunParams, uvect) result(friction)
+   pure function ManningDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn, Hn_recip
-      real(kind=wp) :: gam
       real(kind=wp) :: g
       real(kind=wp) :: ManningCo
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
       g = RunParams%g / gam
 
       ManningCo = RunParams%ManningCo
@@ -547,11 +578,12 @@ contains
    ! variation from Chezy drag for dilute flows to Pouliquen drag for
    ! concentrated flow. The transition is specified by a switching function
    ! fSwitch.
-   pure function VariableDrag(RunParams, uvect) result(friction)
+   pure function VariableDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: psi
@@ -561,19 +593,20 @@ contains
 
       psi = uvect(RunParams%Vars%psi)
       
-      chezy_friction = ChezyDrag(RunParams, uvect)
-      pouliquen_friction = PouliquenDrag(RunParams, uvect)
+      chezy_friction = ChezyDrag(RunParams, uvect, gam)
+      pouliquen_friction = PouliquenDrag(RunParams, uvect, gam)
       
       fc = fswitch(RunParams, psi)
 
       friction = chezy_friction * (1.0_wp - fc) + pouliquen_friction * fc
    end function VariableDrag
 
-   pure function PowerLawDrag(RunParams, uvect) result(friction)
+   pure function PowerLawDrag(RunParams, uvect, gam) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: friction
 
       real(kind=wp) :: modu, Hn, Hneps, hr
@@ -593,16 +626,17 @@ contains
    ! The erosion rate is given by E = up * eps * S where up is the particle
    ! speed scale (= sqrt(g' d)) eps is the user defined erosion rate S is the
    ! Shields number.
-   pure function SimpleErosion(RunParams, uvect) result(ero)
+   pure function SimpleErosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       real(kind=wp) :: shields
 
-      shields = FlowShieldsNumber(RunParams, uvect)
+      shields = FlowShieldsNumber(RunParams, uvect, gam)
 
       ero = RunParams%EroRate * shields
       ero = ero * FlowParticleSpeed(RunParams, uvect)
@@ -612,16 +646,17 @@ contains
    ! erosion rate is given by E = up * eps * (S - S_c) for S>S_c where up is the
    ! particle speed scale (= sqrt(g' d)) eps is the user defined erosion rate S
    ! is the Shields number, S_c is the critical shields.
-   pure function FluidErosion(RunParams, uvect) result(ero)
+   pure function FluidErosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       real(kind=wp) :: shields
 
-      shields = FlowShieldsNumber(RunParams, uvect)
+      shields = FlowShieldsNumber(RunParams, uvect, gam)
       if (shields > RunParams%CriticalShields) then
          ero = RunParams%EroRate * (shields - RunParams%CriticalShields)
    
@@ -637,11 +672,12 @@ contains
    ! speed scale (= sqrt(g' d)), eps is the user defined granular erosion rate,
    ! mu is the Pouliquen granular friction coefficient and mu_N is the neutral
    ! friction coefficient.
-   pure function GranularErosion(RunParams, uvect) result(ero)
+   pure function GranularErosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       real(kind=wp) :: Hn, modu2
@@ -656,7 +692,7 @@ contains
       t1 = tan(pi / 180.0_wp) ! t1 = tan(1 deg)
       PouliquenStaticSlope = (PouliquenMinSlope + t1) / (1.0_wp - PouliquenMinSlope * t1)
       ! granular erosion, eps_g*(mu - mu_n)
-      gcostheta = RunParams%g / GeometricCorrectionFactor(RunParams, uvect)
+      gcostheta = RunParams%g / gam
       mu = PouliquenFrictionCoefficient(RunParams, gcostheta, Hn, sqrt(modu2))
       muNeutral = PouliquenMinSlope + (PouliquenStaticSlope - PouliquenMinSlope) /  &
          (1.0_wp + (Hn / 25.0_wp / RunParams%SolidDiameter)**2.0_wp)
@@ -670,11 +706,12 @@ contains
 
    ! Solid concentration weighted combination of fluid and granular erosion.
    ! The weighting is determined using the switching function.
-   pure function MixedErosion(RunParams, uvect) result(ero)
+   pure function MixedErosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       real(kind=wp) :: psi
@@ -687,18 +724,19 @@ contains
       ! Get the weighting.
       fc = fswitch(RunParams, psi)
 
-      fluid_ero = FluidErosion(RunParams, uvect)
-      granular_ero = GranularErosion(RunParams, uvect)
+      fluid_ero = FluidErosion(RunParams, uvect, gam)
+      granular_ero = GranularErosion(RunParams, uvect, gam)
 
       ero = (1.0_wp - fc) * fluid_ero + fc * granular_ero
    end function MixedErosion
 
    ! Set erosion rate to zero.
-   pure function NoErosion(RunParams, uvect) result(ero)
+   pure function NoErosion(RunParams, uvect, gam) result(ero)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam
       real(kind=wp) :: ero
 
       ero = 0.0_wp

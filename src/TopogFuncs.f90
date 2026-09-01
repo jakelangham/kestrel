@@ -78,6 +78,8 @@ module topog_funcs_module
    public :: xtanh ! one-dimensional tanh on a flat topography
    public :: xparab ! one-dimensional parabola
    public :: xyparab ! two-dimensional parabola
+   public :: xtanhbowl ! one-dimensional tanh-sided bowl
+   public :: xytanhbowl ! two-dimensional symmetric tanh-sided bowl
 
    pointer :: TopogFunc
    interface
@@ -472,7 +474,7 @@ contains
       integer :: ii
 
       eps = RunParams%TopogFuncParams(1) ! previously slope*eps
-      Lx = RunParams%Xtilesize * RunParams%nXtiles
+      Lx = RunParams%TopogFuncParams(2) ! RunParams%Xtilesize * RunParams%nXtiles
       twopi_o_Lx = 2.0_wp * pi / Lx
       do ii=1,size(x)
          b0(ii,:) = eps * sin(x(ii) * twopi_o_Lx)
@@ -483,6 +485,7 @@ contains
    ! two-dimensional sinusoidal variation
    ! One parameter required:
    !  eps -- amplitude of the sinusoid; passed in RunParams%TopogFuncParams(1)
+   
    pure subroutine xysinslope(RunParams, x, y, b0)
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: x
@@ -576,28 +579,85 @@ contains
       return
    end subroutine xparab
 
-   ! two-dimensional parabola b = A*x^2 + B*y^2
-   ! Two parameters required:
+   ! two-dimensional parabola b = A*x^2 + B*y^2 + 2*C*x*y
+   ! Three parameters required:
    !  A -- coefficient of x^2; passed in RunParams%TopogFuncParams(1)
    !  B -- coefficient of y^2; passed in RunParams%TopogFuncParams(2)
+   !  C -- coefficient of x*y/2; passed in RunParams%TopogFuncParams(3)
    pure subroutine xyparab(RunParams, x, y, b0)
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: x
       real(kind=wp), dimension(:), intent(in) :: y
       real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
       
-      real(kind=wp) :: A, B
+      real(kind=wp) :: A, B, C
       integer :: ii, jj
 
       A = RunParams%TopogFuncParams(1)
       B = RunParams%TopogFuncParams(2)
+      C = RunParams%TopogFuncParams(3)
 
       do ii=1,size(x)
          do jj=1,size(y)
-            b0(ii,jj) = A*x(ii)*x(ii) + B*y(jj)*y(jj)
+            b0(ii,jj) = A*x(ii)*x(ii) + B*y(jj)*y(jj) + 2.0_wp*C*x(ii)*y(jj)
          end do
       end do
       return
    end subroutine xyparab
+
+   ! one-dimensional tanh sided bowl
+   ! b = A*(1 - 0.5*( tanh((x+x0)/L) - tanh((x-x0)/L)) )
+   ! Three parameters required:
+   !  A -- height of sidewalls; passed in RunParams%TopogFuncParams(1)
+   !  x0 -- half-width of bowl; passed in RunParams%TopogFuncParams(2)
+   !  L -- length scale of transition; passed in RunParams%TopogFuncParams(3)
+   pure subroutine xtanhbowl(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, x0, L
+      integer :: ii
+
+      A = RunParams%TopogFuncParams(1)
+      x0 = RunParams%TopogFuncParams(2)
+      L = RunParams%TopogFuncParams(3)
+
+      do ii=1,size(x)
+         b0(ii,:) = A*(1.0_wp - 0.5_wp*( tanh((x(ii)+x0)/L) - tanh((x(ii)-x0)/L) ))
+      end do
+      return
+   end subroutine xtanhbowl
+
+   ! two-dimensional tanh sided bowl
+   ! b = 0.5*A*(1 + tanh((R-r0)/L))
+   ! where R^2 = x^2 + y^2
+   ! Three parameters required:
+   !  A -- height of sidewalls; passed in RunParams%TopogFuncParams(1)
+   !  r0 -- radius of bowl; passed in RunParams%TopogFuncParams(2)
+   !  L -- length scale of transition; passed in RunParams%TopogFuncParams(3)
+   pure subroutine xytanhbowl(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, r0, L
+      real(kind=wp) :: R
+      integer :: ii, jj
+
+      A = RunParams%TopogFuncParams(1)
+      r0 = RunParams%TopogFuncParams(2)
+      L = RunParams%TopogFuncParams(3)
+
+      do ii=1,size(x)
+         do jj=1,size(y)
+            R = sqrt(x(ii)*x(ii) + y(jj)*y(jj))
+            b0(ii,jj) = 0.5_wp*A*(1.0_wp + tanh((R-r0)/L))
+         end do
+      end do
+      return
+   end subroutine xytanhbowl
 
 end module topog_funcs_module

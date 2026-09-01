@@ -1,19 +1,23 @@
 if DEBUG
-AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all -Wuninitialized -finit-real=snan -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
+AM_FCFLAGS = -g -fcheck=all -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=all \
+             -Wuninitialized -finit-real=snan \
+             -DDEBUG_TIMESTEP -DDEBUG_NEGATIVE_DEPTH -DEBUG_NEGATIVE_CONC -DDEBUG_EXCESS_CONC -DDEBUG_SPD
 AM_CXXFLAGS = -g
 else
-AM_FCFLAGS = -O2 -falign-loops=16 -mtune=native $(FC_ARCH_FLAGS)
+AM_FCFLAGS = -O2 -falign-loops=16 -ftree-vectorize -finline-functions -mtune=native $(FC_ARCH_FLAGS)
 AM_CXXFLAGS = -O2 -falign-loops=16 -mtune=native $(CXX_ARCH_FLAGS)
 endif
+AM_FCFLAGS += @FC_PARALLEL_FLAGS@
+AM_FCFLAGS += @FC_OPT_REPORT_FLAGS@
 
 bin_PROGRAMS = kestrel
 include_HEADERS = RasterData.h cUTM.h
 kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 \
-	Messages.f90 varStringClass.f90 utilities.f90 Interp2d.f90 \
+	varStringClass.f90 Messages.f90 utilities.f90 Interp2d.f90 \
 	utm.f90 RunSettings.f90 GeoTiffRead.f90 DomainSettings.f90 \
 	InitConds.f90 Closures.f90 TopogFuncs.f90 Parameters.f90 Limiters.f90 \
 	SolverSettings.f90 OutputSettings.f90 TopogSettings.f90 Input.f90 Grid.f90 \
-    Equations.f90 HydraulicRHS.f90 MorphodynamicRHS.f90 Redistribute.f90 \
+    Equations.f90 MorphodynamicRHS.f90 HydraulicRHS.f90 Redistribute.f90 \
     dem.f90 UpdateTiles.f90 SetSources.f90 NetCDFUtils.f90 \
     Output.f90 Restart.f90 TimeStepper.f90 cversion.cpp version.f90 main.f90
 
@@ -27,6 +31,9 @@ kestrel_LDFLAGS += $(BOOST_LDFLAGS)
 kestrel_LDADD += $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB)
 else
 kestrel_LDADD += -lstdc++fs
+endif
+if PARAL
+kestrel_LDFLAGS += -fopenmp
 endif
 
 if HAVE_JULIA

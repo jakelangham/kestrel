@@ -49,10 +49,12 @@ module utilities_module
 
    private
    public :: Int2String
-   public :: AddToVector, InVector, RemoveFromVector
+   public :: AddToVector, AddToVector_i
+   public :: InVector, RemoveFromVector
    public :: AddToOrderedVector
    public :: PathTrail, CheckFileExists
    public :: KahanAdd, KahanSum
+   public :: WrapIndex
    public :: pair
 
    interface AddToVector
@@ -125,13 +127,16 @@ contains
 
       integer :: N
 
-      N = size(vector)
-
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+      if (allocated(vector)) then
+         N = size(vector)
+         allocate(temp(N+1))
+         temp(1:N) = vector
+         temp(N+1) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(1))
+         vector(1) = val
+      end if
 
       return
 
@@ -148,13 +153,16 @@ contains
 
       integer :: N
 
-      N = size(vector)
-
-      allocate(temp(N+1))
-      temp(1:N) = vector
-      temp(N+1) = val
-
-      call move_alloc(temp,vector)
+      if (allocated(vector)) then
+         N = size(vector)
+         allocate(temp(N+1))
+         temp(1:N) = vector
+         temp(N+1) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(1))
+         vector(1) = val
+      end if
 
       return
 
@@ -219,16 +227,20 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+         Nold = size(vector)
+         Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+         allocate(temp(Nnew))
+         temp(1:Nold) = vector
+         temp(Nold+1:Nnew) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(Nval))
+         vector(:) = val(:)
+      end if
 
    end subroutine AddToVector_rvec
 
@@ -243,21 +255,25 @@ contains
 
       integer :: Nold, Nval, Nnew
 
-      Nold = size(vector)
       Nval = size(val)
 
-      Nnew = Nold+Nval
+      if (allocated(vector)) then
+         Nold = size(vector)
+         Nnew = Nold+Nval
 
-      allocate(temp(Nnew))
-      temp(1:Nold) = vector
-      temp(Nold+1:Nnew) = val
-
-      call move_alloc(temp,vector)
+         allocate(temp(Nnew))
+         temp(1:Nold) = vector
+         temp(Nold+1:Nnew) = val
+         call move_alloc(temp,vector)
+      else
+         allocate(vector(Nval))
+         vector(:) = val(:)
+      end if
 
    end subroutine AddToVector_ivec
 
    ! Assuming numerically ordered vector, add val in correct position
-   recursive subroutine AddToOrderedVector_i(vector, val)
+   pure subroutine AddToOrderedVector_i(vector, val)
 
       implicit none
 
@@ -295,16 +311,16 @@ contains
 
    ! N.B.! This only removes the first occurence of val from the vector.
    ! Return value is true if something was actually removed.
-   function RemoveFromVector_i(vector, val) result(removed)
+   pure subroutine RemoveFromVector_i(vector, val, removed)
       implicit none
 
       integer, dimension(:), allocatable, intent(inout) :: vector
       integer, intent(in) :: val
+      logical, intent(out) :: removed
 
       integer, dimension(:), allocatable :: temp
 
       integer :: N, i, j
-      logical :: removed
 
       N = size(vector)
 
@@ -325,17 +341,22 @@ contains
          call move_alloc(temp, vector)
       end if
 
-   end function RemoveFromVector_i
+    end subroutine RemoveFromVector_i
 
-   recursive function InVector_r(vector,val) result(invec)
+   pure function InVector_r(vector,val) result(invec)
 
       implicit none
 
-      real(kind=wp), dimension(:), intent(in) :: vector
+      real(kind=wp), dimension(:), allocatable, intent(in) :: vector
       real(kind=wp), intent(in) :: val
       logical :: invec
 
       integer :: N, I
+
+      if (.not. allocated(vector)) then
+        invec = .FALSE.
+        return
+     end if
 
       N = size(vector)
 
@@ -343,13 +364,13 @@ contains
       do I = 1,N
          if (vector(I) .eq. val) then
             invec = .TRUE.
-            exit
+            return
          end if
       end do
 
    end function InVector_r
 
-   recursive function InVector_i(vector,val) result(invec)
+   pure function InVector_i(vector,val) result(invec)
 
       implicit none
 
@@ -370,7 +391,7 @@ contains
       do I = 1,N
          if (vector(I) .eq. val) then
             invec = .TRUE.
-            exit
+            return
          end if
       end do
 
@@ -421,13 +442,18 @@ contains
       real(kind=wp) :: c
 
       integer :: i, N
+      real(kind=wp) :: y, t ! temporary values
 
       N = size(nums)
       s = 0.0_wp
       c = 0.0_wp
 
-      do i=1,N
-         call KahanAdd(nums(i), s, c)
+      ! Use inlined version of KahanAdd for efficiency
+      do i = 1, N
+         y = nums(i) - c
+         t = s + y
+         c = (t - s) - y
+         s = t
       end do
 
    end function KahanSum
@@ -446,5 +472,27 @@ contains
       c = (t - s) - y ! N.B. parenthesis is crucial
       s = t
    end subroutine KahanAdd
+
+   ! wrap an index of a periodic sequence
+   ! Given a sequence [1,2,...,N] and an index i
+   ! return:
+   !  i if 1<=i<=N
+   !  N-i if i<1
+   !  1+i if i>N
+   pure function WrapIndex(i,N) result(ii)
+      integer, intent(in) :: i
+      integer, intent(in) :: N
+      integer :: ii
+
+      if (i<0) then
+         ii = N+i
+      else
+         ii = i
+      end if
+     
+      ii = mod(ii,N)
+      if (ii==0) ii = N
+      return
+   end function WrapIndex
 
 end module utilities_module

@@ -27,6 +27,7 @@
 ! limiter functions to specific implementations.  See Limiters.f90
 module solver_settings_module
 
+   use iso_c_binding, only: c_int
    use set_precision_module, only: wp
    use messages_module, only: FatalErrorMessage, InputLabelUnrecognized, WarningMessage
    use limiters_module
@@ -194,7 +195,7 @@ contains
             case ('initial condition')
                set_InitialCondition = .true.
                RunParams%InitialCondition = SolverValues(J)
-          
+
             case default
                call InputLabelUnrecognized(SolverLabels(J)%s)
 

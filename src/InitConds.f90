@@ -535,6 +535,7 @@ contains
       logical :: set_cubeHeight
       logical :: set_cubeWidth
       logical :: set_cubeLength
+      logical :: set_cubeVol
       logical :: set_cubeShape
       logical :: set_cubeX
       logical :: set_cubeY
@@ -551,7 +552,7 @@ contains
       Ncubes = size(CubeString%x)
 
       RunParams%Ncubes = Ncubes
-      allocate(RunParams%CubeSources(Ncubes))
+      call InitiateCubeSources(RunParams, Ncubes)
 
       do K=1,Ncubes
          set_cubeX = .FALSE.
@@ -561,6 +562,7 @@ contains
          set_cubeHeight = .FALSE.
          set_cubeLength = .FALSE.
          set_cubeWidth = .FALSE.
+         set_cubeVol = .FALSE.
          set_cubeShape = .FALSE.
          set_cubeu = .FALSE.
          set_cubev = .FALSE.
@@ -658,6 +660,35 @@ contains
    end subroutine Cube_Set
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Make empty containers for Cube sources
+   ! InOut: RunParams - Run settings to update
+   ! In: Ncubes - Number of cube sources to initialize
+   subroutine InitiateCubeSources(RunParams, Ncubes)
+      type(RunSet), intent(inout) :: RunParams
+      integer, intent(in) :: Ncubes
+
+      integer :: K
+
+      allocate(RunParams%CubeSources(Ncubes))
+
+      do K=1, Ncubes
+         RunParams%CubeSources(K)%x = 0.0_wp
+         RunParams%CubeSources(K)%y = 0.0_wp
+         RunParams%CubeSources(K)%Lat = 0.0_wp
+         RunParams%CubeSources(K)%Lon = 0.0_wp
+         RunParams%CubeSources(K)%length = 0.0_wp
+         RunParams%CubeSources(K)%width = 0.0_wp
+         RunParams%CubeSources(K)%height = 0.0_wp
+         RunParams%CubeSources(K)%psi = 0.0_wp
+         RunParams%CubeSources(K)%u = 0.0_wp
+         RunParams%CubeSources(K)%v = 0.0_wp
+         RunParams%CubeSources(K)%Shape = 'flat'
+      end do
+
+   end subroutine InitiateCubeSources
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    subroutine setCubeRunParams(RunParams,CubeString,K,var,set_flag)
       ! Set the Run Params element var using CubeStr structure from item K

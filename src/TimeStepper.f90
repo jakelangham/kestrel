@@ -53,10 +53,13 @@ module timestepper_module
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
    use morphodynamic_rhs_module, only: CalculateMorphodynamicRHS, ComputeCellCentredTopographicData, ComputeInterfacialTopographicData
-   use update_tiles_module, only: AddTile
+   use update_tiles_module, only: AddTile, AddTiles
    use varstring_module, only: varString
    use output_module, only: OutputSolutionData, OutputAggregateData, OutputInfo, CalculateVolume
-   use utilities_module, only: Int2String
+   use utilities_module, only: AddToVector, AddToVector_i
+#if DEBUG_SPD>0
+    use utilities_module, only: Int2String
+#endif
 
    implicit none
 
@@ -338,7 +341,7 @@ contains
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
       real(kind=wp), intent(inout) :: nextT
-      logical, intent(inout) :: refineTimeStep
+      logical, intent(out) :: refineTimeStep
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -368,6 +371,9 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, k, var), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -384,6 +390,7 @@ contains
             end if
          end do
       end do ! end first substep
+!$omp end parallel do
 
       ! Compute new RHS from first substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed1, nextT, 2, dt1)
@@ -404,6 +411,9 @@ contains
       end if
 
       ! Compute second substep.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, k, var, hp_old, hp_new, w_update), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -442,6 +452,7 @@ contains
             end if
          end do
       end do ! end second substep
+!$omp end parallel do
 
       ! Compute new RHS from second substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed2, &
@@ -463,6 +474,9 @@ contains
       end if
 
       ! Compute third substep.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, k, var, hp_old, hp_new, w_update), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, intermed3, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -496,11 +510,15 @@ contains
             end if
          end do
       end do ! end third substep
+!$omp end parallel do
 
       ! Compute new RHS from third substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, k, var, w_update), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, nFlux, intermed0, intermed1, intermed2, intermed3, thisdt, nextT)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -523,6 +541,7 @@ contains
          call UpdateMaximumDeposit(RunParams, tileContainer(ttk), nextT)
          call UpdateMaximumSolidsFraction(RunParams, tileContainer(ttk), nextT)
       end do ! end final implicit substep
+!$omp end parallel do
 
    end subroutine HydraulicTimeStepper
 
@@ -535,7 +554,7 @@ contains
       type(RunSet), intent(inout) :: RunParams
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
-      logical, intent(inout) :: refineTimeStep
+      logical, intent(out) :: refineTimeStep
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -566,6 +585,9 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed0)
 
       ! Compute first substep for the bed evolution equation.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -580,10 +602,14 @@ contains
             end do
          end do
       end do
+!$omp end parallel do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
       ! These updates are linearly dependent on the update to bt, so they may
       ! be explicitly determined in a conservative way.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! First we have to interpolate bt onto cell centres.
@@ -608,10 +634,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed1, ttk, .false.)
       end do
+!$omp end parallel do
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed1)
 
       ! Compute second substep for the bed evolution equation.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, intermed2, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -628,8 +658,12 @@ contains
             end do
          end do
       end do
+!$omp end parallel do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, intermed2, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed2, ttk)
@@ -653,10 +687,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed2, ttk, .false.)
       end do
+!$omp end parallel do
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed2)
 
       ! Compute third substep for the bed evolution equation.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j), &
+!$omp shared(ActiveTiles, RunParams, tileContainer, intermed0, intermed1, intermed2, intermed3, thisdt)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -672,8 +710,12 @@ contains
             end do
          end do
       end do
+!$omp end parallel do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi) &
+!$omp shared(ActiveTiles, RunParams, tileContainer, grid, iw, ib0, ibt, iHnpsi, intermed0, intermed1, intermed2, intermed3, thisdt, GeometricCorrectionFactor)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed3, ttk)
@@ -697,6 +739,7 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .false.)
       end do
+!$omp end parallel do
 
       ! This loop performs two checks on the morphodynamic update.
       ! * Is a cell depositing more solids than it possesses? If so, we
@@ -706,6 +749,7 @@ contains
       !   (N.B. This process can get bogged down if erosionCriticalHeight is
       !   small. In general it should probably be set so it's at least greater
       !   than the solid diameter.)
+
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          do j = 1, RunParams%nYpertile
@@ -773,10 +817,14 @@ contains
       end if
 
       ! Update u{Plus,Minus}{X,Y}, b and grad(b) data since the bed has changed.
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, RunParams, grid)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeInterfacialTopographicData(RunParams, grid, grid%intermed3, ttk)
       end do
+!$omp end parallel do
 
    end subroutine MorphodynamicTimeStepper
 
@@ -791,6 +839,9 @@ contains
       integer :: tt, ttk
 
       ! Copy data over to the intermediate time stepping arrays
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(grid)
       do tt = 1, nActiveTiles
          ttk = grid%activeTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -798,6 +849,10 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+!$omp end parallel do
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(grid)
       do tt = 1, grid%ghostTiles%size
          ttk = grid%ghostTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -805,6 +860,7 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+!$omp end parallel do
    end subroutine InitialiseTimeSteppingArrays
 
    ! Copy the full solution vector from one tile container to another.
@@ -823,6 +879,9 @@ contains
 
       call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
 
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, tilesto, tilesfrom, RunParams)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
@@ -832,6 +891,8 @@ contains
             tilesto(ttk)%ddtExplicitBt(:, :) = tilesfrom(ttk)%ddtExplicitBt(:, :)
          end if
       end do
+!$omp end parallel do
+
    end subroutine CopySolutionData
 
    ! Copy the time dependent topographic data from one tile container to another.
@@ -848,6 +909,9 @@ contains
 
       activeTiles => grid%activeTiles
 
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk), &
+!$omp shared(ActiveTiles, tilesto, tilesfrom, RunParams)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
@@ -872,11 +936,13 @@ contains
             tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
          end if
       end do
+!$omp end parallel do
+
    end subroutine CopyMutableTopographicData
 
    ! Sponge layer modifications to explicit time stepping terms.
    ! morpho_flag = are we in the morphodynamic operator or not?
-   subroutine ApplySpongeLayer(RunParams, ttk, tileContainer, intermed, morpho_flag)
+   pure subroutine ApplySpongeLayer(RunParams, ttk, tileContainer, intermed, morpho_flag)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -954,13 +1020,14 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttN
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
+
+      integer, dimension(:), allocatable :: tilesToAdd
 
       nXtiles = grid%nXtiles
       nYtiles = grid%nYtiles
@@ -968,31 +1035,38 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(nXpertile, buffer))
+
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, Hn, ttN), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, nYpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ttN = tileContainer(ttk)%North 
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttN > 0 .and. (.not. tileContainer(ttN)%TileOn)) then
-            ydist = 0
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = nYpertile, 1, -1
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist > (RunParams%nYpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttN, RunParams)
-                  exit
-               end if
-            end do
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, (nYpertile - buffer + 1):nYpertile)
+
+            if (any(Hn > RunParams%heightThreshold)) then
+!$omp critical
+               call AddToVector_i(tilesToAdd, ttN)
+!$omp end critical
+            end if
+
          end if
       end do
+!$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+         call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearNorthBoundary
 
@@ -1005,13 +1079,14 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttE
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
+
+      integer, dimension(:), allocatable :: tilesToAdd
 
       nXtiles = grid%nXtiles
       nYtiles = grid%nYtiles
@@ -1019,31 +1094,37 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(buffer, nYpertile))
+
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, Hn, ttE), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, nXpertile, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ttE = tileContainer(ttk)%East
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttE > 0 .and. (.not. tileContainer(ttE)%TileOn)) then
-            xdist = 0
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = nXpertile, 1, -1
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist > (RunParams%nXpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttE, RunParams)
-                  exit
-               end if
-            end do
+            
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, (nXpertile-buffer+1):nXpertile, :)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+!$omp critical
+               call AddToVector_i(tilesToAdd, ttE)
+!$omp end critical
+            end if
          end if
       end do
+!$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+         call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearEastBoundary
 
@@ -1056,13 +1137,14 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttS
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
+
+      integer, dimension(:), allocatable :: tilesToAdd
 
       nXtiles = grid%nXtiles
       nYtiles = grid%nYtiles
@@ -1070,31 +1152,37 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(nXpertile, buffer))
+
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, Hn, ttS), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ttS = tileContainer(ttk)%South
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttS > 0 .and. (.not. tileContainer(ttS)%TileOn)) then
-            ydist = nYpertile
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = 1, nYpertile
-                  if (Hn(jj) > RunParams%heightThreshold) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttS, RunParams)
-                  exit
-               end if
-            end do
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, 1:buffer)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+!$omp critical
+               call AddToVector_i(tilesToAdd, ttS)
+!$omp end critical
+            end if
          end if
       end do
+!$omp end parallel do
+
+      if (allocated(tilesToAdd)) then
+        call AddTiles(grid, tilesToAdd, RunParams)
+      end if
 
    end subroutine NearSouthBoundary
 
@@ -1107,13 +1195,14 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
+      integer :: buffer
       integer :: tt, ttk, ttW
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      real(kind=wp), dimension(:,:), allocatable :: Hn
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
+
+      integer, dimension(:), allocatable :: tilesToAdd
 
       nXtiles = grid%nXtiles
       nYtiles = grid%nYtiles
@@ -1121,38 +1210,44 @@ contains
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
 
+      buffer = RunParams%TileBuffer
+
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
 
+      allocate(Hn(buffer,nYpertile))
+
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, ttk, Hn, ttW), &
+!$omp shared(ActiveTiles, tileContainer, RunParams, buffer, tilesToAdd)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ttW = tileContainer(ttk)%West
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttW > 0 .and. (.not. tileContainer(ttW)%TileOn)) then
-            xdist = nXpertile
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = 1, nXpertile
-                  if (Hn(ii) > RunParams%heightThreshold) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttW, RunParams)
-                  exit
-               end if
-            end do
+
+            Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, 1:buffer, :)
+
+            if (any(Hn>RunParams%heightThreshold)) then
+!$omp critical
+               call AddToVector_i(tilesToAdd, ttW)
+!$omp end critical
+            end if
          end if
       end do
+!$omp end parallel do
 
+      if (allocated(tilesToAdd)) then
+        call AddTiles(grid, tilesToAdd, RunParams)
+      end if
+      
    end subroutine NearWestBoundary
 
 ! The remaining routines below are used for updating data the tracts the maximum
 ! values of various observables over the length of the simulation. 
 
-   subroutine UpdateMaximumHeights(RunParams, tile, t)
+   pure subroutine UpdateMaximumHeights(RunParams, tile, t)
 
       implicit none
 
@@ -1181,7 +1276,11 @@ contains
 
    end subroutine UpdateMaximumHeights
 
+#if DEBUG_SPD==1 || DEBUG_SPD==2
    subroutine UpdateMaximumSpeeds(RunParams, tile, t)
+#else
+   pure subroutine UpdateMaximumSpeeds(RunParams, tile, t)
+#endif
 
       implicit none
 
@@ -1201,7 +1300,8 @@ contains
 #if DEBUG_SPD==1 || DEBUG_SPD==2
             if (spd > 50.0_wp) then
                call InfoMessage('High speed found in UpdateMaximumSpeeds at cell ' // &
-                   Int2String(ii) // ',' // Int2String(jj) // ' : spd = ', spd)
+                   Int2String(ii) // ',' // Int2String(jj))
+               write (*, *) '    spd = ', spd, ' : Hn above threshold? ', (tile%u(iHn, ii, jj) > RunParams%heightThreshold)
 #if DEBUG_SPD==2
                call exit(1)
 #endif
@@ -1217,7 +1317,7 @@ contains
 
    end subroutine UpdateMaximumSpeeds
 
-   subroutine UpdateMaximumErosion(RunParams, tile, t)
+   pure subroutine UpdateMaximumErosion(RunParams, tile, t)
 
       implicit none
 
@@ -1245,7 +1345,7 @@ contains
 
    end subroutine UpdateMaximumErosion
 
-   subroutine UpdateMaximumDeposit(RunParams, tile, t)
+   pure subroutine UpdateMaximumDeposit(RunParams, tile, t)
 
       implicit none
 
@@ -1273,7 +1373,7 @@ contains
 
    end subroutine UpdateMaximumDeposit
 
-   subroutine UpdateMaximumSolidsFraction(RunParams, tile, t)
+   pure subroutine UpdateMaximumSolidsFraction(RunParams, tile, t)
 
       implicit none
 

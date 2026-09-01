@@ -46,6 +46,27 @@ tests_identical = [
    ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 1e-11, 2)
 ]
 
+tests_parallel = [
+    # These tests check:
+    # (i) openmp runs complete
+    # (ii) simulations with openmp parallelization produce the same output as serial runs
+    ("parallel_flat_depositional", "flat_depositional", 1e-13, 1)
+    ("parallel_cap_dilute", "cap_dilute", 1e-13, 1)
+    ("parallel_cap_conc", "cap_conc", 1e-13, 1)
+    ("parallel_cap_morpho", "cap_morpho", 1e-13, 1)
+    ("parallel_flux_hydro", "flux_hydro", 1e-13, 1)
+    ("parallel_flux_edwards2019", "flux_edwards2019", 1e-13, 1)
+    ("parallel_flux_morpho", "flux_morpho", 1e-13, 1)
+    ("parallel_flat_depositional_2d", "flat_depositional_2d", 1e-13, 2)
+    ("parallel_cap_dilute_2d", "cap_dilute_2d", 1e-13, 2)
+    ("parallel_cap_conc_2d", "cap_conc_2d", 1e-13, 2)
+    ("parallel_cap_morpho_2d", "cap_morpho_2d", 1e-12, 2) # NOTE: FAILS AT 1e-13 tolerance
+    ("parallel_flux_hydro_2d", "flux_hydro_2d", 1e-13, 2)
+    ("parallel_flux_edwards2019_2d", "flux_edwards2019_2d", 1e-13, 2)
+    ("parallel_flux_morpho_2d", "flux_morpho_2d", 1e-13, 2)
+    ("parallel_flux_single_pt", "flux_single_pt", 1e-13, 2)
+]
+
 # Check if NetCDF support enabled and define extra test if so.
 tests_netcdf = []
 with_netcdf = links_to_netcdf(prog)
@@ -126,6 +147,19 @@ function run_netcdf()
    return numpassed
 end
 
+function run_parallel()
+    println("\nOpenMP parallelization tests...")
+    numpassed = 0
+    for i = 1:length(tests_parallel)
+       testname = tests_parallel[i][1]
+       rm(joinpath(["./", tests_parallel[i][2], "/*"]), force=true)
+       testfunc = test_parallel_simulations
+       args = tests_parallel[i]
+       numpassed += run_test(i, testname, testfunc, args...)
+    end
+    return numpassed
+ end
+
 function run_all()
 
    numtests = length(tests_1d) + length(tests_2d) + length(tests_noflow) +
@@ -164,7 +198,7 @@ end
 
 # Print a list of available test categories.
 function print_options()
-   println("Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'parallel' and 'netcdf'.")
 end
 
 tests = (if isempty(ARGS); ["all"]; else ARGS; end)
@@ -190,6 +224,10 @@ else
    if "identical" in tests
       numtests += length(tests_identical)
       numpassed += run_identical()
+   end
+   if "parallel" in tests
+      numtests += length(tests_parallel)
+      numpassed += run_parallel()
    end
    if "netcdf" in tests
       if with_netcdf

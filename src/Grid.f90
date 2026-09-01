@@ -163,7 +163,7 @@ contains
    ! with the correct settings, but *before* we load initial/source conditions
    ! and run the simulation. Some of the default values set here may be
    ! overwritten by later routines.
-   subroutine InitialiseGrid(RunParams, grid)
+   pure subroutine InitialiseGrid(RunParams, grid)
 
       implicit none
 
@@ -319,7 +319,7 @@ contains
       W = tileID - 1
    end function
 
-   function OnDomainEdge(grid, tileID) result(on)
+   pure function OnDomainEdge(grid, tileID) result(on)
       implicit none
 
       type(GridType), intent(in) :: grid
@@ -336,7 +336,7 @@ contains
 
    ! Return location (x, y) in physical space of the point at
    ! (grid_i, grid_j) in grid co-ords and (tile_i, tile_j) in tile co-ords.
-   subroutine GridToPhysical(RunParams, grid, grid_i, grid_j,  &
+   pure subroutine GridToPhysical(RunParams, grid, grid_i, grid_j,  &
                              tile_i, tile_j, x, y)
       implicit none
 
@@ -356,10 +356,10 @@ contains
    ! rather convoluted procedure is neeeded because when we add the ghost tiles
    ! in a group, the List structure gets updated before all the tiles are fully
    ! ready to be used. In other situations we may get away with a simpler check.
-   function IsActiveGhostTile(grid, tileID) result(active)
+   pure function IsActiveGhostTile(grid, tileID) result(active)
       implicit none
 
-      type(GridType), target, intent(inout) :: grid
+      type(GridType), target, intent(in) :: grid
       integer, intent(in) :: tileID
 
       logical :: active

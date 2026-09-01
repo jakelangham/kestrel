@@ -164,20 +164,18 @@ contains
             RunParams%kmlHeight = OutputValues(J)%to_real()
 
           case ('format')
+            set_outputFormat=.TRUE.
             call OutputValues(J)%read_list(outputFormat, delimiter=',')
             N_fmts = OutputValues(J)%count_substring(',')+1
             do K=1,N_fmts
                select case (outputFormat(K)%s)
                 case ('txt')
                   RunParams%out_txt = .TRUE.
-                  set_outputFormat=.TRUE.
                 case ('kml')
                   RunParams%out_kml = .TRUE.
-                  set_outputFormat=.TRUE.
                 case ('nc','netcdf')
 #if HAVE_NETCDF4
                   RunParams%out_nc = .TRUE.
-                  set_outputFormat=.TRUE.
 #else
                   call FatalErrorMessage('NetCDF not active')
 #endif

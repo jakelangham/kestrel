@@ -35,7 +35,7 @@ module restart_module
    use output_module, only: GenerateOutputFilename
    use closures_module, only : GeometricCorrectionFactor
    use grid_module, only: GridCoords, GridType, TileList, TileType
-   use update_tiles_module, only: ActivateTile, AddTile, AddToActiveTiles, AllocateTile
+   use update_tiles_module, only: ActivateTile, AddTile, AddTiles, AddToActiveTiles, AllocateTile
    use morphodynamic_rhs_module, only: ComputeInterfacialTopographicData
 #if HAVE_NETCDF4
    use netcdf
@@ -72,7 +72,7 @@ contains
 
       ! If restarting, need to read in settings from the InfoFile - in case of
       ! conflict we choose the InfoFile settings.
-      if (RunParams%Restart .and. RunParams%InitialCondition%s == " ") then
+      if (RunParams%Restart .and. RunParams%InitialCondition%len() == 0) then
          call ReadRunInfoToRunParams(RunParams)
       end if
       
@@ -89,7 +89,7 @@ contains
       end if
 
       ! Get the initial condition file name.
-      if (RunParams%InitialCondition%s /= " ") then
+      if (RunParams%InitialCondition%len()>0) then
          InitFile = RunParams%InitialCondition
       else if (RunParams%Restart) then
          call GetLastResultFile(RunParams, InitFile, ext='')
@@ -408,8 +408,6 @@ contains
       tile_left = maxval(tiles)
       tile_bottom = tile_left
 
-      allocate (x(nXpertile), y(nYpertile))
-
       ! Get leftmost and bottommost tile coordinates for determining extent of
       ! simulation data.
       do n = 1, nTiles
@@ -420,10 +418,13 @@ contains
          if (tile_j < tile_bottom) tile_bottom = tile_j
       end do
 
+      call AddTiles(grid, tiles, RunParams)
+
+      allocate (x(nXpertile), y(nYpertile))
+
       ! Read all the solution data in from the NetCDF, tile per tile.
       do n = 1, nTiles
          ttk = tiles(n)
-         call AddTile(grid,ttk,RunParams)
 
          call GridCoords(ttk, grid, tile_i, tile_j)
 
@@ -629,7 +630,9 @@ contains
       if (.not. found_lastfile) call FatalErrorMessage("Could not find 'Last output file' in RunInfo.txt file")
       if (.not. found_tstart) call FatalErrorMessage("Could not find 't start' in RunInfo.txt file")
 
-      if (InfoVersion /= RunParams%version) call WarningMessage("Results associated with RunInfo.txt were made using a different Kestrel version to your current installation")
+      if (InfoVersion /= RunParams%version) then
+         call WarningMessage("Results associated with RunInfo.txt were made using a different Kestrel version to your current installation")
+      end if
 
       RunParams%FirstOut = LastFile
       RunParams%DeltaT = FileTimeStep

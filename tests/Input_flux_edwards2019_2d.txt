@@ -1,14 +1,12 @@
-%%ListType
-
 Domain:
-Lat = 0
-Lon = 0
-nXtiles = 40
-nYtiles = 40
-nXpertile = 50
-nYpertile = 50
-Xtilesize = 50
-Boundary Conditions = halt
+  Lat = 0
+  Lon = 0
+  nXtiles = 40
+  nYtiles = 40
+  nXpertile = 50
+  nYpertile = 50
+  Xtilesize = 50
+  Boundary Conditions = halt
 
 Source:
   sourceX = 0
@@ -19,23 +17,22 @@ Source:
   sourceConc = (0.,0.)
 
 Parameters:
-Drag = Edwards2019
-Erosion = Off
+  Drag = Edwards2019
+  Erosion = Off
 
 Solver:
-T end = 10.0
-cfl = 0.25
-max dt = 10
-Tile Buffer = 3
-Height threshold = 1e-6
-Restart = off
+  T end = 10.0
+  cfl = 0.25
+  max dt = 10
+  Tile Buffer = 3
+  Height threshold = 1e-6
+  Restart = off
 
 Output:
-N out = 2
-directory = flux_edwards2019_2d/
+  N out = 2
+  directory = flux_edwards2019_2d/
 
 Topog:
-Type = Function
-Topog function = xSlope
-Topog params = (-0.1)
-
+  Type = Function
+  Topog function = xSlope
+  Topog params = (-0.1)

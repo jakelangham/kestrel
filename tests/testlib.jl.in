@@ -1,6 +1,10 @@
 using DelimitedFiles
+using Base.Filesystem
+using Printf
 
-prog = "../src/kestrel"
+prog = "@KESTREL_EXECUTABLE@"
+prog_serial = "@KESTREL_SERIAL_EXECUTABLE@"
+prog_paral = "@KESTREL_PARAL_EXECUTABLE@"
 
 # Basic checks for conservativity and positivity of the solution output when
 # simulating with the input file Input_$testname.txt
@@ -42,6 +46,132 @@ function test_identical_simulations(testname, infile1, infile2, tol, dim)
    return result
 end
 
+
+# find_keyword_and_extract_value(file::String, keyword::String)
+# Read an input file line by line to find the line containing `keyword`
+# and extract and return the associated value.
+# Returns `value` or `nothing` if not found
+function find_keyword_and_extract_value(path::String, keyword::String)
+   keyword = strip(keyword)
+   value = nothing  # hold result from inside open block
+
+   open(path, "r") do io
+      for (i, line) in enumerate(eachline(io))
+         if occursin('=', line)
+            lhs, rhs = split(line, "=", limit=2)
+            lhs_clean = strip(lhs)
+            rhs_clean = strip(rhs)
+            if lhs_clean == keyword
+               value = rhs_clean
+               break
+            end
+         end
+      end
+   end
+   return value
+end
+
+
+function get_directory_in_path(path::AbstractString)
+   parts = splitpath(path)
+   # Handle special case
+   if isempty(parts)
+      return nothing
+   end
+   return parts[end]
+end
+
+function rename_directory_in_path(path::AbstractString, new_name::String)
+   parts = splitpath(path)
+
+   # Handle special case
+   if isempty(parts)
+      return new_name
+   end
+
+   # Modify the last element
+   parts[end] = new_name
+
+   # Rejoin
+   return joinpath(parts...)
+end
+            
+# Parallel simulations
+# Take two equivalent input files, testname1 & testname2 and check if they produce the same
+# output when one is run using multithreaded kestrel and the other is serial kestrel.
+# This can be used for checking that simulations are independent of openmp parallelisation.
+function test_parallel_simulations(testname, infile, tol, dim)
+   # Get the absolute input file path
+   infile1 = test_inputfile(infile)
+
+   # Get the output directory from the input file
+   outdir = find_keyword_and_extract_value(infile1, "directory")
+   if outdir === nothing
+      println("Warning: 'directory' keyword not found in the file")
+      return
+   end
+
+   # Ensure a proper String and remove trailing '/'
+   outdir_serial = String(rstrip(outdir, '/'))
+
+   # Extract the last part of the directory path (like "flat_depositional")
+   outdir_serial_name = get_directory_in_path(outdir_serial)
+
+   # Define the parallel output directory name
+   outdir_parall = rename_directory_in_path(outdir_serial, outdir_serial_name * "_paral")
+
+   # Run the serial simulation and time it
+   t0 = time()
+   if run_simulation_serial(testname, infile1)
+      return 1
+   end
+   t_serial = time() - t0
+   @printf("Serial simulation completed in %.3f seconds\n", t_serial)
+
+   # Prepare parallel input file
+   infile_paral = prepare_parallel_input(infile1, outdir_serial, outdir_parall)
+
+   try
+      # Run the parallel simulation and time it
+      t0 = time()
+      if run_simulation_paral(testname, infile_paral)
+         return 1
+      end
+      t_paral = time() - t0
+      @printf("Parallel simulation completed in %.3f seconds\n", t_paral)
+      # Check that serial and parallel simulations produce identical results
+      result = check_identical_simulations(outdir_serial, outdir_parall, tol, dim)
+      @printf("OpenMP speedup factor = %.2f\n", t_serial / t_paral)
+      return result
+   finally
+      # Always delete the temporary input file
+      isfile(infile_paral) && rm(infile_paral; force=true)
+      isdir(outdir_serial) && rm(outdir_serial; force=true, recursive=true)
+      isdir(outdir_parall) && rm(outdir_parall; force=true, recursive=true)
+   end
+end
+
+function prepare_parallel_input(infile::AbstractString, outdir_serial::AbstractString, outdir_parall::AbstractString)
+    # Create a temporary copy of the input file
+    temp_path = tempname()
+    cp(infile, temp_path; force=true)
+
+    # Read file content
+    content = read(temp_path, String)
+
+    # Replace the directory line with the new path
+    pattern = Regex("^\\s*directory\\s*=\\s*" * escape_string(outdir_serial), "m")
+    content_new = replace(content, pattern => "directory = " * outdir_parall)
+
+    # Write back to the temp file
+    open(temp_path, "w") do io
+        write(io, content_new)
+    end
+
+    return temp_path
+end
+
+
 # This test runs the same simulation twice. In the second instance, an interrupt
 # is called and the simulation is restarted. If both outputs are the same,
 # return 0.
@@ -70,6 +200,50 @@ function run_simulation(testname)
       catch
          println("Simulation exited unexpectedly.")
          println("The command was $prog $infile.")
+         println("Any output has been logged in $logfile.")
+         error = true
+      end
+   end
+   wait_for_task(t)
+
+   return error
+end
+
+# Run $prog_serial on the input file corresponding to the test with name testname and
+# log the output in "$testname.log". Return a helpful error if the command
+# fails.
+function run_simulation_serial(testname, infile)
+   logfile = testname * "_serial.log"
+
+   error = false
+   t = @async begin
+      try
+         run(pipeline(`$prog_serial $infile`, stdout = logfile, stderr = logfile));
+      catch
+         println("Simulation exited unexpectedly.")
+         println("The command was $prog_serial $infile.")
+         println("Any output has been logged in $logfile.")
+         error = true
+      end
+   end
+   wait_for_task(t)
+
+   return error
+end
+
+# Run $prog_paral on the input file corresponding to the test with name testname and
+# log the output in "$testname.log". Return a helpful error if the command
+# fails.
+function run_simulation_paral(testname, infile)
+   logfile = testname * "_parall.log"
+
+   error = false
+   t = @async begin
+      try
+         run(pipeline(`$prog_paral $infile`, stdout = logfile, stderr = logfile));
+      catch
+         println("Simulation exited unexpectedly.")
+         println("The command was $prog_paral $infile.")
          println("Any output has been logged in $logfile.")
          error = true
       end
@@ -397,7 +571,7 @@ function check_identical_simulations(testname1, testname2, tol, dim)
 
          if (diff > tol)
             result = 1
-            println("Solution field in $f1 differs from $f2")
+            println("Solution field in $f1 differs from $f2 (by $diff)")
             break
          end
       end

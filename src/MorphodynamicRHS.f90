@@ -51,7 +51,7 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor_gradin, DragClosure
+   use closures_module, only: GeometricCorrectionFactor, GeometricCorrectionFactor_gradin_scalar, GeometricCorrectionFactor_gradin_array, DragClosure
 
    implicit none
 
@@ -80,6 +80,7 @@ contains
 
       real(kind=wp) :: Friction, Ero, Depo 
       real(kind=wp) :: HnW, HnE, HnS, HnN, Hneps
+      real(kind=wp) :: gam
 
       integer :: tt, tID, ttW, ttE, ttS, ttN
       integer :: i, j, nd, bt, iHn
@@ -93,6 +94,9 @@ contains
       HnS = 0.0_wp
       HnN = 0.0_wp
 
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, tID, i, j, ttW, HnW, ttE, HnE, ttS, HnS, ttN, HnN, gam, Friction, Ero, Depo), &
+!$omp shared(ActiveTiles, RunParams, tiles, grid, iHn, Hneps, nd, GeometricCorrectionFactor, DragClosure)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          do i = 1, RunParams%nXPertile
@@ -136,13 +140,15 @@ contains
                   tiles(tID)%EminusD(i,j) = 0.0_wp
                else
                   ! Compute E - D at each cell centre and save it.
-                  Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
-                  call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo)
+                  gam = GeometricCorrectionFactor(RunParams, tiles(tID)%u(:,i,j))
+                  Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j), gam)
+                  call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), gam, Ero, Depo)
                   tiles(tID)%EminusD(i,j) = Ero - Depo
                end if
             end do
          end do
       end do
+!$omp end parallel do
 
       call BtSourceTerm(RunParams, grid, tiles)
 
@@ -173,9 +179,13 @@ contains
 
       psib = 1.0_wp - RunParams%BedPorosity
 
+   if (.not. RunParams%isOneD) then
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, tID, i, j, dbdx, dbdy, gam, ttW, ttE, ttS, ttN, ttSW, ttSE, ttNW, ttNE), &
+!$omp shared(ActiveTiles, tiles, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
-         if (.not. RunParams%isOneD) then
+         
             ! interior
             do i = 2, nXpertile
                do j = 2, nYpertile
@@ -183,7 +193,7 @@ contains
                      tiles(tID)%u(idbdx, i    , j - 1), tiles(tID)%u(idbdx, i    , j)])
                   dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, i - 1, j - 1), tiles(tID)%u(idbdy, i - 1, j), &
                      tiles(tID)%u(idbdy, i    , j - 1), tiles(tID)%u(idbdy, i    , j)])
-                  gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+                  gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                   tiles(tID)%ddtExplicitBt(i,j) = -0.25_wp * gam / psib *  &
                      KahanSum([tiles(tID)%EminusD(i - 1, j - 1), tiles(tID)%EminusD(i - 1, j), tiles(tID)%EminusD(i, j - 1), tiles(tID)%EminusD(i, j)])
                end do
@@ -205,7 +215,7 @@ contains
                   tiles(tID)%u(idbdx, 1, j - 1), tiles(tID)%u(idbdx, 1, j)])
                dbdy = 0.25_wp * KahanSum([tiles(ttW)%u(idbdy, nXpertile, j - 1), tiles(ttW)%u(idbdy, nXpertile, j), &
                   tiles(tID)%u(idbdy, 1, j - 1), tiles(tID)%u(idbdy, 1, j)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(1, j) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(ttW)%EminusD(nXpertile, j - 1), tiles(ttW)%EminusD(nXpertile, j), tiles(tID)%EminusD(1, j - 1) + tiles(tID)%EminusD(1, j)]) 
                ! east bdry
@@ -213,7 +223,7 @@ contains
                   tiles(ttE)%u(idbdx, 1, j - 1), tiles(ttE)%u(idbdx, 1, j)])
                dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, nXpertile, j - 1), tiles(tID)%u(idbdy, nXpertile, j), &
                   tiles(ttE)%u(idbdy, 1, j - 1), tiles(ttE)%u(idbdy, 1, j)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(nXpertile + 1, j) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(tID)%EminusD(nXpertile, j - 1), tiles(tID)%EminusD(nXpertile, j), tiles(ttE)%EminusD(1, j - 1), tiles(ttE)%EminusD(1, j)])
             end do
@@ -223,7 +233,7 @@ contains
                   tiles(tID)%u(idbdx, i, nYpertile), tiles(ttN)%u(idbdx, i, 1)])
                dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, i - 1, nYpertile), tiles(ttN)%u(idbdy, i - 1, 1), &
                   tiles(tID)%u(idbdy, i, nYpertile), tiles(ttN)%u(idbdy, i, 1)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(i, nYpertile + 1) = -0.25_wp * gam / psib *  &
                   KahanSum([tiles(tID)%EminusD(i - 1, nYpertile), tiles(ttN)%EminusD(i - 1, 1), tiles(tID)%EminusD(i, nYpertile), tiles(ttN)%EminusD(i, 1)])
                ! south bdry
@@ -231,7 +241,7 @@ contains
                   tiles(ttS)%u(idbdx, i, nYpertile), tiles(tID)%u(idbdx, i, 1)])
                dbdy = 0.25_wp * KahanSum([tiles(ttS)%u(idbdy, i - 1, nYpertile), tiles(tID)%u(idbdy, i - 1, 1), &
                   tiles(ttS)%u(idbdy, i, nYpertile), tiles(tID)%u(idbdy, i, 1)])
-               gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(i, 1) = -0.25_wp * gam / psib * &
                   KahanSum([tiles(ttS)%EminusD(i - 1, nYpertile), tiles(tID)%EminusD(i - 1, 1), tiles(ttS)%EminusD(i, nYpertile), tiles(tID)%EminusD(i, 1)])
             end do
@@ -241,7 +251,7 @@ contains
                tiles(ttS )%u(idbdx, 1, nYpertile), tiles(tID)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttSW)%u(idbdy, nXpertile, nYpertile), tiles(ttW)%u(idbdy, nXpertile, 1), &
                tiles(ttS )%u(idbdy, 1, nYpertile), tiles(tID)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(1, 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttSW)%EminusD(nXpertile, nYpertile), tiles(ttW)%EminusD(nXpertile, 1), tiles(ttS )%EminusD(1, nYpertile), tiles(tID)%EminusD(1, 1)])
             ! SE
@@ -249,7 +259,7 @@ contains
                tiles(ttSE)%u(idbdx, 1, nYpertile), tiles(ttE)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttS )%u(idbdy, nXpertile, nYpertile), tiles(tID)%u(idbdy, nXpertile, 1), &
                tiles(ttSE)%u(idbdy, 1, nYpertile), tiles(ttE)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(nXpertile + 1, 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttS )%EminusD(nXpertile, nYpertile), tiles(tID)%EminusD(nXpertile, 1), tiles(ttSE)%EminusD(1, nYpertile), tiles(ttE)%EminusD(1, 1)])
             ! NW
@@ -257,7 +267,7 @@ contains
                tiles(tID)%u(idbdx, 1, nYpertile), tiles(ttN )%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(ttW)%u(idbdy, nXpertile, nYpertile), tiles(ttNW)%u(idbdy, nXpertile, 1), &
                tiles(tID)%u(idbdy, 1, nYpertile), tiles(ttN )%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(1, nYpertile + 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(ttW)%EminusD(nXpertile, nYpertile), tiles(ttNW)%EminusD(nXpertile, 1), &
                tiles(tID)%EminusD(1, nYpertile), tiles(ttN )%EminusD(1, 1)])
@@ -266,15 +276,22 @@ contains
                tiles(ttE)%u(idbdx, 1, nYpertile) + tiles(ttNE)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, nXpertile, nYpertile), tiles(ttN )%u(idbdy, nXpertile, 1), &
                tiles(ttE)%u(idbdy, 1, nYpertile), tiles(ttNE)%u(idbdy, 1, 1)])
-            gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
+            gam = GeometricCorrectionFactor_gradin_scalar(dbdx, dbdy)
             tiles(tID)%ddtExplicitBt(nXpertile + 1, nYpertile + 1) = -0.25_wp * gam / psib *  &
                KahanSum([tiles(tID)%EminusD(nXpertile, nYpertile), tiles(ttN )%EminusD(nXpertile, 1), &
                tiles(ttE)%EminusD(1, nYpertile), tiles(ttNE)%EminusD(1, 1)])
-         else
+         end do
+!$omp end parallel do
+      else
+!$omp parallel do schedule(runtime), default(none), &
+!$omp private(tt, tID, dbdx, gam, ttW, ttE), &
+!$omp shared(ActiveTiles, tiles, grid, idbdx, idbdy, nXpertile, nYpertile, psib, GeometricCorrectionFactor_gradin_scalar)
+         do tt = 1, ActiveTiles%Size
+            tID = ActiveTiles%List(tt)
             ! 1D is much simpler...
             do i = 2, nXpertile
                dbdx = 0.5_wp * (tiles(tID)%u(idbdx, i - 1, 1) + tiles(tID)%u(idbdx, i, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(i,1) = -0.5_wp * gam * (tiles(tID)%EminusD(i - 1, 1) + tiles(tID)%EminusD(i, 1)) / psib
             end do
 
@@ -282,30 +299,32 @@ contains
             ttW = tiles(tID)%West
             if (ttW > 0 .and. grid%tileContainer(ttW)%TileOn) then
                dbdx = 0.5_wp * (tiles(ttW)%u(iDBDX, nXpertile, 1) + tiles(tID)%u(iDBDX, 1, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(1,1) = -0.5_wp * gam * (tiles(ttW)%EminusD(nXpertile, 1) + tiles(tID)%EminusD(1, 1)) / psib
             else
                dbdx = 0.5_wp * tiles(tID)%u(idbdx, 1, 1)
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(1,1) = -0.5_wp * gam * tiles(tID)%EminusD(1, 1) / psib
             end if
 
             ttE = tiles(tID)%East
             if (ttE > 0 .and. grid%tileContainer(ttE)%TileOn) then
                dbdx = 0.5_wp * (tiles(tID)%u(idbdx, nXpertile, 1) + tiles(ttE)%u(idbdx, 1, 1))
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(nXpertile+1,1) = -0.5_wp * gam * (tiles(tID)%EminusD(nXpertile, 1) + tiles(ttE)%EminusD(1, 1)) / psib
             else
                dbdx = 0.5_wp * tiles(tID)%u(idbdx, nXpertile, 1)
-               gam = GeometricCorrectionFactor_gradin(dbdx, 0.0_wp)
+               gam = GeometricCorrectionFactor_gradin_scalar(dbdx, 0.0_wp)
                tiles(tID)%ddtExplicitBt(nXpertile+1,1) = -0.5_wp * gam * tiles(tID)%EminusD(nXpertile, 1) / psib
             end if
-         end if
-      end do
+         end do
+!$omp end parallel do
+      end if
+
    end subroutine
 
    ! Interpolate b at cell centres, for tile tID.
-   subroutine ComputeCellCentredTopographicData_tileID(RunParams, grid, tiles, tID)
+   pure subroutine ComputeCellCentredTopographicData_tileID(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -314,6 +333,7 @@ contains
       integer, intent(in) :: tID
 
       integer :: i, j, ib0, ibt, idbdx, idbdy
+      integer :: nXpertile, nYpertile
 
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: dbdx, dbdy, b0_centre, bt_centre
@@ -322,14 +342,16 @@ contains
       ibt = RunParams%Vars%bt
       idbdx = RunParams%Vars%dbdx
       idbdy = RunParams%Vars%dbdy
+      
+      nXpertile = RunParams%nXpertile
+      nYpertile = RunParams%nYpertile
 
       deltaXRecip = grid%deltaXRecip
       deltaYRecip = grid%deltaYRecip
 
-      ! TODO b0 interp does not really need to be in this routine
       if (.not. RunParams%isOneD) then
-         do i = 1, RunParams%nXpertile
-            do j = 1, RunParams%nYpertile
+         do i = 1, nXpertile
+            do j = 1, nYpertile
 
                b0_centre = 0.25_wp * KahanSum([tiles(tID)%b0(i, j), tiles(tID)%b0(i+1,j), &
                   tiles(tID)%b0(i, j+1), tiles(tID)%b0(i+1, j+1)])
@@ -353,8 +375,9 @@ contains
                tiles(tID)%u(idbdy,i,j) = dbdy
             end do
          end do
+
       else
-         do i = 1, RunParams%nXpertile
+         do i = 1, nXpertile
             b0_centre = 0.5_wp * (tiles(tID)%b0(i, 1) + tiles(tID)%b0(i+1, 1))
             bt_centre = 0.5_wp * (tiles(tID)%bt(i, 1) + tiles(tID)%bt(i+1, 1))
             tiles(tID)%u(ib0,i,1) = b0_centre
@@ -368,7 +391,7 @@ contains
    end subroutine ComputeCellCentredTopographicData_tileID
 
    ! Interpolate b at cell centres, for cell i,j in tile tID.
-   subroutine ComputeCellCentredTopographicData_ij(RunParams, grid, tiles, tID, i, j)
+   pure subroutine ComputeCellCentredTopographicData_ij(RunParams, grid, tiles, tID, i, j)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -416,7 +439,7 @@ contains
    end subroutine ComputeCellCentredTopographicData_ij
 
    ! Interpolate b at cell interfaces, for tile tID.
-   subroutine ComputeInterfacialTopographicData(RunParams, grid, tiles, tID)
+   pure subroutine ComputeInterfacialTopographicData(RunParams, grid, tiles, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -585,7 +608,7 @@ contains
    ! interfaces of each tile with its neighbour's values. Since every active
    ! tile is initialised with ghost tiles surrounding it, this routine should
    ! ensure that b0 and its derivatives are single-valued fields.
-   subroutine EqualiseTopographicBoundaryData(RunParams, grid, tID)
+   pure subroutine EqualiseTopographicBoundaryData(RunParams, grid, tID)
       implicit none
 
       type(RunSet), intent(in) :: RunParams

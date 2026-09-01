@@ -1,14 +1,12 @@
-%%ListType
-
 Domain:
-Lat = 0
-Lon = 0
-nXtiles = 100
-nYtiles = 1
-nXpertile = 100
-nYpertile = 1
-Xtilesize = 100
-Boundary Conditions = halt
+  Lat = 0
+  Lon = 0
+  nXtiles = 100
+  nYtiles = 1
+  nXpertile = 100
+  nYpertile = 1
+  Xtilesize = 100
+  Boundary Conditions = halt
 
 Cap:
   capX = 50
@@ -19,26 +17,26 @@ Cap:
   capConc = 0.0
 
 Parameters:
-Drag = Chezy
-Chezy Co = 0.08
-Erosion = Off
-Eddy Viscosity = 0
+  Drag = Chezy
+  Chezy Co = 0.08
+  Erosion = Off
+  Eddy Viscosity = 0
 
 Solver:
-T start = -50.0
-T end = 50.0
-cfl = 0.5
-max dt = 10.0
-Tile Buffer = 3
-Height threshold = 1e-6
-Restart = off
+  T start = -50.0
+  T end = 50.0
+  cfl = 0.5
+  max dt = 10.0
+  Tile Buffer = 3
+  Height threshold = 1e-6
+  Restart = off
 
 Output:
-N out = 10
-directory = cap_dilute/
-Format = txt
+  N out = 10
+  directory = cap_dilute/
+  Format = txt
 
 Topog:
-Type = Function
-Topog function = xParab
-Topog params = (0.01)
+  Type = Function
+  Topog function = xParab
+  Topog params = (0.01)
