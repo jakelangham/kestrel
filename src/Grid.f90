@@ -154,6 +154,10 @@ module grid_module
       ! intermediate substeps of the time stepping scheme.
       type(tileType), dimension(:), allocatable :: intermed0, intermed1
       type(tileType), dimension(:), allocatable :: intermed2, intermed3
+      ! Do the intermed arrays need a full refresh from tileContainer? This is
+      ! set whenever the set of active/ghost tiles changes (see
+      ! InitialiseTimeSteppingArrays).
+      logical :: intermedStale
 
    end type GridType
 
@@ -216,6 +220,7 @@ contains
       allocate(grid%intermed1(grid%nTiles))
       allocate(grid%intermed2(grid%nTiles))
       allocate(grid%intermed3(grid%nTiles))
+      grid%intermedStale = .true.
 
    end subroutine InitialiseGrid
 
