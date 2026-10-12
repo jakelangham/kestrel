@@ -84,6 +84,14 @@ For testing, the path to a valid Julia executable can be specified with
 
 This will place a symlink to Julia in the ./tests directory.
 
+By default, Kestrel is built without OpenMP (multithreading) support. To
+build with it (this requires compilers and libraries that support OpenMP),
+use
+
+.. code-block:: bash
+
+  $ ./configure --enable-openmp
+
 Some other options are listed in the help dialogue of the configure script
 
 .. code-block:: bash
