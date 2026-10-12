@@ -73,13 +73,13 @@ contains
       real(kind=wp), intent(out) :: advisedTimeStep
 
       type(TileList), pointer :: ActiveTiles
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%nTiles)
+      ! CFL time step for each active tile (indexed by position in ActiveTiles).
+      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%activeTiles%size)
+      real(kind=wp) :: minUnitCFLTimeStep
 
       integer :: tt, ttk
 
       activeTiles => grid%activeTiles
-
-      unitCFLTimeStep(:) = RunParams%maxdt
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
       do tt = 1, ActiveTiles%Size
@@ -122,11 +122,17 @@ contains
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileWorkspace, &
-                              ttk, unitCFLTimeStep(ttk))  ! Look at eqn input
+                              ttk, unitCFLTimeStep(tt))  ! Look at eqn input
       end do
 
+      ! Inactive tiles contribute a CFL time step of maxdt.
+      minUnitCFLTimeStep = minval(unitCFLTimeStep)
+      if (ActiveTiles%Size < grid%nTiles) then
+         minUnitCFLTimeStep = min(minUnitCFLTimeStep, RunParams%maxdt)
+      end if
+
       advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
-                                               substep, unitCFLTimeStep)
+                                               substep, minUnitCFLTimeStep)
 
       ! Sum flux and source terms to complete the calculation.
       do tt = 1, ActiveTiles%Size
@@ -139,19 +145,19 @@ contains
    ! that is stable with respect to the CFL condition and the diffusive time
    ! scale set by eddy viscosity.
    function ComputeAdvisedTimeStep(RunParams, grid, substep, &
-                                   unitCFLTimeStep) result(advisedTimeStep)
+                                   minUnitCFLTimeStep) result(advisedTimeStep)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
       integer, intent(in) :: substep ! i.e. stage of multistep timestepper
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%nTiles)
+      real(kind=wp), intent(in) :: minUnitCFLTimeStep ! minimum over all tiles
 
       real(kind=wp) maxTimeStep, advisedTimeStep
 
-      ! N.B. If eddy viscosity is present we need to limit the time step by the 
+      ! N.B. If eddy viscosity is present we need to limit the time step by the
       ! diffusive time scale ~ dx^2 / nu
-      maxTimeStep = min(RunParams%cfl * minval(unitCFLTimeStep), &
+      maxTimeStep = min(RunParams%cfl * minUnitCFLTimeStep, &
                         RunParams%diffusiveTimeScale)
 
       maxTimeStep = min(maxTimeStep, RunParams%maxdt)
@@ -178,7 +184,15 @@ contains
    ! are stored in the uLimX and uLimY arrays respectively. The limiter function
    ! (which is user-settable) tries to prevent oscillations whose lengthscales
    ! are comparable to deltaX, deltaY.
-   subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID)
+   !
+   ! If updateNeighbours is present and true, the derivatives on the adjoining
+   ! boundaries of any active neighbouring tiles are recomputed too, since these
+   ! depend on the data in tile tID. This is needed when a single tile is
+   ! (re)activated. When this routine is called for every active tile in turn
+   ! (as in CalculateHydraulicRHS) it is unnecessary, since each tile computes
+   ! its own boundary derivatives.
+   subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID, &
+                                     updateNeighbours)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -186,10 +200,15 @@ contains
       integer, dimension(:), intent(in) :: variables
       type(TileType), target, dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID
+      logical, intent(in), optional :: updateNeighbours
 
       real(kind=wp), dimension(:,:,:), pointer :: u
 
       integer :: i, j, k, d, nVars, nYPoints, nXPoints, neighbour
+      logical :: doNeighbours
+
+      doNeighbours = .false.
+      if (present(updateNeighbours)) doNeighbours = updateNeighbours
 
       nXPoints = RunParams%nXpertile
       nYPoints = RunParams%nYpertile
@@ -235,9 +254,9 @@ contains
             end do
          end do
 
-         ! Do south ghost tile too if it exists
+         ! Do south neighbour too if requested and it is active
          neighbour = grid%tileContainer(tID)%South
-         if (grid%tileContainer(neighbour)%TileOn) then
+         if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
             j = nYpoints
             do i = 1, nXPoints
                do k = 1, nVars
@@ -258,9 +277,9 @@ contains
             end do
          end do
 
-         ! Do north ghost tile too if it exists
+         ! Do north neighbour too if requested and it is active
          neighbour = grid%tileContainer(tID)%North
-         if (grid%tileContainer(neighbour)%TileOn) then
+         if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
             j = 1
             do i = 1, nXpoints
                do k = 1, nVars
@@ -282,9 +301,9 @@ contains
          end do
       end do
 
-      ! Do West ghost tile too if it exists
+      ! Do west neighbour too if requested and it is active
       neighbour = grid%tileContainer(tID)%West
-      if (grid%tileContainer(neighbour)%TileOn) then
+      if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
          i = nXpoints
          do j = 1, nYpoints
             do k = 1, nVars
@@ -305,9 +324,9 @@ contains
          end do
       end do
 
-      ! Do East ghost tile too if it exists
+      ! Do east neighbour too if requested and it is active
       neighbour = grid%tileContainer(tID)%East
-      if (grid%tileContainer(neighbour)%TileOn) then
+      if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
          i = 1
          do j = 1, nYpoints
             do k = 1, nVars
