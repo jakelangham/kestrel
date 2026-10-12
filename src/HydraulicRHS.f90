@@ -93,10 +93,15 @@ contains
          call Reconstruct(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
 
-      ! Correct slopes for w, Hnpsi to ensure positivity.
+      ! Correct slopes for w, Hnpsi to ensure positivity. Every tile's
+      ! interior must be corrected before any tile's edges (see CorrectSlopes).
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         call CorrectSlopes(RunParams, grid, tileWorkspace, ttk)
+         call CorrectSlopesInterior(RunParams, tileWorkspace, ttk)
+      end do
+      do tt = 1, ActiveTiles%Size
+         ttk = ActiveTiles%List(tt)
+         call CorrectSlopesEdges(RunParams, grid, tileWorkspace, ttk)
       end do
 
       ! Compute derived variables Hn, u, v, psi and rho at cell centres.
@@ -578,6 +583,16 @@ contains
    ! balanced approach of Chertock et al. (2015), though the logic ends up being
    ! rather complicated in order to account for tile boundaries and the need to
    ! make sure that calculations are independent of the tiling layout.
+   !
+   ! The work is split into two parts. CorrectSlopesInterior corrects the
+   ! interfaces of each cell using only data from tile tID. CorrectSlopesEdges
+   ! then makes the copies of the tile boundary interfaces held by tile tID
+   ! consistent with its neighbours, which requires that any active neighbours
+   ! have already been through CorrectSlopesInterior. So when correcting many
+   ! tiles, CorrectSlopesInterior must be called for all of them before
+   ! CorrectSlopesEdges is called for any (as in CalculateHydraulicRHS). Each
+   ! routine only writes to tile tID, so tiles may be processed in any order
+   ! (or concurrently) within each stage.
    subroutine CorrectSlopes(RunParams, grid, tiles, tID)
       implicit none
 
@@ -586,10 +601,24 @@ contains
       type(TileType), dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID ! tileID
 
-      integer :: i, j, prevTile, nextTile
+      call CorrectSlopesInterior(RunParams, tiles, tID)
+      call CorrectSlopesEdges(RunParams, grid, tiles, tID)
+
+   end subroutine CorrectSlopes
+
+   ! Correct the reconstructions at each cell interface of tile tID, using only
+   ! data from that tile. See CorrectSlopes.
+   subroutine CorrectSlopesInterior(RunParams, tiles, tID)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID ! tileID
+
+      integer :: i, j
 
       integer :: nXPoints, nYPoints
-      integer :: iw, iHnpsi, ib0, ibt
+      integer :: iw, iHnpsi
 
       real(kind=wp) :: b_left, b_right, b_bottom, b_top
 
@@ -597,40 +626,9 @@ contains
       nYPoints = RunParams%nYpertile
       iw = RunParams%Vars%w
       iHnpsi = RunParams%Vars%Hnpsi
-      ib0 = RunParams%Vars%b0
-      ibt = RunParams%Vars%bt
 
       ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
       do j = 1, nYPoints
-
-         ! Left tile boundary
-         prevTile = tiles(tID)%West
-         if (.not. RunParams%isOneD) then
-            ! If 2D, have to interpolate b_left/right in middle of cell interface
-            b_left = InterpolateB(tiles(prevTile)%b0(nXpoints,j  ), tiles(prevTile)%b0(nXpoints,j+1), &
-                                  tiles(prevTile)%bt(nXpoints,j  ), tiles(prevTile)%bt(nXpoints,j+1))
-            b_right = InterpolateB(tiles(prevTile)%b0(nXpoints+1,j  ), tiles(prevTile)%b0(nXpoints+1,j+1), &
-                                   tiles(prevTile)%bt(nXpoints+1,j  ), tiles(prevTile)%bt(nXpoints+1,j+1))
-         else
-            b_left = tiles(prevTile)%b0(nXpoints,1) + tiles(prevTile)%bt(nXpoints,1)
-            b_right = tiles(prevTile)%b0(nXpoints+1,1) + tiles(prevTile)%bt(nXpoints+1,1)
-         end if
-         if ((tiles(prevTile)%uMinusX(iw,nXpoints+1,j) < b_right) .or.  &
-            (tiles(prevTile)%uPlusX(iw,nXpoints,j) < b_left)) then
-            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%u(iw,nXpoints,j) +  &
-               0.5_wp * (b_right - b_left)
-         else if (tiles(tID)%uMinusX(iw,1,j) /= tiles(prevTile)%uMinusX(iw,nXpoints+1,j) &
-            .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
-            ! This case covers the fact that if the left tile already corrected
-            ! its uMinusX value, we need to make sure both copies at the tile
-            ! interface are the same (since the previous test will fail to flag it)
-            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%uMinusX(iw,nXpoints+1,j)
-         end if
-
-         if (tiles(tID)%uMinusX(iHnpsi,1,j) < 0.0_wp) then
-            tiles(tID)%uMinusX(iHnpsi,1,j) = tiles(prevTile)%u(iHnpsi,nXPoints,j)
-         end if
-
          do i = 1, nXPoints
             if (.not. RunParams%isOneD) then
                ! If 2D, have to interpolate b_left/right in middle of cell interface
@@ -659,6 +657,89 @@ contains
                tiles(tID)%uPlusX(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
             end if
          end do
+      end do
+
+      if (.not. RunParams%isOneD) then
+         do i = 1, nXPoints
+            do j = 1, nYPoints
+               b_bottom = InterpolateB(tiles(tID)%b0(i  ,j), tiles(tID)%b0(i+1,j), &
+                                       tiles(tID)%bt(i  ,j), tiles(tID)%bt(i+1,j))
+               b_top = InterpolateB(tiles(tID)%b0(i  ,j+1), tiles(tID)%b0(i+1,j+1), &
+                                    tiles(tID)%bt(i  ,j+1), tiles(tID)%bt(i+1,j+1))
+               if ((tiles(tID)%uMinusY(iw,i,j+1) < b_top) .or.  &
+                  (tiles(tID)%uPlusY(iw,i,j) < b_bottom)) then
+                  ! Replace reconstruction by setting w gradient equal to bed gradient
+                  tiles(tID)%uMinusY(iw,i,j+1) = tiles(tID)%u(iw,i,j) +  &
+                     0.5_wp * (b_top - b_bottom)
+                  tiles(tID)%uPlusY(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
+                     0.5_wp * (b_bottom - b_top)
+               end if
+
+               if ((tiles(tID)%uMinusY(iHnpsi,i,j+1) < 0.0_wp) .or.  &
+                  (tiles(tID)%uPlusY(iHnpsi,i,j) < 0.0_wp)) then
+                  tiles(tID)%uMinusY(iHnpsi,i,j+1) = tiles(tID)%u(iHnpsi,i,j)
+                  tiles(tID)%uPlusY(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
+               end if
+            end do
+         end do
+      end if
+
+   end subroutine CorrectSlopesInterior
+
+   ! Make tile tID's copies of the reconstructions at its boundary interfaces
+   ! consistent with those of its neighbours. Active neighbours must already
+   ! have been through CorrectSlopesInterior. See CorrectSlopes.
+   subroutine CorrectSlopesEdges(RunParams, grid, tiles, tID)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID ! tileID
+
+      integer :: i, j, prevTile, nextTile
+
+      integer :: nXPoints, nYPoints
+      integer :: iw, iHnpsi
+
+      real(kind=wp) :: b_left, b_right, b_bottom, b_top
+
+      nXPoints = RunParams%nXpertile
+      nYPoints = RunParams%nYpertile
+      iw = RunParams%Vars%w
+      iHnpsi = RunParams%Vars%Hnpsi
+
+      ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
+      do j = 1, nYPoints
+
+         ! Left tile boundary
+         prevTile = tiles(tID)%West
+         if (.not. RunParams%isOneD) then
+            ! If 2D, have to interpolate b_left/right in middle of cell interface
+            b_left = InterpolateB(tiles(prevTile)%b0(nXpoints,j  ), tiles(prevTile)%b0(nXpoints,j+1), &
+                                  tiles(prevTile)%bt(nXpoints,j  ), tiles(prevTile)%bt(nXpoints,j+1))
+            b_right = InterpolateB(tiles(prevTile)%b0(nXpoints+1,j  ), tiles(prevTile)%b0(nXpoints+1,j+1), &
+                                   tiles(prevTile)%bt(nXpoints+1,j  ), tiles(prevTile)%bt(nXpoints+1,j+1))
+         else
+            b_left = tiles(prevTile)%b0(nXpoints,1) + tiles(prevTile)%bt(nXpoints,1)
+            b_right = tiles(prevTile)%b0(nXpoints+1,1) + tiles(prevTile)%bt(nXpoints+1,1)
+         end if
+         if ((tiles(prevTile)%uMinusX(iw,nXpoints+1,j) < b_right) .or.  &
+            (tiles(prevTile)%uPlusX(iw,nXpoints,j) < b_left)) then
+            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%u(iw,nXpoints,j) +  &
+               0.5_wp * (b_right - b_left)
+         else if (tiles(tID)%uMinusX(iw,1,j) /= tiles(prevTile)%uMinusX(iw,nXpoints+1,j) &
+            .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
+            ! This case covers the fact that the left tile may have corrected
+            ! its uMinusX value, in which case we need to make sure both copies
+            ! at the tile interface are the same (since the previous test will
+            ! fail to flag it)
+            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%uMinusX(iw,nXpoints+1,j)
+         end if
+
+         if (tiles(tID)%uMinusX(iHnpsi,1,j) < 0.0_wp) then
+            tiles(tID)%uMinusX(iHnpsi,1,j) = tiles(prevTile)%u(iHnpsi,nXPoints,j)
+         end if
 
          ! Right tile boundary
          nextTile = tiles(tID)%East
@@ -679,9 +760,10 @@ contains
                0.5_wp * (b_left - b_right)
          else if (tiles(tID)%uPlusX(iw,nXpoints+1,j) /= tiles(nextTile)%uPlusX(iw,1,j) &
             .and. grid%tileContainer(nextTile)%isGhostTile .eqv. .false.) then
-            ! Likewise, this case covers the fact that if the right tile already
-            ! corrected its uPlusX value, we need to make sure both copies at the tile
-            ! interface are the same (since the previous test will fail to flag it).
+            ! Likewise, this case covers the fact that the right tile may have
+            ! corrected its uPlusX value, in which case we need to make sure both
+            ! copies at the tile interface are the same (since the previous test
+            ! will fail to flag it).
             tiles(tID)%uPlusX(iw,nXpoints+1,j) = tiles(nextTile)%uPlusX(iw,1,j)
          end if
          if (tiles(tID)%uPlusX(iHnpsi,nXPoints+1,j) < 0.0_wp) then
@@ -710,28 +792,6 @@ contains
                tiles(tID)%uMinusY(iHnpsi,i,1) = tiles(prevTile)%u(iHnpsi,i,nYPoints)
             end if
 
-            ! Interior points
-            do j = 1, nYPoints
-               b_bottom = InterpolateB(tiles(tID)%b0(i  ,j), tiles(tID)%b0(i+1,j), &
-                                       tiles(tID)%bt(i  ,j), tiles(tID)%bt(i+1,j))
-               b_top = InterpolateB(tiles(tID)%b0(i  ,j+1), tiles(tID)%b0(i+1,j+1), &
-                                    tiles(tID)%bt(i  ,j+1), tiles(tID)%bt(i+1,j+1))
-               if ((tiles(tID)%uMinusY(iw,i,j+1) < b_top) .or.  &
-                  (tiles(tID)%uPlusY(iw,i,j) < b_bottom)) then
-                  ! Replace reconstruction by setting w gradient equal to bed gradient
-                  tiles(tID)%uMinusY(iw,i,j+1) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_top - b_bottom)
-                  tiles(tID)%uPlusY(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_bottom - b_top)
-               end if
-
-               if ((tiles(tID)%uMinusY(iHnpsi,i,j+1) < 0.0_wp) .or.  &
-                  (tiles(tID)%uPlusY(iHnpsi,i,j) < 0.0_wp)) then
-                  tiles(tID)%uMinusY(iHnpsi,i,j+1) = tiles(tID)%u(iHnpsi,i,j)
-                  tiles(tID)%uPlusY(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
-               end if
-            end do
-
             ! Top tile boundary
             nextTile = tiles(tID)%North
             b_bottom = InterpolateB(tiles(nextTile)%b0(i  ,1), tiles(nextTile)%b0(i+1,1), &
@@ -754,7 +814,7 @@ contains
          end do
       end if
 
-   end subroutine CorrectSlopes
+   end subroutine CorrectSlopesEdges
 
    ! This is a helper function for CorrectSlopes that linearly interpolates b
    ! between two points carefully, making sure to do the addition of the small
