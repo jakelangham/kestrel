@@ -92,6 +92,17 @@ use
 
   $ ./configure --enable-openmp
 
+The number of threads is then set at run time with the ``OMP_NUM_THREADS``
+environment variable (by default, OpenMP uses one thread per available
+processor core). For example, to run on 4 threads
+
+.. code-block:: bash
+
+  $ OMP_NUM_THREADS=4 OMP_WAIT_POLICY=passive ./kestrel [path-to-input-file]
+
+Setting ``OMP_WAIT_POLICY=passive`` stops idle threads from busy-waiting,
+which we have found to be faster when using all of a machine's cores.
+
 Some other options are listed in the help dialogue of the configure script
 
 .. code-block:: bash

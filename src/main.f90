@@ -50,7 +50,9 @@ program Kestrel
    use timestepper_module, only: Run
    use output_module, only: CreateOutDir
    use varstring_module, only: varString
-   use version_module, only: GetVersion 
+   use version_module, only: GetVersion
+   ! (Only compiled when building with OpenMP.)
+   !$ use omp_lib, only: omp_get_max_threads
 
    implicit none
 
@@ -104,6 +106,7 @@ program Kestrel
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"
+   !$ write (stdout, '(a,i0,a)') " Using ", omp_get_max_threads(), " OpenMP thread(s)."
    write (stdout, *)
 
    ! Read input file and populate the type(RunSet) :: RunParams object

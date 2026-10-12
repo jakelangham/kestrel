@@ -81,55 +81,78 @@ contains
 
       activeTiles => grid%activeTiles
 
+      ! Each stage below is a loop over the active tiles. Within a stage, each
+      ! tile only writes to its own data, so the tiles may be processed in
+      ! parallel (if built with OpenMP). Stages that read data from
+      ! neighbouring tiles rely on the barrier at the end of the previous stage.
+      !$omp parallel private(ttk)
+
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
+      !$omp end do
 
       ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call Reconstruct(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
+      !$omp end do
 
       ! Correct slopes for w, Hnpsi to ensure positivity. Every tile's
       ! interior must be corrected before any tile's edges (see CorrectSlopes).
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CorrectSlopesInterior(RunParams, tileWorkspace, ttk)
       end do
+      !$omp end do
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CorrectSlopesEdges(RunParams, grid, tileWorkspace, ttk)
       end do
+      !$omp end do
 
       ! Compute derived variables Hn, u, v, psi and rho at cell centres.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeDesingularisedVariables(RunParams, tileWorkspace, ttk, .true.)
       end do
+      !$omp end do
 
       ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
       end do
+      !$omp end do
 
       ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call Reconstruct(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
       end do
+      !$omp end do
 
       ! Calculate numerical flux terms, and also local propagation speeds which
       ! give the CFL time step.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileWorkspace, &
                               ttk, unitCFLTimeStep(tt))  ! Look at eqn input
       end do
+      !$omp end do
 
+      !$omp single
       ! Inactive tiles contribute a CFL time step of maxdt.
       minUnitCFLTimeStep = minval(unitCFLTimeStep)
       if (ActiveTiles%Size < grid%nTiles) then
@@ -138,12 +161,17 @@ contains
 
       advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
                                                substep, minUnitCFLTimeStep)
+      !$omp end single
 
       ! Sum flux and source terms to complete the calculation.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ConstructHydraulicRHS(RunParams, grid, tileWorkspace, ttk, t)
       end do
+      !$omp end do
+
+      !$omp end parallel
    end subroutine CalculateHydraulicRHS
 
    ! This contains all the logic for computing a suitable time step, i.e. one

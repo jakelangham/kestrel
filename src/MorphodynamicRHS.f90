@@ -93,6 +93,12 @@ contains
       HnS = 0.0_wp
       HnN = 0.0_wp
 
+      ! Tiles may be processed in parallel (if built with OpenMP). BtSourceTerm
+      ! reads E - D from neighbouring tiles, so it relies on the barrier at the
+      ! end of the loop below.
+      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Friction, Ero, Depo, HnW, HnE) &
+      !$omp firstprivate(HnS, HnN)
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          do i = 1, RunParams%nXPertile
@@ -143,8 +149,10 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       call BtSourceTerm(RunParams, grid, tiles)
+      !$omp end parallel
 
    end subroutine
 
@@ -173,6 +181,9 @@ contains
 
       psib = 1.0_wp - RunParams%BedPorosity
 
+      ! N.B. This is called from within the parallel region in
+      ! CalculateMorphodynamicRHS (if built with OpenMP).
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          if (.not. RunParams%isOneD) then
@@ -302,6 +313,7 @@ contains
             end if
          end if
       end do
+      !$omp end do
    end subroutine
 
    ! Interpolate b at cell centres, for tile tID.
