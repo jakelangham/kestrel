@@ -94,6 +94,10 @@ contains
       ActiveTiles => grid%ActiveTiles
       ghostTiles => grid%ghostTiles
 
+      ! Activation changes tile data (in this tile and its neighbours) that
+      ! the intermed arrays only pick up on a full refresh.
+      grid%intermedStale = .true.
+
       ! Is this the first active tile?
       if (.not. allocated(ActiveTiles%List)) then
          allocate(ActiveTiles%List(1))

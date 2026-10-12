@@ -193,9 +193,12 @@ contains
             ! If no erosion, we're already done
             if (.not.RunParams%MorphodynamicsOn) exit
             ! else copy solution data back into I0 for the next operator.
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed0)
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed1)
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed2)
+            ! (The morphodynamic operator only needs the cell centred data and
+            ! bt. Its RHS is recomputed at each substep, and the interfacial
+            ! topographic data are copied over again afterwards.)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed0)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed1)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed2)
             dt_morpho = 2.0_wp * dt_hydro
 
             call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep)
@@ -782,6 +785,19 @@ contains
 
    ! Initialise each of the intermediate substep arrays by copying over the
    ! current solution data.
+   !
+   ! A full copy of every active and ghost tile is only needed when the tile
+   ! set has changed since the last call (grid%intermedStale). Otherwise:
+   ! * Active tiles need nothing here. The evolving fields (u, bt and the
+   !   topographic interface data) are copied in by CopySolutionData and
+   !   CopyMutableTopographicData at the start of each step, the remaining
+   !   static fields (b0 etc.) only change on tile activation, and the
+   !   scratch fields (limited derivatives, reconstructions, fluxes, RHS) are
+   !   always rewritten by the RHS routines before being read.
+   ! * Ghost tiles are never written during a step, except in intermed3 by
+   !   RedistributeGrid, which may modify bt and u in neighbouring tiles. Those
+   !   arrays are reset from tileContainer (which is not modified for ghost
+   !   tiles) to discard such changes, as the full copy would.
    subroutine InitialiseTimeSteppingArrays(nActiveTiles, grid)
       implicit none
 
@@ -789,6 +805,16 @@ contains
       type(GridType), target, intent(inout) :: grid
 
       integer :: tt, ttk
+
+      if (.not. grid%intermedStale) then
+         do tt = 1, grid%ghostTiles%size
+            ttk = grid%ghostTiles%List(tt)
+            grid%intermed3(ttk)%u(:, :, :) = grid%tileContainer(ttk)%u(:, :, :)
+            grid%intermed3(ttk)%bt(:, :) = grid%tileContainer(ttk)%bt(:, :)
+         end do
+         return
+      end if
+      grid%intermedStale = .false.
 
       ! Copy data over to the intermediate time stepping arrays
       do tt = 1, nActiveTiles
@@ -834,6 +860,28 @@ contains
       end do
    end subroutine CopySolutionData
 
+   ! Copy only the cell centred solution vector and bt from one tile container
+   ! to another. This is much cheaper than CopySolutionData, since it avoids
+   ! the strided copies of individual fields in CopyMutableTopographicData.
+   subroutine CopyCellCentredData(grid, tilesfrom, tilesto)
+      implicit none
+
+      type(GridType), target, intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+
+      integer :: tt, ttk
+
+      type(TileList), pointer :: activeTiles
+
+      activeTiles => grid%activeTiles
+
+      do tt = 1, ActiveTiles%Size
+         ttk = ActiveTiles%List(tt)
+         tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
+         tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
+      end do
+   end subroutine CopyCellCentredData
+
    ! Copy the time dependent topographic data from one tile container to another.
    subroutine CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
       implicit none
@@ -854,22 +902,18 @@ contains
          tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
          tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
 
-         tilesto(ttk)%uPlusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%bt, :, :)
-         tilesto(ttk)%uMinusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%bt, :, :)
-         tilesto(ttk)%uPlusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdx, :, :)
-         tilesto(ttk)%uMinusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdx, :, :)
+         ! The interfacial bt, dbdx and dbdy values are copied by copying the
+         ! whole u{Plus,Minus}{X,Y} arrays, which is much faster than copying
+         ! the strided slices for each field. This also copies the
+         ! reconstructed flow fields, but these are always recomputed in
+         ! CalculateHydraulicRHS before they are used.
+         tilesto(ttk)%uPlusX(:, :, :) = tilesfrom(ttk)%uPlusX(:, :, :)
+         tilesto(ttk)%uMinusX(:, :, :) = tilesfrom(ttk)%uMinusX(:, :, :)
          if (.not. RunParams%isOneD) then
             tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
 
-            tilesto(ttk)%uPlusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uMinusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdy, :, :)
-
-            tilesto(ttk)%uPlusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%bt, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%bt, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdx, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdx, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
+            tilesto(ttk)%uPlusY(:, :, :) = tilesfrom(ttk)%uPlusY(:, :, :)
+            tilesto(ttk)%uMinusY(:, :, :) = tilesfrom(ttk)%uMinusY(:, :, :)
          end if
       end do
    end subroutine CopyMutableTopographicData
