@@ -353,7 +353,9 @@ contains
       integer, intent(in) :: tID
       character(len=1), intent(in) :: bid
 
-      integer :: nextTile = 0, prevTile = 0
+      ! N.B. No initialisers here: in Fortran these would imply SAVE, making
+      ! the variables shared between calls (and threads).
+      integer :: nextTile, prevTile
 
       real(kind=wp) :: uN, uS, uE, uW
       real(kind=wp) :: deltaXRecip, deltaYRecip
