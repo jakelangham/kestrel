@@ -55,6 +55,22 @@ if with_netcdf
    ]
 end
 
+# Check if built with OpenMP and define thread independence tests if so. Each
+# simulation is run with 1 thread and (twice) with nthreads threads, and the
+# outputs must be identical. These cover 1D/2D, hydraulic/morphodynamic flows
+# and (in tile_indep_dynamic_20m) many small tiles being added during the flow.
+tests_threads = []
+with_openmp = built_with_openmp(prog)
+if with_openmp
+   nthreads = 4
+   tests_threads = [
+      ("flux_morpho", 1, nthreads)
+      ("flux_hydro_2d", 2, nthreads)
+      ("flux_morpho_2d", 2, nthreads)
+      ("tile_indep_dynamic_20m", 2, nthreads)
+   ]
+end
+
 function run_test(i, name, testfunc, args...)
    println("Test #$i: ($name)")
    res = testfunc(args...)
@@ -126,10 +142,22 @@ function run_netcdf()
    return numpassed
 end
 
+function run_threads()
+   println("\nThread independence tests...")
+   numpassed = 0
+   for i = 1:length(tests_threads)
+      testname = tests_threads[i][1]
+      testfunc = test_thread_independence
+      args = tests_threads[i]
+      numpassed += run_test(i, testname, testfunc, args...)
+   end
+   return numpassed
+end
+
 function run_all()
 
    numtests = length(tests_1d) + length(tests_2d) + length(tests_noflow) +
-         length(tests_identical) + length(tests_netcdf)
+         length(tests_identical) + length(tests_netcdf) + length(tests_threads)
    numpassed = 0
 
    print("Running full test suite. Some tests (espcially 2D ones) may take a",
@@ -146,7 +174,13 @@ function run_all()
    if with_netcdf
       numpassed += run_netcdf()
    end
-  
+
+   if with_openmp
+      numpassed += run_threads()
+   else
+      println("\nKestrel is not built with OpenMP: skipping thread independence tests.")
+   end
+
    report_pass_rate_and_exit(numpassed, numtests)
 end
 
@@ -164,7 +198,7 @@ end
 
 # Print a list of available test categories.
 function print_options()
-   println("Options are 'all', '1d', '2d', 'noflow', 'identical' and 'netcdf'.")
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'netcdf' and 'threads'.")
 end
 
 tests = (if isempty(ARGS); ["all"]; else ARGS; end)
@@ -196,7 +230,16 @@ else
          numtests += length(tests_netcdf)
          numpassed += run_netcdf()
       else
-         printstyled("FAIL Kestrel is not built with NetCDF support\n"; 
+         printstyled("FAIL Kestrel is not built with NetCDF support\n";
+                     color = :red, bold = true)
+      end
+   end
+   if "threads" in tests
+      if with_openmp
+         numtests += length(tests_threads)
+         numpassed += run_threads()
+      else
+         printstyled("FAIL Kestrel is not built with OpenMP support\n";
                      color = :red, bold = true)
       end
    end

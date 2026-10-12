@@ -382,6 +382,11 @@ The command
 
 prints a list of the available categories.
 
+If Kestrel is built with OpenMP, the 'threads' tests are also run. These check
+that some simulations give exactly the same results with 1 and 4 threads, and
+when repeated with 4 threads, which would most likely fail if a change to the
+code introduced a data race.
+
 .. warning::
 
    Running these is the first step in debugging and won't catch everything.
