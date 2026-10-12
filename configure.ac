@@ -68,6 +68,32 @@ AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
                         [AC_SUBST(FC_ARCH_FLAGS, "-mcpu=native -mtune=native")],
                        )])
 
+# OpenMP (multithreading) is off by default; turn on with --enable-openmp.
+# OPENMP_FCFLAGS is used to compile the Fortran sources; OPENMP_CXXFLAGS is
+# needed at link time, since we link with the C++ compiler. (AC_OPENMP only
+# looks for these flags when enable_openmp != no.)
+AC_ARG_ENABLE([openmp],
+[  --enable-openmp         build with OpenMP multithreading (default: no)],
+[case "${enableval}" in
+  yes) enable_openmp=yes ;;
+  no)  enable_openmp=no ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-openmp]) ;;
+esac],[enable_openmp=no])
+# AC_OPENMP declares its own (inert) --disable-openmp option, which would
+# duplicate the one above in --help, so we suppress it.
+m4_pushdef([AC_ARG_ENABLE], [])
+AC_LANG(Fortran)
+AC_OPENMP
+AC_LANG(C++)
+AC_OPENMP
+m4_popdef([AC_ARG_ENABLE])
+AS_IF([test "x$enable_openmp" = xyes],
+      [AS_IF([test "x$ac_cv_prog_fc_openmp" = xunsupported || \
+              test "x$ac_cv_prog_cxx_openmp" = xunsupported],
+             [AC_MSG_ERROR([--enable-openmp was given, but the compilers do not support OpenMP])])
+       AC_MSG_NOTICE([building with OpenMP ($OPENMP_FCFLAGS)])],
+      [AC_MSG_NOTICE([building without OpenMP (use --enable-openmp to turn on)])])
+
 AC_CONFIG_FILES([
  Makefile
  src/Makefile
