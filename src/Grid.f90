@@ -158,6 +158,10 @@ module grid_module
       ! set whenever the set of active/ghost tiles changes (see
       ! InitialiseTimeSteppingArrays).
       logical :: intermedStale
+      ! Do all the intermed arrays hold the same time dependent topographic
+      ! data (see CopyMutableTopographicData) as tileContainer? If so, it
+      ! needn't be copied at the start of each time step (see IntegrateTo).
+      logical :: intermedTopogSynced
 
    end type GridType
 
@@ -221,6 +225,7 @@ contains
       allocate(grid%intermed2(grid%nTiles))
       allocate(grid%intermed3(grid%nTiles))
       grid%intermedStale = .true.
+      grid%intermedTopogSynced = .false.
 
    end subroutine InitialiseGrid
 

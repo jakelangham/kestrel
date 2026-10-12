@@ -171,12 +171,25 @@ contains
          ! This loop tries to complete a single H(dt) * M(2dt) * H(dt) step.
          grid%t0 = grid%t ! t0 is the t to fall back to if dt gets revised.
          do while (.true.)
-            ! Copy necessary data over to the intermed{0-3} arrays, which 
+            ! Copy necessary data over to the intermed{0-3} arrays, which
             ! store the solution vector at each substep of the method.
-            call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0)
-            call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
-            call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
-            call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3)
+            ! The time dependent topographic data are only changed by the
+            ! morphodynamic operator, so they need only be copied if the
+            ! intermed arrays are out of sync with tileContainer, i.e. at the
+            ! start of the simulation, or if a step involving the
+            ! morphodynamic operator was abandoned to refine the time step.
+            if (grid%intermedTopogSynced) then
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0, &
+                                     copyTopog=.false.)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3, &
+                                     copyTopog=.false.)
+            else
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0)
+               call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
+               call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3)
+               grid%intermedTopogSynced = .true.
+            end if
 
             call HydraulicTimeStepper(RunParams, grid, dt_hydro, nextT, refineTimeStep)
 
@@ -201,6 +214,9 @@ contains
             call CopyCellCentredData(grid, grid%intermed3, grid%intermed2)
             dt_morpho = 2.0_wp * dt_hydro
 
+            ! The morphodynamic operator changes the topographic data in the
+            ! intermed arrays (but not tileContainer).
+            grid%intermedTopogSynced = .false.
             call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep)
 
             if (refineTimeStep) then
@@ -257,8 +273,14 @@ contains
 #endif
          end do
 
-         ! Copy final time step back into main solution vector.
-         call CopySolutionData(RunParams, grid, grid%intermed3, grid%tileContainer)
+         ! Copy final time step back into main solution vector. The topographic
+         ! data are unchanged unless morphodynamics is on. If it is, the
+         ! (updated) topographic data were also copied from intermed3 to
+         ! intermed{0-2} after the morphodynamic operator, so afterwards all
+         ! the intermed arrays are in sync with tileContainer.
+         call CopySolutionData(RunParams, grid, grid%intermed3, grid%tileContainer, &
+                               copyTopog=RunParams%MorphodynamicsOn)
+         grid%intermedTopogSynced = .true.
 
          ! Record previous simulation time and set current value.
          if (.not.RunParams%MorphodynamicsOn) then
@@ -848,6 +870,7 @@ contains
          return
       end if
       grid%intermedStale = .false.
+      grid%intermedTopogSynced = .true.
 
       ! Copy data over to the intermediate time stepping arrays
       !$omp parallel do schedule(dynamic) private(ttk)
@@ -871,20 +894,29 @@ contains
    end subroutine InitialiseTimeSteppingArrays
 
    ! Copy the full solution vector from one tile container to another.
-   subroutine CopySolutionData(RunParams, grid, tilesfrom, tilesto)
+   ! If copyTopog is present and false, the time dependent topographic data
+   ! (see CopyMutableTopographicData) are not copied, except where they are
+   ! part of the cell centred solution vector (u).
+   subroutine CopySolutionData(RunParams, grid, tilesfrom, tilesto, copyTopog)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
       type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+      logical, intent(in), optional :: copyTopog
 
       integer :: tt, ttk
+      logical :: doTopog
 
       type(TileList), pointer :: activeTiles
 
       activeTiles => grid%activeTiles
 
-      call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
+      doTopog = .true.
+      if (present(copyTopog)) doTopog = copyTopog
+      if (doTopog) then
+         call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
+      end if
 
       !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, ActiveTiles%Size
