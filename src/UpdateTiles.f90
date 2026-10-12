@@ -372,11 +372,11 @@ contains
       call AddGhostTiles(RunParams, grid, k)
 
       call ComputeInterfacialTopographicData(RunParams, grid, tileContainer, k)
-      call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k)
+      call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k, updateNeighbours=.true.)
       call Reconstruct(RunParams, grid, RunParams%iFlux, tileContainer, k)
       call CorrectSlopes(RunParams, grid, tileContainer, k)
       call ComputeDesingularisedVariables(RunParams, tileContainer, k, .true.)
-      call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileContainer, k)
+      call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileContainer, k, updateNeighbours=.true.)
       call Reconstruct(RunParams, grid, RunParams%iDesing, tileContainer, k)
       unitCFLTimeStep_dummy = 100000.0_wp
       call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileContainer, &
