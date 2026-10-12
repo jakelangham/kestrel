@@ -371,6 +371,7 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
+      !$omp parallel do schedule(dynamic) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -387,6 +388,7 @@ contains
             end if
          end do
       end do ! end first substep
+      !$omp end parallel do
 
       ! Compute new RHS from first substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed1, nextT, 2, dt1)
@@ -407,6 +409,7 @@ contains
       end if
 
       ! Compute second substep.
+      !$omp parallel do schedule(dynamic) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -445,6 +448,7 @@ contains
             end if
          end do
       end do ! end second substep
+      !$omp end parallel do
 
       ! Compute new RHS from second substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed2, &
@@ -466,6 +470,7 @@ contains
       end if
 
       ! Compute third substep.
+      !$omp parallel do schedule(dynamic) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -499,11 +504,13 @@ contains
             end if
          end do
       end do ! end third substep
+      !$omp end parallel do
 
       ! Compute new RHS from third substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
+      !$omp parallel do schedule(dynamic) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -526,6 +533,7 @@ contains
          call UpdateMaximumDeposit(RunParams, tileContainer(ttk), nextT)
          call UpdateMaximumSolidsFraction(RunParams, tileContainer(ttk), nextT)
       end do ! end final implicit substep
+      !$omp end parallel do
 
    end subroutine HydraulicTimeStepper
 
@@ -569,6 +577,8 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed0)
 
       ! Compute first substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -583,10 +593,12 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
       ! These updates are linearly dependent on the update to bt, so they may
       ! be explicitly determined in a conservative way.
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! First we have to interpolate bt onto cell centres.
@@ -611,10 +623,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed1, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed1)
 
       ! Compute second substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -631,8 +647,10 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed2, ttk)
@@ -656,10 +674,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed2, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed2)
 
       ! Compute third substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -675,8 +697,10 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+      !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed3, ttk)
@@ -700,7 +724,12 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
+      ! N.B. Unlike the loops above, this loop is not run in parallel, since
+      ! it exits early and builds up the shared redistcells list.
+      !
       ! This loop performs two checks on the morphodynamic update.
       ! * Is a cell depositing more solids than it possesses? If so, we
       !   refine the time step or make a correction.
@@ -776,10 +805,12 @@ contains
       end if
 
       ! Update u{Plus,Minus}{X,Y}, b and grad(b) data since the bed has changed.
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeInterfacialTopographicData(RunParams, grid, grid%intermed3, ttk)
       end do
+      !$omp end parallel do
 
    end subroutine MorphodynamicTimeStepper
 
@@ -807,16 +838,19 @@ contains
       integer :: tt, ttk
 
       if (.not. grid%intermedStale) then
+         !$omp parallel do schedule(dynamic) private(ttk)
          do tt = 1, grid%ghostTiles%size
             ttk = grid%ghostTiles%List(tt)
             grid%intermed3(ttk)%u(:, :, :) = grid%tileContainer(ttk)%u(:, :, :)
             grid%intermed3(ttk)%bt(:, :) = grid%tileContainer(ttk)%bt(:, :)
          end do
+         !$omp end parallel do
          return
       end if
       grid%intermedStale = .false.
 
       ! Copy data over to the intermediate time stepping arrays
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, nActiveTiles
          ttk = grid%activeTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -824,6 +858,8 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+      !$omp end parallel do
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, grid%ghostTiles%size
          ttk = grid%ghostTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -831,6 +867,7 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+      !$omp end parallel do
    end subroutine InitialiseTimeSteppingArrays
 
    ! Copy the full solution vector from one tile container to another.
@@ -849,6 +886,7 @@ contains
 
       call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
 
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
@@ -858,6 +896,7 @@ contains
             tilesto(ttk)%ddtExplicitBt(:, :) = tilesfrom(ttk)%ddtExplicitBt(:, :)
          end if
       end do
+      !$omp end parallel do
    end subroutine CopySolutionData
 
    ! Copy only the cell centred solution vector and bt from one tile container
@@ -875,11 +914,13 @@ contains
 
       activeTiles => grid%activeTiles
 
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
          tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
       end do
+      !$omp end parallel do
    end subroutine CopyCellCentredData
 
    ! Copy the time dependent topographic data from one tile container to another.
@@ -896,6 +937,7 @@ contains
 
       activeTiles => grid%activeTiles
 
+      !$omp parallel do schedule(dynamic) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
@@ -916,6 +958,7 @@ contains
             tilesto(ttk)%uMinusY(:, :, :) = tilesfrom(ttk)%uMinusY(:, :, :)
          end if
       end do
+      !$omp end parallel do
    end subroutine CopyMutableTopographicData
 
    ! Sponge layer modifications to explicit time stepping terms.
@@ -965,6 +1008,9 @@ contains
 
    ! Check if the flow as reached any edge of the active region. This is broken
    ! into four separate routines (below) that check each boundary.
+   ! N.B. These must not be run in parallel, since AddTile modifies the tile
+   ! lists and neighbouring tiles, and reads topographic data via a cached
+   ! (non thread-safe) GDAL dataset.
    subroutine CheckIfNearBoundaries(RunParams, grid, nActiveTiles)
       implicit none
 
