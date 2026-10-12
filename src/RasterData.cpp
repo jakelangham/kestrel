@@ -145,15 +145,8 @@ RasterData::RasterData(const char *filename) {
 	return;
 }
 
-RasterData::RasterData(const char *filename, int xsize, int ysize, int xoff, int yoff) {
-	// Register GDAL drivers
-	GDALDataset *poDataset;
-	GDALAllRegister();
-
-	// Open file using GDAL in read-only mode
-	poDataset = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
-
-	// Check if file opens successfully
+RasterData::RasterData(GDALDataset *poDataset, int xsize, int ysize, int xoff, int yoff) {
+	// Check if file opened successfully
 	if (poDataset == NULL) // File could not be read
 	{
         read_success = 0;
@@ -250,7 +243,6 @@ RasterData::RasterData(const char *filename, int xsize, int ysize, int xoff, int
         }
 
 	}
-	GDALClose(poDataset);	// Close the geotiff
 	return;
 }
 
@@ -292,6 +284,24 @@ void GeoTiffInfo(const char *ctifname, RasterData *raster)
 	return;
 }
 
+// Section reads are made each time a tile is activated, which may happen
+// thousands of times in a simulation. Opening the dataset is costly (for a
+// warped VRT, this includes setting up the reprojection), and closing it
+// discards GDAL's cache of already-warped blocks, so we keep the most recently
+// read dataset open for the remainder of the run.
+static GDALDataset *OpenCachedDataset(const std::string &filename)
+{
+	static GDALDataset *cachedDataset = NULL;
+	static std::string cachedFilename;
+
+	if (cachedDataset == NULL || filename != cachedFilename) {
+		if (cachedDataset != NULL) GDALClose(cachedDataset);
+		cachedDataset = (GDALDataset *)GDALOpen(filename.c_str(), GA_ReadOnly);
+		cachedFilename = filename;
+	}
+	return cachedDataset;
+}
+
 void GeoTiffArraySectionRead(const char *cpath, const char *ctifname, RasterData *raster, int *xoff, int *yoff, int *xsize, int *ysize)
 {
 	// Convert input char to string for ease of concatenation
@@ -303,24 +313,14 @@ void GeoTiffArraySectionRead(const char *cpath, const char *ctifname, RasterData
 
 	// Create full path of file to open
     std::string sourceFilename = pathStr + ctifnameStr;
-	fs::path sourceFile { sourceFilename };
-	char *inFile = new char[sourceFilename.length() + 1];
-	strcpy(inFile, sourceFilename.c_str()); // GDAL required char for file name
 
-    *raster = RasterData(inFile, *xsize, *ysize, *xoff, *yoff);
+	GDALDataset *poDataset = OpenCachedDataset(sourceFilename);
+
+    *raster = RasterData(poDataset, *xsize, *ysize, *xoff, *yoff);
 
     if (raster->read_success) {
-        
+
         try {
-			GDALDataset *poDataset;
-            // Open file
-	        poDataset = (GDALDataset *)GDALOpen(inFile, GA_ReadOnly);
-
-	        if (poDataset == NULL) // Failed to open file
-	        {
-                throw;
-	        }
-
 			// Fetch a raster band
 			GDALRasterBand *poBand;
 			poBand = poDataset->GetRasterBand(1);
@@ -337,10 +337,6 @@ void GeoTiffArraySectionRead(const char *cpath, const char *ctifname, RasterData
 
 			// Read values in the array section with origin at (xoff, yoff) and with size (xsize, ysize)
 			CPLErr read_err = poBand->RasterIO(GF_Read, *xoff, *yoff, *xsize, *ysize, raster->values, *xsize, *ysize, GDT_Float64, 0, 0);
-
-            // Close dataset
-            GDALClose(poDataset);
-
 
 			if (read_err != CE_None) // Error reading
 			{

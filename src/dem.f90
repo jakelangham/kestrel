@@ -43,6 +43,13 @@ module dem_module
    public :: LoadDEM
    public :: GetHeights
 
+   ! Properties of the DEM raster used by TileHeightData. These are fixed once
+   ! the DEM has been prepared, so they are read on first use and cached, rather
+   ! than being re-read from the raster for every tile.
+   type(FortranRasterData), save :: demRasterInfo
+   type(varString), save :: demRasterInfoFile
+   logical, save :: demRasterInfoCached = .false.
+
 contains
 
    function CheckDEMvrtExists(RunParams) result(exists)
@@ -303,7 +310,13 @@ contains
          error stop (1)
       end if
 
-      call RasterInfo(path=RunParams%out_path, filename=fname, rasterF=rasterFull)
+      if (.not. demRasterInfoCached .or. &
+          demRasterInfoFile%s /= RunParams%out_path%s // fname%s) then
+         call RasterInfo(path=RunParams%out_path, filename=fname, rasterF=demRasterInfo)
+         demRasterInfoFile = varString(RunParams%out_path%s // fname%s)
+         demRasterInfoCached = .true.
+      end if
+      rasterFull = demRasterInfo
       rasterDeltaX = rasterFull%pixelWidth
       rasterDeltaY = rasterFull%pixelHeight
       rasterOX = rasterFull%originX
