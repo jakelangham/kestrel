@@ -126,6 +126,50 @@ AS_IF([test "x$enable_openmp" = xyes],
 AC_SUBST([OPENMP_LINKFLAGS])
 AC_SUBST([OPENMP_LIBS])
 
+# Link-time optimisation is off by default; turn on with --enable-lto. It lets
+# the compiler inline small, frequently called routines across source files,
+# which speeds up the solver by several percent. The Fortran and C++ object
+# files are optimised together at link time, so this needs the Fortran and
+# C++ compilers to be the same version of GCC (e.g. not Homebrew gfortran with
+# Apple clang).
+AC_ARG_ENABLE([lto],
+[  --enable-lto            build with link-time optimisation (default: no)],
+[case "${enableval}" in
+  yes) enable_lto=yes ;;
+  no)  enable_lto=no ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-lto]) ;;
+esac],[enable_lto=no])
+LTO_FLAGS=
+AS_IF([test "x$enable_lto" = xyes],
+      [AC_CACHE_CHECK([whether $FC and $CXX are the same version of GCC],
+                      [kestrel_cv_lto_compatible],
+                      [kestrel_cv_lto_compatible=no
+                       fc_version=`$FC -dumpfullversion 2>/dev/null`
+                       cxx_version=`$CXX -dumpfullversion 2>/dev/null`
+                       AS_IF([test -n "$fc_version" && test "x$fc_version" = "x$cxx_version" && \
+                              ! $CXX --version 2>/dev/null | grep -qi clang],
+                             [kestrel_cv_lto_compatible=yes])])
+       AS_IF([test "x$kestrel_cv_lto_compatible" != xyes],
+             [AC_MSG_ERROR([--enable-lto needs the Fortran and C++ compilers to be the same version of GCC ($FC: ${fc_version:-unknown}, $CXX: ${cxx_version:-unknown})])])
+       AC_LANG_PUSH([Fortran])
+       AX_CHECK_COMPILE_FLAG([-flto=auto], [LTO_FLAGS="-flto=auto"],
+                             [AX_CHECK_COMPILE_FLAG([-flto], [LTO_FLAGS="-flto"])])
+       AC_LANG_POP([Fortran])
+       AS_IF([test -z "$LTO_FLAGS"],
+             [AC_MSG_ERROR([--enable-lto was given, but $FC does not support -flto])])
+       AC_LANG_PUSH([C++])
+       save_CXXFLAGS=$CXXFLAGS; save_LDFLAGS=$LDFLAGS
+       CXXFLAGS="$CXXFLAGS $LTO_FLAGS"; LDFLAGS="$LDFLAGS $LTO_FLAGS"
+       AC_MSG_CHECKING([whether $CXX can link with $LTO_FLAGS])
+       AC_LINK_IFELSE([AC_LANG_PROGRAM([], [[return 0;]])],
+                      [AC_MSG_RESULT([yes])],
+                      [AC_MSG_RESULT([no])
+                       AC_MSG_ERROR([--enable-lto was given, but $CXX cannot link with $LTO_FLAGS])])
+       CXXFLAGS=$save_CXXFLAGS; LDFLAGS=$save_LDFLAGS
+       AC_LANG_POP([C++])
+       AC_MSG_NOTICE([building with link-time optimisation ($LTO_FLAGS)])])
+AC_SUBST([LTO_FLAGS])
+
 AC_CONFIG_FILES([
  Makefile
  src/Makefile
