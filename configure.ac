@@ -69,9 +69,13 @@ AX_CHECK_COMPILE_FLAG(-march=native -mtune=native,
                        )])
 
 # OpenMP (multithreading) is off by default; turn on with --enable-openmp.
-# OPENMP_FCFLAGS is used to compile the Fortran sources; OPENMP_CXXFLAGS is
-# needed at link time, since we link with the C++ compiler. (AC_OPENMP only
-# looks for these flags when enable_openmp != no.)
+# OPENMP_FCFLAGS is used to compile the Fortran sources. Since we link with the
+# C++ compiler, it also needs to link the Fortran compiler's OpenMP runtime:
+# OPENMP_LINKFLAGS and OPENMP_LIBS. If the C++ compiler is GCC, this is just
+# OPENMP_CXXFLAGS. Otherwise (e.g. Apple clang, which is needed to match
+# Homebrew's GDAL on macOS, with Homebrew's gfortran), we link the GNU OpenMP
+# runtime (libgomp) explicitly. (AC_OPENMP only looks for flags when
+# enable_openmp != no.)
 AC_ARG_ENABLE([openmp],
 [  --enable-openmp         build with OpenMP multithreading (default: no)],
 [case "${enableval}" in
@@ -87,12 +91,40 @@ AC_OPENMP
 AC_LANG(C++)
 AC_OPENMP
 m4_popdef([AC_ARG_ENABLE])
+OPENMP_LINKFLAGS=
+OPENMP_LIBS=
 AS_IF([test "x$enable_openmp" = xyes],
-      [AS_IF([test "x$ac_cv_prog_fc_openmp" = xunsupported || \
-              test "x$ac_cv_prog_cxx_openmp" = xunsupported],
-             [AC_MSG_ERROR([--enable-openmp was given, but the compilers do not support OpenMP])])
-       AC_MSG_NOTICE([building with OpenMP ($OPENMP_FCFLAGS)])],
+      [AS_IF([test "x$ac_cv_prog_fc_openmp" = xunsupported],
+             [AC_MSG_ERROR([--enable-openmp was given, but the Fortran compiler does not support OpenMP])])
+       AS_IF([test "x$ac_cv_prog_cxx_openmp" != xunsupported && \
+              ! $CXX --version 2>/dev/null | grep -qi clang],
+             [OPENMP_LINKFLAGS=$OPENMP_CXXFLAGS],
+             [AC_MSG_CHECKING([for the Fortran compiler's OpenMP runtime])
+              gomp_dir=
+              for gomp_lib in libgomp.dylib libgomp.so libgomp.a; do
+                 gomp_path=`$FC -print-file-name=$gomp_lib 2>/dev/null`
+                 AS_IF([test -f "$gomp_path"],
+                       [gomp_dir=`AS_DIRNAME(["$gomp_path"])`; break])
+              done
+              AS_IF([test -z "$gomp_dir"],
+                    [AC_MSG_RESULT([not found])
+                     AC_MSG_ERROR([--enable-openmp was given, but could not find libgomp for $FC])])
+              AC_MSG_RESULT([$gomp_dir])
+              OPENMP_LINKFLAGS="-L$gomp_dir -Wl,-rpath,$gomp_dir"
+              OPENMP_LIBS="-lgomp"
+              save_LDFLAGS=$LDFLAGS; save_LIBS=$LIBS
+              LDFLAGS="$LDFLAGS $OPENMP_LINKFLAGS"; LIBS="$OPENMP_LIBS $LIBS"
+              AC_MSG_CHECKING([whether $CXX can link libgomp])
+              AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern "C" int omp_get_max_threads(void);]],
+                                              [[return omp_get_max_threads() < 1;]])],
+                             [AC_MSG_RESULT([yes])],
+                             [AC_MSG_RESULT([no])
+                              AC_MSG_ERROR([--enable-openmp was given, but $CXX cannot link $FC's OpenMP runtime (libgomp)])])
+              LDFLAGS=$save_LDFLAGS; LIBS=$save_LIBS])
+       AC_MSG_NOTICE([building with OpenMP ($OPENMP_FCFLAGS; linking with $OPENMP_LINKFLAGS $OPENMP_LIBS)])],
       [AC_MSG_NOTICE([building without OpenMP (use --enable-openmp to turn on)])])
+AC_SUBST([OPENMP_LINKFLAGS])
+AC_SUBST([OPENMP_LIBS])
 
 AC_CONFIG_FILES([
  Makefile
