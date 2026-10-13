@@ -51,7 +51,7 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor_gradin, DragClosure
+   use closures_module, only: GeometricCorrectionFactor_gradin
 
    implicit none
 
@@ -78,7 +78,7 @@ contains
 
       type(TileList), pointer :: activeTiles
 
-      real(kind=wp) :: Friction, Ero, Depo 
+      real(kind=wp) :: Ero, Depo
       real(kind=wp) :: HnW, HnE, HnS, HnN, Hneps
 
       integer :: tt, tID, ttW, ttE, ttS, ttN
@@ -96,7 +96,7 @@ contains
       ! Tiles may be processed in parallel (if built with OpenMP). BtSourceTerm
       ! reads E - D from neighbouring tiles, so it relies on the barrier at the
       ! end of the loop below.
-      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Friction, Ero, Depo, HnW, HnE) &
+      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Ero, Depo, HnW, HnE) &
       !$omp firstprivate(HnS, HnN)
       !$omp do schedule(dynamic)
       do tt = 1, ActiveTiles%Size
@@ -142,7 +142,6 @@ contains
                   tiles(tID)%EminusD(i,j) = 0.0_wp
                else
                   ! Compute E - D at each cell centre and save it.
-                  Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
                   call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo)
                   tiles(tID)%EminusD(i,j) = Ero - Depo
                end if
