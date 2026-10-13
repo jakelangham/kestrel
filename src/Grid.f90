@@ -162,6 +162,10 @@ module grid_module
       ! data (see CopyMutableTopographicData) as tileContainer? If so, it
       ! needn't be copied at the start of each time step (see IntegrateTo).
       logical :: intermedTopogSynced
+      ! Likewise, but for just the interfacial topographic data (stored in
+      ! u{Plus,Minus}{X,Y}), which the morphodynamic operator only changes
+      ! when it completes a step.
+      logical :: intermedInterfTopogSynced
 
    end type GridType
 
@@ -226,6 +230,7 @@ contains
       allocate(grid%intermed3(grid%nTiles))
       grid%intermedStale = .true.
       grid%intermedTopogSynced = .false.
+      grid%intermedInterfTopogSynced = .false.
 
    end subroutine InitialiseGrid
 

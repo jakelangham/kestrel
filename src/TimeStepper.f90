@@ -178,17 +178,30 @@ contains
             ! intermed arrays are out of sync with tileContainer, i.e. at the
             ! start of the simulation, or if a step involving the
             ! morphodynamic operator was abandoned to refine the time step.
+            ! If the morphodynamic operator itself abandoned the step, it only
+            ! changed the cell centred topographic data (not the interfacial
+            ! data), so only those need to be restored.
             if (grid%intermedTopogSynced) then
                call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0, &
                                      copyTopog=.false.)
                call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3, &
                                      copyTopog=.false.)
+            else if (grid%intermedInterfTopogSynced) then
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0, &
+                                     copyTopog=.false.)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3, &
+                                     copyTopog=.false.)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed3)
+               grid%intermedTopogSynced = .true.
             else
                call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0)
                call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
                call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
                call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3)
                grid%intermedTopogSynced = .true.
+               grid%intermedInterfTopogSynced = .true.
             end if
 
             call HydraulicTimeStepper(RunParams, grid, dt_hydro, nextT, refineTimeStep)
@@ -231,6 +244,10 @@ contains
                grid%dt = dt_hydro
                cycle
             end if
+
+            ! Having completed, the morphodynamic operator has also updated the
+            ! interfacial topographic data in intermed3.
+            grid%intermedInterfTopogSynced = .false.
 
             ! N.B. Updated topographic data needed for intermediate computations.
             call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed0)
@@ -281,6 +298,7 @@ contains
          call CopySolutionData(RunParams, grid, grid%intermed3, grid%tileContainer, &
                                copyTopog=RunParams%MorphodynamicsOn)
          grid%intermedTopogSynced = .true.
+         grid%intermedInterfTopogSynced = .true.
 
          ! Record previous simulation time and set current value.
          if (.not.RunParams%MorphodynamicsOn) then
@@ -871,6 +889,7 @@ contains
       end if
       grid%intermedStale = .false.
       grid%intermedTopogSynced = .true.
+      grid%intermedInterfTopogSynced = .true.
 
       ! Copy data over to the intermediate time stepping arrays
       !$omp parallel do schedule(dynamic) private(ttk)
@@ -992,6 +1011,35 @@ contains
       end do
       !$omp end parallel do
    end subroutine CopyMutableTopographicData
+
+   ! Copy just the cell centred and vertex topographic data from one tile
+   ! container to another, i.e. CopyMutableTopographicData without the
+   ! interfacial data.
+   subroutine CopyCellTopographicData(RunParams, grid, tilesfrom, tilesto)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), target, intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+
+      integer :: tt, ttk
+
+      type(TileList), pointer :: activeTiles
+
+      activeTiles => grid%activeTiles
+
+      !$omp parallel do schedule(dynamic) private(ttk)
+      do tt = 1, ActiveTiles%Size
+         ttk = ActiveTiles%List(tt)
+         tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
+         tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
+         if (.not. RunParams%isOneD) then
+            tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
+         end if
+         tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
+      end do
+      !$omp end parallel do
+   end subroutine CopyCellTopographicData
 
    ! Sponge layer modifications to explicit time stepping terms.
    ! morpho_flag = are we in the morphodynamic operator or not?
