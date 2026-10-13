@@ -19,9 +19,10 @@ kestrel_SOURCES = cUTM.cpp RasterData.cpp SetPrecision.f90 \
 
 kestrel_FCFLAGS = -Wall -ffree-line-length-0 -fno-range-check -cpp $(NETCDF4_FFLAGS) $(OPENMP_FCFLAGS) $(AM_FCFLAGS) $(DEFS)
 kestrel_CXXFLAGS = -Wall $(GDAL_CFLAGS) $(PROJ_CFLAGS) $(AM_CXXFLAGS)
-# N.B. We link with the C++ compiler, so it needs the OpenMP flag too.
-kestrel_LDFLAGS = $(GDAL_LDFLAGS) $(NETCDF4_LDFLAGS) $(PROJ_LDFLAGS) $(OPENMP_CXXFLAGS)
-kestrel_LDADD = $(FCLIBS) $(GDAL_LDFLAGS) $(NETCDF4_FLIBS) $(PROJ_LDFLAGS) $(LIBS)
+# N.B. We link with the C++ compiler, so it needs to link the Fortran
+# compiler's OpenMP runtime too (see configure.ac).
+kestrel_LDFLAGS = $(GDAL_LDFLAGS) $(NETCDF4_LDFLAGS) $(PROJ_LDFLAGS) $(OPENMP_LINKFLAGS)
+kestrel_LDADD = $(FCLIBS) $(GDAL_LDFLAGS) $(NETCDF4_FLIBS) $(PROJ_LDFLAGS) $(OPENMP_LIBS) $(LIBS)
 
 if WANT_BOOST
 kestrel_LDFLAGS += $(BOOST_LDFLAGS)
