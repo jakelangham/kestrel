@@ -103,6 +103,16 @@ processor core). For example, to run on 4 threads
 Setting ``OMP_WAIT_POLICY=passive`` stops idle threads from busy-waiting,
 which we have found to be faster when using all of a machine's cores.
 
+If your Fortran and C++ compilers are the same version of GCC (as is typical
+on Linux), building with link-time optimisation makes Kestrel run several
+percent faster:
+
+.. code-block:: bash
+
+  $ ./configure --enable-lto
+
+This can be combined with ``--enable-openmp``.
+
 Some other options are listed in the help dialogue of the configure script
 
 .. code-block:: bash
