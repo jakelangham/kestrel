@@ -1044,8 +1044,12 @@ contains
 
       do j = 1,nYPoints
          do i = 1,nXPoints+1
-            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+            ! Geometric correction factors of the reconstructions either side of
+            ! the interface, used several times below.
+            gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
+            gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
+            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
 #if DEBUG_SPD == 1 || DEBUG_SPD == 2
             if (tiles(tID)%uPlusX(iU, i, j) > 50.0) then
                write(stderr, *) 'High x-velocity: uPlusX = ', tiles(tID)%uPlusX(iU,i, j), ' for tile ', tID, ' at cell index ', i, ', ', j
@@ -1067,8 +1071,8 @@ contains
             end if
             if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
             if (wsPlus<wsMinus) then
                aNeg = wsPlus
             else
@@ -1082,10 +1086,10 @@ contains
                if (i == 1) then
                   prevTile = tiles(tID)%West
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, RunParams%nXpertile, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                              gamplus, 1.0_wp)
                else
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i - 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                              gamplus, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / aPos, unitCFLTimeStep)
             end if
@@ -1093,16 +1097,16 @@ contains
                if (i == RunParams%nXpertile + 1) then
                   nextTile = tiles(tID)%East
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                              gamneg, 1.0_wp)
                else
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                              gamneg, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / abs(aNeg), unitCFLTimeStep)
             end if
 
-            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusConvectionFlux)
-            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusConvectionFlux)
+            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusConvectionFlux,gamplus)
+            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusConvectionFlux,gamneg)
             call XHydrostaticFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusHydrostaticFlux)
             call XHydrostaticFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusHydrostaticFlux)
             if (i == RunParams%nXpertile + 1) then
@@ -1129,8 +1133,6 @@ contains
                   ! This variable is time-stepped by proxy (through Hn*gam) and 
                   ! thus we need to use (Hn*gam)'s interfacial values for this flux
                   ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(RunParams%Vars%Hn, i, j) * gamplus - &
                        tiles(tID)%uMinusX(RunParams%Vars%Hn, i, j) * gamneg
                   hX = hX * aPos * aNeg
@@ -1140,8 +1142,6 @@ contains
                   tiles(tID)%gXFlux(d, i, j) = 0.0_wp
                   tiles(tID)%pXFlux(d, i, j) = 0.0_wp
                else if (d == RunParams%Vars%Hnpsi) then
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(d, i, j) * gamplus - tiles(tID)%uMinusX(d, i, j) * gamneg
                   hX = hX * aPos * aNeg
                   hX = hX  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1171,8 +1171,12 @@ contains
       if (.not. RunParams%isOneD) then
          do j = 1, nYPoints + 1
             do i = 1, nXPoints
-               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+               ! Geometric correction factors of the reconstructions either side of
+               ! the interface, used several times below.
+               gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
+               gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
+               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus>wsMinus) then
                   aPos = wsPlus
                else
@@ -1180,8 +1184,8 @@ contains
                end if
                if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus<wsMinus) then
                   aNeg = wsPlus
                else
@@ -1193,10 +1197,10 @@ contains
                   if (j == 1) then
                      prevTile = tiles(tID)%South
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, i, RunParams%nYpertile)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                                 gamplus, 1.0_wp)
                   else
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j - 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                                 gamplus, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / aPos, unitCFLTimeStep)
                end if
@@ -1205,16 +1209,16 @@ contains
                      ! look elsewhere for gam
                      nextTile = tiles(tID)%North
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, i, 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                                 gamneg, 1.0_wp)
                   else
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                                 gamneg, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / abs(aNeg), unitCFLTimeStep)
                end if
 
-               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusConvectionFlux)
-               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusConvectionFlux)
+               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusConvectionFlux,gamplus)
+               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusConvectionFlux,gamneg)
                call YHydrostaticFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusHydrostaticFlux)
                call YHydrostaticFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusHydrostaticFlux)
                if (j == RunParams%nYpertile + 1) then
@@ -1241,8 +1245,6 @@ contains
                      ! This variable is time-stepped by proxy (through Hn*gam) and 
                      ! thus we need to use (Hn*gam)'s interfacial values for this flux
                      ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(RunParams%Vars%Hn, i, j) * gamplus - &
                           tiles(tID)%uMinusY(RunParams%Vars%Hn, i, j) * gamneg
                      hY = hY * aPos * aNeg
@@ -1252,8 +1254,6 @@ contains
                      tiles(tID)%gYFlux(d, i, j) = 0.0_wp
                      tiles(tID)%pYFlux(d, i, j) = 0.0_wp
                   else if (d == RunParams%Vars%Hnpsi) then
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(d, i, j) * gamplus - tiles(tID)%uMinusY(d, i, j) * gamneg
                      hY = hY * aPos * aNeg
                      hY = hY  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1360,7 +1360,7 @@ contains
                end do
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
-                                        tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE)
+                                        tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE, gam)
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
                Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
@@ -1387,7 +1387,7 @@ contains
             end do
 
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
-                                     tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE)
+                                     tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE, gam)
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
             Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
