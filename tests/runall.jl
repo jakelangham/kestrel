@@ -1,4 +1,5 @@
 include("testlib.jl")
+include("curvature/suite.jl")
 using Printf
 
 tests_1d = [
@@ -44,6 +45,20 @@ tests_identical = [
    # deviations.
    ("tile_indep_static", "tile_indep_static_100m", "tile_indep_static_50m", 1e-13, 2)
    ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 1e-11, 2)
+   # As tile_indep_static, on a curved bed (a rotated Gaussian valley), which
+   # exercises the curvature terms across tile boundaries.
+   ("tile_indep_curved", "tile_indep_curved_100m", "tile_indep_curved_50m", 1e-13, 2)
+]
+
+# Verification of the geometric terms against exact solutions (see
+# curvature/suite.jl and Scheme_curvature_note.tex): steady frictionless flow
+# through a valley, and frictionless run-up in a bowl, with and without the
+# centripetal (curvature) term.
+tests_curvature = [
+   ("curvature_valley_on", test_curvature_valley, prog, "on", 2.5e-3, 4)
+   ("curvature_valley_nocurv", test_curvature_valley, prog, "no curvature", 2e-3, 3)
+   ("curvature_bowl_on", test_curvature_bowl, prog, "on", 0.01, 0.01)
+   ("curvature_bowl_nocurv", test_curvature_bowl, prog, "no curvature", 0.01, 0.01)
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
@@ -130,6 +145,18 @@ function run_identical()
    return numpassed
 end
 
+function run_curvature()
+   println("\nCurvature tests...")
+   numpassed = 0
+   for i = 1:length(tests_curvature)
+      testname = tests_curvature[i][1]
+      testfunc = tests_curvature[i][2]
+      args = (testname, tests_curvature[i][3:end]...)
+      numpassed += run_test(i, testname, testfunc, args...)
+   end
+   return numpassed
+end
+
 function run_netcdf()
    println("\nNetCDF tests...")
    numpassed = 0
@@ -157,7 +184,8 @@ end
 function run_all()
 
    numtests = length(tests_1d) + length(tests_2d) + length(tests_noflow) +
-         length(tests_identical) + length(tests_netcdf) + length(tests_threads)
+         length(tests_identical) + length(tests_curvature) + length(tests_netcdf) +
+         length(tests_threads)
    numpassed = 0
 
    print("Running full test suite. Some tests (espcially 2D ones) may take a",
@@ -170,6 +198,8 @@ function run_all()
    numpassed += run_noflow()
 
    numpassed += run_identical()
+
+   numpassed += run_curvature()
 
    if with_netcdf
       numpassed += run_netcdf()
@@ -198,7 +228,7 @@ end
 
 # Print a list of available test categories.
 function print_options()
-   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'netcdf' and 'threads'.")
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'curvature', 'netcdf' and 'threads'.")
 end
 
 tests = (if isempty(ARGS); ["all"]; else ARGS; end)
@@ -224,6 +254,10 @@ else
    if "identical" in tests
       numtests += length(tests_identical)
       numpassed += run_identical()
+   end
+   if "curvature" in tests
+      numtests += length(tests_curvature)
+      numpassed += run_curvature()
    end
    if "netcdf" in tests
       if with_netcdf
