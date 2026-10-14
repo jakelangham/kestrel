@@ -48,7 +48,7 @@ module timestepper_module
    use set_precision_module, only: wp
    use messages_module, only: InfoMessage, TimestepMessage, RevisedTimestepMessage, WarningMessage
    use grid_module, only: GridType, TileList, TileType
-   use redistribute_module, only: AddToRedistList, ExcessDeposition, RedistributeGrid, RedistList
+   use redistribute_module, only: BuildRedistList, ExcessDeposition, RedistributeGrid, RedistList
    use runsettings_module, only: RunSet
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
@@ -592,7 +592,7 @@ contains
       type(TileList), pointer :: activeTiles
       type(TileType), dimension(:), pointer :: intermed0, intermed1, intermed2, intermed3
 
-      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j, nX, nY
+      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j, k, nX, nY, nRedist
       real(kind=wp) :: newdt, Hn_old, Hn_new, Hnpsi_old, relhdiff
       real(kind=wp) :: deltaBt, psiold, excess_dep, gamold, gamnew, db, w, Hnpsi
 
@@ -600,6 +600,8 @@ contains
       logical, dimension(:), allocatable :: tileRefine
       logical, dimension(:, :, :), allocatable :: redistCell
       real(kind=wp), dimension(:, :, :), allocatable :: redistExcess
+      integer, dimension(:), allocatable :: redistTile, redistI, redistJ
+      real(kind=wp), dimension(:), allocatable :: redistVal
 
       tileContainer => grid%tileContainer
       activeTiles => grid%activeTiles
@@ -839,15 +841,23 @@ contains
 
       refineTimeStep = any(tileRefine)
       if (.not. refineTimeStep) then
+         nRedist = count(redistCell)
+         allocate(redistTile(nRedist), redistI(nRedist), redistJ(nRedist), redistVal(nRedist))
+         k = 0
          do tt = 1, ActiveTiles%Size
             do j = 1, nY
                do i = 1, nX
                   if (redistCell(i, j, tt)) then
-                     call AddToRedistList(redistcells, ActiveTiles%List(tt), i, j, redistExcess(i, j, tt))
+                     k = k + 1
+                     redistTile(k) = ActiveTiles%List(tt)
+                     redistI(k) = i
+                     redistJ(k) = j
+                     redistVal(k) = redistExcess(i, j, tt)
                   end if
                end do
             end do
          end do
+         call BuildRedistList(redistcells, redistTile, redistI, redistJ, redistVal)
       end if
       deallocate(tileRefine, redistCell, redistExcess)
 

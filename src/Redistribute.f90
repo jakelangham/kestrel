@@ -42,7 +42,7 @@ module redistribute_module
 
    private
    public :: RedistList
-   public :: AddToRedistList
+   public :: BuildRedistList
    public :: ExcessDeposition
    public :: RedistributeGrid
 
@@ -63,42 +63,75 @@ module redistribute_module
 
 contains
 
-   ! Mark the cell at tile ttk, index (i, j) for redistribution by adding it to
-   ! the list structure. The input excess_dep is the depth of extra deposition
-   ! that needs to be corrected for.
-   subroutine AddToRedistList(list, ttk, i, j, excess_dep)
+   ! Build the (empty) list from arrays of cells, ordered by excess_dep, with
+   ! cells of equal excess_dep kept in the order given. A stable merge sort is
+   ! used rather than inserting cells one at a time, whose cost grows with the
+   ! square of the number of cells.
+   subroutine BuildRedistList(list, ttk, i, j, excess_dep)
       implicit none
 
       type(RedistList), intent(inout) :: list
-      integer, intent(in) :: ttk, i, j
-      real(kind=wp), intent(in) :: excess_dep
-      
-      type(RedistNode), pointer :: p => null()
-      type(RedistNode), pointer :: newNode => null()
+      integer, dimension(:), intent(in) :: ttk, i, j
+      real(kind=wp), dimension(:), intent(in) :: excess_dep
 
-      call CreateNode(newNode, ttk, i, j, excess_dep)
+      integer, dimension(:), allocatable :: order, work
+      type(RedistNode), pointer :: tail, newNode
+      integer :: k, n
 
-      if (.not. associated(list%head)) then
-         list%head => newNode
-      else if (list%head%excess_dep > excess_dep) then
-         ! add at head node
-         newNode%next => list%head
-         list%head => newNode
-      else
-         ! else find position to add node
-         p => list%head
-         do while (.true.)
-            if (.not. associated(p%next)) exit
-            if (p%next%excess_dep > excess_dep) exit
-            p => p%next
-         end do
+      n = size(excess_dep)
+      if (n == 0) return
 
-         ! add newNode after p in list
-         newNode%next => p%next
-         p%next => newNode
-      end if
+      allocate(order(n), work(n))
+      do k = 1, n
+         order(k) = k
+      end do
+      call MergeSortStable(order, work, excess_dep, 1, n)
 
-   end subroutine AddToRedistList
+      tail => null()
+      do k = 1, n
+         call CreateNode(newNode, ttk(order(k)), i(order(k)), j(order(k)), excess_dep(order(k)))
+         if (associated(tail)) then
+            tail%next => newNode
+         else
+            list%head => newNode
+         end if
+         tail => newNode
+      end do
+   end subroutine BuildRedistList
+
+   ! Sort order(lo:hi) so that key(order(:)) is ascending, keeping the existing
+   ! order of equal keys.
+   recursive subroutine MergeSortStable(order, work, key, lo, hi)
+      implicit none
+
+      integer, dimension(:), intent(inout) :: order, work
+      real(kind=wp), dimension(:), intent(in) :: key
+      integer, intent(in) :: lo, hi
+
+      integer :: mid, a, b, k
+
+      if (hi <= lo) return
+      mid = (lo + hi) / 2
+      call MergeSortStable(order, work, key, lo, mid)
+      call MergeSortStable(order, work, key, mid + 1, hi)
+
+      a = lo
+      b = mid + 1
+      do k = lo, hi
+         ! Take from the right half only if strictly smaller, so equal keys
+         ! keep their order.
+         if (b > hi) then
+            work(k) = order(a); a = a + 1
+         else if (a > mid) then
+            work(k) = order(b); b = b + 1
+         else if (key(order(b)) < key(order(a))) then
+            work(k) = order(b); b = b + 1
+         else
+            work(k) = order(a); a = a + 1
+         end if
+      end do
+      order(lo:hi) = work(lo:hi)
+   end subroutine MergeSortStable
 
    subroutine CreateNode(node, ttk, i, j, excess_dep)
       implicit none
