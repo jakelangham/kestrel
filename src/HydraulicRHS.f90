@@ -1150,7 +1150,7 @@ contains
                   tiles(tID)%gXFlux(d, i, j) = 0.0_wp
                   tiles(tID)%pXFlux(d, i, j) = 0.0_wp
                else
-                  hX = tiles(tID)%uPlusX(d, i, j) - tiles(tID)%uMinusX(d, i, j)
+                  hX = tiles(tID)%uPlusX(d, i, j) * gamplus - tiles(tID)%uMinusX(d, i, j) * gamneg
                   hX = hX * aPos * aNeg
                   hX = hX  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
                   hX = hX / dif
@@ -1262,7 +1262,7 @@ contains
                      tiles(tID)%gYFlux(d, i, j) = 0.0_wp
                      tiles(tID)%pYFlux(d, i, j) = 0.0_wp
                   else
-                     hY = tiles(tID)%uPlusY(d, i, j) - tiles(tID)%uMinusY(d, i, j)
+                     hY = tiles(tID)%uPlusY(d, i, j) * gamplus - tiles(tID)%uMinusY(d, i, j) * gamneg
                      hY = hY * aPos * aNeg
                      hY = hY  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
                      hY = hY / dif
@@ -1348,11 +1348,14 @@ contains
                      STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam +  &
                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam
                   else
+                     ! Momentum is advected in the form gam*rho*Hn*u, like the
+                     ! volume, so its advection fluxes are gamma-weighted and
+                     ! divided by gamma here. The pressure term is not.
                      STF(d) = KahanSum([ &
-                         (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
+                         (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam, &
                          (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
                          (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
-                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
+                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam, &
                          (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
                          (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
 
@@ -1380,7 +1383,8 @@ contains
                else if (d == RunParams%Vars%Hnpsi) then
                   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) * deltaXRecip / gam
                else
-                  STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1), &
+                  ! Momentum advection is gamma-weighted, as in the 2D case.
+                  STF(d) = KahanSum([(tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) / gam, &
                      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam,  &
                      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)]) * deltaXRecip
                end if
