@@ -627,28 +627,31 @@ contains
       return
    end subroutine xgauss
 
-   ! Gaussian b = A*exp(-s^2/w^2) varying along s = x*cos(theta) + y*sin(theta),
-   ! i.e. xgauss rotated anticlockwise by theta.
-   ! Three parameters required:
+   ! Gaussian b = A*exp(-(s-s0)^2/w^2) varying along s = x*cos(theta) + y*sin(theta),
+   ! i.e. xgauss rotated anticlockwise by theta and shifted by s0.
+   ! Three parameters required, one optional:
    !  A -- amplitude; passed in RunParams%TopogFuncParams(1)
    !  w -- width; passed in RunParams%TopogFuncParams(2)
    !  theta -- angle in degrees; passed in RunParams%TopogFuncParams(3)
+   !  s0 -- offset along s (default 0); passed in RunParams%TopogFuncParams(4)
    pure subroutine xygauss(RunParams, x, y, b0)
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: x
       real(kind=wp), dimension(:), intent(in) :: y
       real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
 
-      real(kind=wp) :: A, w, theta, s
+      real(kind=wp) :: A, w, theta, s0, s
       integer :: ii, jj
 
       A = RunParams%TopogFuncParams(1)
       w = RunParams%TopogFuncParams(2)
       theta = RunParams%TopogFuncParams(3) * pi / 180.0_wp
+      s0 = 0.0_wp
+      if (size(RunParams%TopogFuncParams) >= 4) s0 = RunParams%TopogFuncParams(4)
 
       do ii=1,size(x)
          do jj=1,size(y)
-            s = x(ii)*cos(theta) + y(jj)*sin(theta)
+            s = x(ii)*cos(theta) + y(jj)*sin(theta) - s0
             b0(ii,jj) = A*exp(-(s/w)**2)
          end do
       end do
