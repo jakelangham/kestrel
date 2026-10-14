@@ -52,7 +52,8 @@ program Kestrel
    use varstring_module, only: varString
    use version_module, only: GetVersion
    ! (Only compiled when building with OpenMP.)
-   !$ use omp_lib, only: omp_get_max_threads
+   !$ use omp_lib, only: omp_get_max_threads, omp_set_schedule, omp_get_schedule, &
+   !$                    omp_sched_kind, omp_sched_static, omp_sched_dynamic, omp_sched_guided
 
    implicit none
 
@@ -65,6 +66,10 @@ program Kestrel
    type(GridType) :: grid
 
    character(len=:), allocatable :: version
+
+   !$ integer(kind=omp_sched_kind) :: ompSchedule
+   !$ integer :: ompChunk, ompScheduleStatus
+   !$ character(len=16) :: ompScheduleName
 
    ! Set version
    version = GetVersion()
@@ -106,7 +111,28 @@ program Kestrel
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"
-   !$ write (stdout, '(a,i0,a)') " Using ", omp_get_max_threads(), " OpenMP thread(s)."
+   ! Tiles are shared out between OpenMP threads one at a time as threads
+   ! become free (a dynamic schedule), unless OMP_SCHEDULE sets another
+   ! schedule. Dynamic scheduling copes best with tiles whose cost varies, and
+   ! with other programs using the same cores. A static schedule (e.g.
+   ! OMP_SCHEDULE=static) gives each thread the same tiles in every loop, so
+   ! their data can stay in its cache, which may help on machines with many
+   ! cores.
+   !$ call get_environment_variable("OMP_SCHEDULE", status=ompScheduleStatus)
+   !$ if (ompScheduleStatus /= 0) call omp_set_schedule(omp_sched_dynamic, 1)
+   !$ call omp_get_schedule(ompSchedule, ompChunk)
+   !$ select case (ompSchedule)
+   !$ case (omp_sched_static)
+   !$    ompScheduleName = "static"
+   !$ case (omp_sched_dynamic)
+   !$    ompScheduleName = "dynamic"
+   !$ case (omp_sched_guided)
+   !$    ompScheduleName = "guided"
+   !$ case default
+   !$    ompScheduleName = "other"
+   !$ end select
+   !$ write (stdout, '(a,i0,a,a,a,i0,a)') " Using ", omp_get_max_threads(), " OpenMP thread(s), schedule ", &
+   !$    trim(ompScheduleName), " (chunk ", ompChunk, ")."
    write (stdout, *)
 
    ! Read input file and populate the type(RunSet) :: RunParams object

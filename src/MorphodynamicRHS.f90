@@ -98,7 +98,7 @@ contains
       ! end of the loop below.
       !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Ero, Depo, HnW, HnE) &
       !$omp firstprivate(HnS, HnN)
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          do i = 1, RunParams%nXPertile
@@ -182,7 +182,7 @@ contains
 
       ! N.B. This is called from within the parallel region in
       ! CalculateMorphodynamicRHS (if built with OpenMP).
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          if (.not. RunParams%isOneD) then
