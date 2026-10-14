@@ -53,7 +53,7 @@ contains
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
 
-      integer :: iw, iHn, irhoHnu, irhoHnv, iHnpsi, irho, ib0, iu, ipsi
+      integer :: iw, iHn, irhoHnu, irhoHnv, iHnpsi, irho, ib0, iu, iv, ipsi
       integer :: i, j, k, n
       integer :: ii, jj, kk, tt, ttk
 
@@ -79,6 +79,7 @@ contains
       irho = RunParams%Vars%rho
       ib0 = RunParams%Vars%b0
       iu = RunParams%Vars%u
+      iv = RunParams%Vars%v
       ipsi = RunParams%Vars%psi
 
       rhow = RunParams%rhow
@@ -140,7 +141,9 @@ contains
                               tileContainer(k)%Hnmax(ii,:,1) = tileContainer(k)%Hnmax(ii,:,1) + &
                                  capHn * (1.0_wp - R2 / capR / capR)
                               tileContainer(k)%psimax(ii,:,1) = tileContainer(k)%psimax(ii,:,1) + cappsi
-                              tileContainer(k)%u(irhoHnu,ii,:) = tileContainer(k)%u(irhoHnu,ii,:) + rho*capHn*capU
+                              tileContainer(k)%u(irhoHnu,ii,:) = tileContainer(k)%u(irhoHnu,ii,:) + &
+                                 rho*capHn*(1.0_wp-R2/capR/capR)*capU
+                              tileContainer(k)%u(iu,ii,:) = tileContainer(k)%u(iu,ii,:) + capu
                               tileContainer(k)%u(iHnpsi,ii,:) = tileContainer(k)%u(iHnpsi,ii,:) + &
                                  cappsi*capHn*(1.0_wp-R2/capR/capR)
                             case ('level')
@@ -151,6 +154,7 @@ contains
                                  tileContainer(k)%Hnmax(ii,:,1) = tileContainer(k)%Hnmax(ii,:,1) + hp * gam
                                  tileContainer(k)%u(iHn,ii,:) = tileContainer(k)%u(iHn,ii,:) + hp * gam
                                  tileContainer(k)%u(irhoHnu,ii,:) = tileContainer(k)%u(irhoHnu,ii,:) + rho*hp*gam*capu
+                                 tileContainer(k)%u(iu,ii,:) = tileContainer(k)%u(iu,ii,:) + capu
                                  tileContainer(k)%u(iHnpsi,ii,:) = tileContainer(k)%u(iHnpsi,ii,:) + cappsi*hp*gam
                                  tileContainer(k)%psimax(ii,:,1) = tileContainer(k)%psimax(ii,:,1) + cappsi
                               end if
@@ -270,6 +274,8 @@ contains
                                     tileContainer(k)%Hnmax(ii,jj,1) = tileContainer(k)%Hnmax(ii,jj,1) + capHn
                                     tileContainer(k)%u(irhoHnu,ii,jj) = tileContainer(k)%u(irhoHnu,ii,jj) + rho*capHn*capu
                                     tileContainer(k)%u(irhoHnv,ii,jj) = tileContainer(k)%u(irhoHnv,ii,jj) + rho*capHn*capv
+                                    tileContainer(k)%u(iu,ii,jj) = tileContainer(k)%u(iu,ii,jj) + capu
+                                    tileContainer(k)%u(iv,ii,jj) = tileContainer(k)%u(iv,ii,jj) + capv
                                     tileContainer(k)%u(iHnpsi,ii,jj) = tileContainer(k)%u(iHnpsi,ii,jj) + cappsi*capHn
                                   case ('para')
                                     tileContainer(k)%u(iw,ii,jj) = tileContainer(k)%u(iw,ii,jj) + &
@@ -278,8 +284,12 @@ contains
                                        capHn * (1.0_wp - R2 / capR / capR)
                                     tileContainer(k)%Hnmax(ii,jj,1) = tileContainer(k)%Hnmax(ii,jj,1) + &
                                        capHn * (1.0_wp - R2 / capR / capR)
-                                    tileContainer(k)%u(irhoHnu,ii,jj) = tileContainer(k)%u(irhoHnu,ii,jj) + rho*capHn*capu
-                                    tileContainer(k)%u(irhoHnv,ii,jj) = tileContainer(k)%u(irhoHnv,ii,jj) + rho*capHn*capv
+                                    tileContainer(k)%u(irhoHnu,ii,jj) = tileContainer(k)%u(irhoHnu,ii,jj) + &
+                                       rho * capHn * (1.0_wp - R2 / capR / capR) * capu
+                                    tileContainer(k)%u(irhoHnv,ii,jj) = tileContainer(k)%u(irhoHnv,ii,jj) + &
+                                       rho * capHn * (1.0_wp - R2 / capR / capR) * capv
+                                    tileContainer(k)%u(iu,ii,jj) = tileContainer(k)%u(iu,ii,jj) + capu
+                                    tileContainer(k)%u(iv,ii,jj) = tileContainer(k)%u(iv,ii,jj) + capv
                                     tileContainer(k)%u(iHnpsi,ii,jj) = tileContainer(k)%u(iHnpsi,ii,jj) + &
                                        cappsi * capHn * (1.0_wp - R2 / capR / capR)
                                   case ('level')
@@ -292,6 +302,8 @@ contains
                                        tileContainer(k)%Hnmax(ii,jj,1) = tileContainer(k)%Hnmax(ii,jj,1) + Hn
                                        tileContainer(k)%u(irhoHnu,ii,jj) = tileContainer(k)%u(irhoHnu,ii,jj) + rho*Hn*capu
                                        tileContainer(k)%u(irhoHnv,ii,jj) = tileContainer(k)%u(irhoHnv,ii,jj) + rho*Hn*capv
+                                       tileContainer(k)%u(iu,ii,jj) = tileContainer(k)%u(iu,ii,jj) + capu
+                                       tileContainer(k)%u(iv,ii,jj) = tileContainer(k)%u(iv,ii,jj) + capv
                                        tileContainer(k)%u(iHnpsi,ii,jj) = tileContainer(k)%u(iHnpsi,ii,jj) + cappsi*Hn
                                     end if
                                  end select
