@@ -38,6 +38,9 @@ tests/*
 !tests/*.txt
 !tests/*.sh
 !tests/*.jl
+!tests/curvature/
+tests/curvature/*
+!tests/curvature/*.jl
 
 # JOSS paper
 paper/paper.*
