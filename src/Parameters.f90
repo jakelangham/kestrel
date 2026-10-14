@@ -250,20 +250,30 @@ contains
             case ('iverson', 'geometric factors')
                set_geometric_factors=.true.
                geometric_factors = ParamValues(J)%to_lower()
-               !0=Off, 1=On (perhaps will change in future for different formulations
+               ! on: geometric factors, including the centripetal force of a
+               !     curved bed;
+               ! no curvature: geometric factors without the centripetal force;
+               ! off: no geometric factors (gamma = 1).
                select case (geometric_factors%s)
                 case ('off')
                   RunParams%geometric_factors = .false.
+                  RunParams%curvature = .false.
                   GeometricCorrectionFactor => NoGeometricCorrectionFactor
                   GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
                 case ('on')
                   RunParams%geometric_factors = .true.
+                  RunParams%curvature = .true.
+                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
+                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+                case ('no curvature')
+                  RunParams%geometric_factors = .true.
+                  RunParams%curvature = .false.
                   GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
                   GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
                 case default
-                  set_geometric_factors = geometric_factors_d
-                  GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
-                  GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin
+                  call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
+                     // "The block value for the variable 'Geometric factors' " // geometric_factors%s // " is not recognized." // new_line('A') &
+                     // "Currently accepted 'Geometric factors' values are 'On', 'No curvature' and 'Off'")
             end select
 
             case ('g')
@@ -503,6 +513,7 @@ contains
 
       if (.not.set_geometric_factors) then
          RunParams%geometric_factors = geometric_factors_d
+         RunParams%curvature = geometric_factors_d
          if (geometric_factors_d) then
             GeometricCorrectionFactor => IversonOuyangGeometricCorrectionFactor
             GeometricCorrectionFactor_gradin => IversonOuyangGeometricCorrectionFactor_gradin

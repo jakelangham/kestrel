@@ -1298,6 +1298,8 @@ contains
       real(kind=wp) :: deltaX, deltaY
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: Friction, gam, dbdx, dbdy
+      real(kind=wp) :: d2bdx2, d2bdxdy, d2bdy2, Q, centripetal
+      integer :: idbdx, idbdy, iHn, iu, iv, irho, irhoHnu, irhoHnv
 
       real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STE(RunParams%nDimensions), STI(RunParams%nDimensions)
       real(kind=wp), dimension(:) :: gX_prefactors(RunParams%nDimensions), gY_prefactors(RunParams%nDimensions)
@@ -1313,6 +1315,14 @@ contains
       deltaYRecip = grid%deltaYRecip
 
       bt = RunParams%Vars%bt
+      idbdx = RunParams%Vars%dbdx
+      idbdy = RunParams%Vars%dbdy
+      iHn = RunParams%Vars%Hn
+      iu = RunParams%Vars%u
+      iv = RunParams%Vars%v
+      irho = RunParams%Vars%rho
+      irhoHnu = RunParams%Vars%rhoHnu
+      irhoHnv = RunParams%Vars%rhoHnv
 
       ! These premultiply the derivatives of the hydrostatic pressure fluxes.
       ! In particular, they are needed for the 2D surface gradient operator and
@@ -1364,6 +1374,26 @@ contains
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
                                         tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE, gam)
+
+               ! Centripetal force needed to keep the flow on the curved bed:
+               ! -rho Hn Q grad(b) / gam^2, with Q = u.Hess(b).u. The second
+               ! derivatives of b are differences of the slopes stored at
+               ! opposite faces of the cell, which are shared with neighbouring
+               ! cells and tiles.
+               if (RunParams%curvature) then
+                  d2bdx2 = (tiles(tID)%uPlusX(idbdx, i + 1, j) - tiles(tID)%uPlusX(idbdx, i, j)) * deltaXRecip
+                  d2bdy2 = (tiles(tID)%uPlusY(idbdy, i, j + 1) - tiles(tID)%uPlusY(idbdy, i, j)) * deltaYRecip
+                  d2bdxdy = 0.5_wp * ( &
+                     (tiles(tID)%uPlusX(idbdy, i + 1, j) - tiles(tID)%uPlusX(idbdy, i, j)) * deltaXRecip + &
+                     (tiles(tID)%uPlusY(idbdx, i, j + 1) - tiles(tID)%uPlusY(idbdx, i, j)) * deltaYRecip)
+                  Q = tiles(tID)%u(iu, i, j) * tiles(tID)%u(iu, i, j) * d2bdx2 + &
+                     2.0_wp * tiles(tID)%u(iu, i, j) * tiles(tID)%u(iv, i, j) * d2bdxdy + &
+                     tiles(tID)%u(iv, i, j) * tiles(tID)%u(iv, i, j) * d2bdy2
+                  centripetal = tiles(tID)%u(irho, i, j) * tiles(tID)%u(iHn, i, j) * Q / (gam * gam)
+                  STE(irhoHnu) = STE(irhoHnu) - centripetal * dbdx
+                  STE(irhoHnv) = STE(irhoHnv) - centripetal * dbdy
+               end if
+
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
                Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
@@ -1392,6 +1422,15 @@ contains
 
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
                                      tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE, gam)
+
+            ! Centripetal force of the curved bed, as in the 2D case.
+            if (RunParams%curvature) then
+               d2bdx2 = (tiles(tID)%uPlusX(idbdx, i + 1, 1) - tiles(tID)%uPlusX(idbdx, i, 1)) * deltaXRecip
+               Q = tiles(tID)%u(iu, i, 1) * tiles(tID)%u(iu, i, 1) * d2bdx2
+               centripetal = tiles(tID)%u(irho, i, 1) * tiles(tID)%u(iHn, i, 1) * Q / (gam * gam)
+               STE(irhoHnu) = STE(irhoHnu) - centripetal * tiles(tID)%u(idbdx, i, 1)
+            end if
+
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
             Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))

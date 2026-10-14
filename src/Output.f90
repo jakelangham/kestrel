@@ -416,8 +416,10 @@ contains
       write (101, fmt="(a,G0)") "Eddy viscosity = ", RunParams%EddyViscosity
       write (101, fmt="(a,G0)") "Solid diameter = ", RunParams%SolidDiameter
       
-      if (RunParams%geometric_factors) then
+      if (RunParams%geometric_factors .and. RunParams%curvature) then
          write (101, fmt="(a)") "Geometric factors = On"
+      else if (RunParams%geometric_factors) then
+         write (101, fmt="(a)") "Geometric factors = No curvature"
       else
          write (101, fmt="(a)") "Geometric factors = Off"
       end if      
@@ -2050,8 +2052,10 @@ contains
          call put_nc_att(ncid, "central_northing", RunParams%centerUTM%second)
          call put_nc_att(ncid, "crs_epsg", 'epsg:'//Int2String(RunParams%utmEPSG))
       end if
-      if (RunParams%geometric_factors) then
+      if (RunParams%geometric_factors .and. RunParams%curvature) then
          call put_nc_att(ncid, "Geometric factors", 'On')
+      else if (RunParams%geometric_factors) then
+         call put_nc_att(ncid, "Geometric factors", 'No curvature')
       else
          call put_nc_att(ncid, "Geometric factors", 'Off')
       end if
