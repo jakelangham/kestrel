@@ -22,9 +22,8 @@ const TEND = 200.0
 # The flow starts from a uniform cap filling the first interior tile at the
 # inflow and is then fed by the Dirichlet boundary. (A uniform layer over the
 # whole domain traps a hydraulic jump in the valley, because the fluid there
-# lacks the energy to climb out.) The cap must stay out of the domain-edge
-# tile: SetSources.f90 evaluates gamma on a tile that AddTile refused before
-# checking whether it was added.
+# lacks the energy to climb out.) The domain-edge tiles hold the boundary
+# data, so the cap is kept out of them.
 const CAP_X = -XTILESIZE * (NXTILES / 2 - 1.5)
 const CAP_RADIUS = XTILESIZE / 2 - 1.0
 const NOUT = 20

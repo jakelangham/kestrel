@@ -116,11 +116,10 @@ contains
                         if (.not. tileContainer(k)%TileOn) then
                            call AddTile(grid, k, RunParams)
                         end if
-                        gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,1))
-
                         ! 2nd check accounts for if tile failed to add
                         ! (e.g. if it lies outside the domain)
                         if (tileContainer(k)%TileOn) then
+                           gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,1))
                            Hn_orig = tileContainer(k)%u(iHn,ii,1)
                            rho_orig = tileContainer(k)%u(irho,ii,1)
                            select case (RunParams%CapSources(kk)%Shape)
@@ -179,9 +178,9 @@ contains
                         if (.not. tileContainer(k)%TileOn) then
                            call AddTile(grid, k, RunParams)
                         end if
-                        gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,1))
 
                         if (tileContainer(k)%TileOn) then
+                           gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,1))
                            Hn_orig = tileContainer(k)%u(iHn,ii,1)
                            rho_orig = tileContainer(k)%u(irho,ii,1)
                            select case (RunParams%CubeSources(kk)%Shape)
@@ -259,9 +258,9 @@ contains
                               if (.not. tileContainer(k)%TileOn) then
                                  call AddTile(grid, k, RunParams)
                               end if
-                              gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,jj))
 
                               if (tileContainer(k)%TileOn) then
+                                 gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,jj))
                                  Hn_orig = tileContainer(k)%u(iHn,ii,jj)
                                  rho_orig = tileContainer(k)%u(irho,ii,jj)
                                  select case (RunParams%CapSources(kk)%Shape)
@@ -321,9 +320,9 @@ contains
                               if (.not. tileContainer(k)%TileOn) then
                                  call AddTile(grid, k, RunParams)
                               end if
-                              gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,jj))
 
                               if (tileContainer(k)%TileOn) then
+                                 gam = GeometricCorrectionFactor(RunParams, tileContainer(k)%u(:,ii,jj))
                                  Hn_orig = tileContainer(k)%u(iHn,ii,jj)
                                  rho_orig = tileContainer(k)%u(irho,ii,jj)
                                  select case (RunParams%CubeSources(kk)%Shape)
