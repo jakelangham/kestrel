@@ -592,11 +592,14 @@ contains
       type(TileList), pointer :: activeTiles
       type(TileType), dimension(:), pointer :: intermed0, intermed1, intermed2, intermed3
 
-      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j
-      real(kind=wp) :: newdt, Hn_old, Hn_new, Hnpsi_old, relhdiff, relhdiffmax
+      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j, nX, nY
+      real(kind=wp) :: newdt, Hn_old, Hn_new, Hnpsi_old, relhdiff
       real(kind=wp) :: deltaBt, psiold, excess_dep, gamold, gamnew, db, w, Hnpsi
 
       type(RedistList) :: redistcells
+      logical, dimension(:), allocatable :: tileRefine
+      logical, dimension(:, :, :), allocatable :: redistCell
+      real(kind=wp), dimension(:, :, :), allocatable :: redistExcess
 
       tileContainer => grid%tileContainer
       activeTiles => grid%activeTiles
@@ -609,7 +612,6 @@ contains
       ipsi = RunParams%Vars%psi
       iHnpsi = RunParams%Vars%Hnpsi
       refineTimeStep = .false.
-      relhdiffmax = 0.0_wp
 
       ! We compute the initial RHS term in separate ddtExplicit0/ddtExplicitBt0 
       ! arrays. This allows us to roll back to the start of the hydraulic time 
@@ -767,9 +769,6 @@ contains
       !$omp end do
       !$omp end parallel
 
-      ! N.B. Unlike the loops above, this loop is not run in parallel, since
-      ! it exits early and builds up the shared redistcells list.
-      !
       ! This loop performs two checks on the morphodynamic update.
       ! * Is a cell depositing more solids than it possesses? If so, we
       !   refine the time step or make a correction.
@@ -778,10 +777,23 @@ contains
       !   (N.B. This process can get bogged down if erosionCriticalHeight is
       !   small. In general it should probably be set so it's at least greater
       !   than the solid diameter.)
+      ! Tiles are checked independently (in parallel). Each records whether it
+      ! needs the time step to be refined, and which of its cells need their
+      ! deposition corrected; the shared redistcells list is built afterwards,
+      ! in tile order, so that it doesn't depend on the number of threads.
+      nX = RunParams%nXpertile
+      nY = RunParams%nYpertile
+      allocate(tileRefine(ActiveTiles%Size), redistCell(nX, nY, ActiveTiles%Size), &
+               redistExcess(nX, nY, ActiveTiles%Size))
+
+      !$omp parallel do schedule(dynamic) &
+      !$omp private(ttk, i, j, gamold, gamnew, Hn_old, Hn_new, excess_dep, deltaBt, psiold, relhdiff)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
+         tileRefine(tt) = .false.
+         redistCell(:, :, tt) = .false.
+         cells: do j = 1, nY
+            do i = 1, nX
                gamold = GeometricCorrectionFactor(RunParams, intermed0(ttk)%u(:,i,j))
                gamnew = GeometricCorrectionFactor(RunParams, intermed3(ttk)%u(:,i,j))
                Hn_old = ComputeHn(intermed0(ttk)%u(iw, i, j), &
@@ -796,7 +808,7 @@ contains
 
                ! n.b. The check for deltaBtn > 0 is in case psi is computed to be slightly
                ! negative, which can be the case for very dilute flows.
-               if ((.not. refineTimeStep) .and. excess_dep > epsilon(excess_dep) .and. &
+               if (excess_dep > epsilon(excess_dep) .and. &
                    deltaBt > epsilon(deltaBt) .and. psiold > -epsilon(psiold)) then
                   ! If the cell is shallow, or only experienced a small 
                   ! amount of deposition, we shall apply a small correction by
@@ -804,10 +816,11 @@ contains
                   ! Otherwise, we must refine the time step.
                   if (Hn_old < RunParams%EroCriticalHeight .or. &
                       abs(Hn_new - Hn_old) < RunParams%EroCriticalHeight) then
-                     call AddToRedistList(redistcells, ttk, i, j, excess_dep)
+                     redistCell(i, j, tt) = .true.
+                     redistExcess(i, j, tt) = excess_dep
                   else
-                     refineTimeStep = .true.
-                     exit
+                     tileRefine(tt) = .true.
+                     exit cells
                   end if
                   cycle
                end if
@@ -815,14 +828,28 @@ contains
                ! changed by too much (and if so, refine the time step).
                if (Hn_old < RunParams%EroCriticalHeight) cycle
                relhdiff = abs(Hn_new - Hn_old) / abs(Hn_old)
-               if (relhdiff > 0.1_wp .and. relhdiff > relhdiffmax) then
-                  relhdiffmax = relhdiff
-                  refineTimeStep = .true.
-                  exit
+               if (relhdiff > 0.1_wp) then
+                  tileRefine(tt) = .true.
+                  exit cells
                end if
             end do
-         end do
+         end do cells
       end do
+      !$omp end parallel do
+
+      refineTimeStep = any(tileRefine)
+      if (.not. refineTimeStep) then
+         do tt = 1, ActiveTiles%Size
+            do j = 1, nY
+               do i = 1, nX
+                  if (redistCell(i, j, tt)) then
+                     call AddToRedistList(redistcells, ActiveTiles%List(tt), i, j, redistExcess(i, j, tt))
+                  end if
+               end do
+            end do
+         end do
+      end if
+      deallocate(tileRefine, redistCell, redistExcess)
 
       ! Some cells may have been marked for redistribution in the loop above.
       ! This is handled by RedistributeGrid, which makes a small correction to
