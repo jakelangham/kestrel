@@ -90,14 +90,14 @@ contains
       !$omp parallel private(ttk)
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
       !$omp end do
 
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
@@ -113,7 +113,7 @@ contains
       end do
       !$omp end do
 
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! (Uses neighbours' corrected interior reconstructions.)
@@ -124,7 +124,7 @@ contains
       end do
       !$omp end do
 
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! Reconstruct cell boundary values of Hn, u, v, psi, rho.

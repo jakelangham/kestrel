@@ -411,7 +411,7 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
-      !$omp parallel do schedule(dynamic) private(ttk, k, var)
+      !$omp parallel do schedule(runtime) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -449,7 +449,7 @@ contains
       end if
 
       ! Compute second substep.
-      !$omp parallel do schedule(dynamic) private(ttk, k, var, hp_old, hp_new, w_update)
+      !$omp parallel do schedule(runtime) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -510,7 +510,7 @@ contains
       end if
 
       ! Compute third substep.
-      !$omp parallel do schedule(dynamic) private(ttk, k, var, hp_old, hp_new, w_update)
+      !$omp parallel do schedule(runtime) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -550,7 +550,7 @@ contains
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
-      !$omp parallel do schedule(dynamic) private(ttk, k, var)
+      !$omp parallel do schedule(runtime) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -622,7 +622,7 @@ contains
 
       ! Compute first substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -642,7 +642,7 @@ contains
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
       ! These updates are linearly dependent on the update to bt, so they may
       ! be explicitly determined in a conservative way.
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! First we have to interpolate bt onto cell centres.
@@ -674,7 +674,7 @@ contains
 
       ! Compute second substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -694,7 +694,7 @@ contains
       !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed2, ttk)
@@ -725,7 +725,7 @@ contains
 
       ! Compute third substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -744,7 +744,7 @@ contains
       !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
-      !$omp do schedule(dynamic)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed3, ttk)
@@ -788,7 +788,7 @@ contains
       allocate(tileRefine(ActiveTiles%Size), redistCell(nX, nY, ActiveTiles%Size), &
                redistExcess(nX, nY, ActiveTiles%Size))
 
-      !$omp parallel do schedule(dynamic) &
+      !$omp parallel do schedule(runtime) &
       !$omp private(ttk, i, j, gamold, gamnew, Hn_old, Hn_new, excess_dep, deltaBt, psiold, relhdiff)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
@@ -882,7 +882,7 @@ contains
       end if
 
       ! Update u{Plus,Minus}{X,Y}, b and grad(b) data since the bed has changed.
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeInterfacialTopographicData(RunParams, grid, grid%intermed3, ttk)
@@ -915,7 +915,7 @@ contains
       integer :: tt, ttk
 
       if (.not. grid%intermedStale) then
-         !$omp parallel do schedule(dynamic) private(ttk)
+         !$omp parallel do schedule(runtime) private(ttk)
          do tt = 1, grid%ghostTiles%size
             ttk = grid%ghostTiles%List(tt)
             grid%intermed3(ttk)%u(:, :, :) = grid%tileContainer(ttk)%u(:, :, :)
@@ -929,7 +929,7 @@ contains
       grid%intermedInterfTopogSynced = .true.
 
       ! Copy data over to the intermediate time stepping arrays
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, nActiveTiles
          ttk = grid%activeTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -938,7 +938,7 @@ contains
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
       !$omp end parallel do
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, grid%ghostTiles%size
          ttk = grid%ghostTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -974,7 +974,7 @@ contains
          call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
       end if
 
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
@@ -1002,7 +1002,7 @@ contains
 
       activeTiles => grid%activeTiles
 
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
@@ -1025,7 +1025,7 @@ contains
 
       activeTiles => grid%activeTiles
 
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
@@ -1065,7 +1065,7 @@ contains
 
       activeTiles => grid%activeTiles
 
-      !$omp parallel do schedule(dynamic) private(ttk)
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
