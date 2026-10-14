@@ -52,6 +52,8 @@
 !   xtanh - one-dimensional tanh on a flat topography
 !   xparab - one-dimensional parabola
 !   xyparab - two-dimensional parabola
+!   xgauss - one-dimensional Gaussian
+!   xygauss - Gaussian varying along a direction rotated from the x axis
 module topog_funcs_module
 
    use set_precision_module, only: wp, pi
@@ -78,6 +80,8 @@ module topog_funcs_module
    public :: xtanh ! one-dimensional tanh on a flat topography
    public :: xparab ! one-dimensional parabola
    public :: xyparab ! two-dimensional parabola
+   public :: xgauss ! one-dimensional Gaussian
+   public :: xygauss ! Gaussian varying along a rotated direction
 
    pointer :: TopogFunc
    interface
@@ -599,5 +603,56 @@ contains
       end do
       return
    end subroutine xyparab
+
+   ! one-dimensional Gaussian b = A*exp(-x^2/w^2)
+   ! (A < 0 gives a valley.)
+   ! Two parameters required:
+   !  A -- amplitude; passed in RunParams%TopogFuncParams(1)
+   !  w -- width; passed in RunParams%TopogFuncParams(2)
+   pure subroutine xgauss(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, w
+      integer :: ii
+
+      A = RunParams%TopogFuncParams(1)
+      w = RunParams%TopogFuncParams(2)
+
+      do ii=1,size(x)
+         b0(ii,:) = A*exp(-(x(ii)/w)**2)
+      end do
+      return
+   end subroutine xgauss
+
+   ! Gaussian b = A*exp(-s^2/w^2) varying along s = x*cos(theta) + y*sin(theta),
+   ! i.e. xgauss rotated anticlockwise by theta.
+   ! Three parameters required:
+   !  A -- amplitude; passed in RunParams%TopogFuncParams(1)
+   !  w -- width; passed in RunParams%TopogFuncParams(2)
+   !  theta -- angle in degrees; passed in RunParams%TopogFuncParams(3)
+   pure subroutine xygauss(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, w, theta, s
+      integer :: ii, jj
+
+      A = RunParams%TopogFuncParams(1)
+      w = RunParams%TopogFuncParams(2)
+      theta = RunParams%TopogFuncParams(3) * pi / 180.0_wp
+
+      do ii=1,size(x)
+         do jj=1,size(y)
+            s = x(ii)*cos(theta) + y(jj)*sin(theta)
+            b0(ii,jj) = A*exp(-(s/w)**2)
+         end do
+      end do
+      return
+   end subroutine xygauss
 
 end module topog_funcs_module
