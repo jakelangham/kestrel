@@ -381,6 +381,8 @@ contains
          write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
          write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
          write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
+      case ("None")
+         write (101, fmt="(a)") "Drag = None"
       end select
       if ((RunParams%DragChoice%s=="Variable") .or. (RunParams%ErosionChoice%s=="Mixed")) then
          write (101, fmt="(a,a)") "Switch function = ", RunParams%fswitch%s

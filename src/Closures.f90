@@ -56,7 +56,7 @@ module closures_module
    public :: DragClosure
    public :: ChezyDrag, ManningDrag, PowerLawDrag
    public :: CoulombDrag, PouliquenDrag, Edwards2019Drag
-   public :: VoellmyDrag, VariableDrag
+   public :: VoellmyDrag, VariableDrag, NoDrag
 
    public :: fswitch
    public :: tanhSwitch, rat3Switch, cosSwitch
@@ -374,6 +374,17 @@ contains
 !    N.B. Because of the way the time stepper works (treating the drag
 !    implicitly), these are required to define a 'friction' function F such that
 !    the basal stress is \tau_x = -F \rho u/|(u,v)|.
+
+   ! No drag (frictionless flow), F = 0.
+   pure function NoDrag(RunParams, uvect) result(friction)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp) :: friction
+
+      friction = 0.0_wp
+   end function NoDrag
 
    ! Chezy drag has friction function F = Cd * |u|^2.
    pure function ChezyDrag(RunParams, uvect) result(friction)

@@ -299,10 +299,13 @@ contains
                   case ('manning')
                      RunParams%DragChoice = varString('Manning')
                      DragClosure => ManningDrag
+                  case ('none')
+                     RunParams%DragChoice = varString('None')
+                     DragClosure => NoDrag
                   case default
                      call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
                         // "The block value for the variable 'Drag' " // DragChoice%s // " is not recognized." // new_line('A') &
-                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning' and 'Variable'")
+                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning', 'Variable' and 'None'")
                end select
 
             case ('chezy co')
