@@ -111,15 +111,17 @@ program Kestrel
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"
-   ! Tiles are shared out between OpenMP threads one at a time as threads
-   ! become free (a dynamic schedule), unless OMP_SCHEDULE sets another
-   ! schedule. Dynamic scheduling copes best with tiles whose cost varies, and
-   ! with other programs using the same cores. A static schedule (e.g.
-   ! OMP_SCHEDULE=static) gives each thread the same tiles in every loop, so
-   ! their data can stay in its cache, which may help on machines with many
-   ! cores.
+   ! Tiles are shared out between OpenMP threads in equal contiguous blocks of
+   ! the active tile list (a static schedule), unless OMP_SCHEDULE sets
+   ! another schedule. Each thread then works on the same tiles in every loop,
+   ! and mostly on neighbouring tiles, so the data each loop reads (including
+   ! from neighbouring tiles) is usually still in that thread's cache and
+   ! memory. This matters most on machines whose cores are split between
+   ! several caches or NUMA domains (most servers). A dynamic schedule
+   ! (OMP_SCHEDULE=dynamic) can be slightly faster on single-cache machines
+   ! whose cores are also busy with other programs.
    !$ call get_environment_variable("OMP_SCHEDULE", status=ompScheduleStatus)
-   !$ if (ompScheduleStatus /= 0) call omp_set_schedule(omp_sched_dynamic, 1)
+   !$ if (ompScheduleStatus /= 0) call omp_set_schedule(omp_sched_static, 0)
    !$ call omp_get_schedule(ompSchedule, ompChunk)
    !$ select case (ompSchedule)
    !$ case (omp_sched_static)
