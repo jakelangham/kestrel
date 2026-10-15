@@ -51,7 +51,7 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor_gradin, DragClosure
+   use closures_module, only: GeometricCorrectionFactor_gradin
 
    implicit none
 
@@ -78,7 +78,7 @@ contains
 
       type(TileList), pointer :: activeTiles
 
-      real(kind=wp) :: Friction, Ero, Depo 
+      real(kind=wp) :: Ero, Depo
       real(kind=wp) :: HnW, HnE, HnS, HnN, Hneps
 
       integer :: tt, tID, ttW, ttE, ttS, ttN
@@ -93,6 +93,12 @@ contains
       HnS = 0.0_wp
       HnN = 0.0_wp
 
+      ! Tiles may be processed in parallel (if built with OpenMP). BtSourceTerm
+      ! reads E - D from neighbouring tiles, so it relies on the barrier at the
+      ! end of the loop below.
+      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Ero, Depo, HnW, HnE) &
+      !$omp firstprivate(HnS, HnN)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          do i = 1, RunParams%nXPertile
@@ -136,15 +142,16 @@ contains
                   tiles(tID)%EminusD(i,j) = 0.0_wp
                else
                   ! Compute E - D at each cell centre and save it.
-                  Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
                   call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo)
                   tiles(tID)%EminusD(i,j) = Ero - Depo
                end if
             end do
          end do
       end do
+      !$omp end do
 
       call BtSourceTerm(RunParams, grid, tiles)
+      !$omp end parallel
 
    end subroutine
 
@@ -173,6 +180,9 @@ contains
 
       psib = 1.0_wp - RunParams%BedPorosity
 
+      ! N.B. This is called from within the parallel region in
+      ! CalculateMorphodynamicRHS (if built with OpenMP).
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          tID = ActiveTiles%List(tt)
          if (.not. RunParams%isOneD) then
@@ -302,6 +312,7 @@ contains
             end if
          end if
       end do
+      !$omp end do
    end subroutine
 
    ! Interpolate b at cell centres, for tile tID.

@@ -73,85 +73,104 @@ contains
       real(kind=wp), intent(out) :: advisedTimeStep
 
       type(TileList), pointer :: ActiveTiles
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%nTiles)
+      ! CFL time step for each active tile (indexed by position in ActiveTiles).
+      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%activeTiles%size)
+      real(kind=wp) :: minUnitCFLTimeStep
 
       integer :: tt, ttk
 
       activeTiles => grid%activeTiles
 
-      unitCFLTimeStep(:) = RunParams%maxdt
+      ! The calculation is done in four loops over the active tiles. Within a
+      ! loop, each tile only writes to its own data, so the tiles may be
+      ! processed in parallel (if built with OpenMP). Each loop only reads data
+      ! of neighbouring tiles that was computed in an earlier loop, relying on
+      ! the barrier at the end of the previous loop. Within each loop, as much
+      ! work as possible is done on a tile while its data are in cache.
+      !$omp parallel private(ttk)
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
       end do
+      !$omp end do
 
-      ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ! Reconstruct cell boundary values of w, rhoHnu, rhoHnv, Hnpsi.
+         ! (Uses neighbours' limited derivatives from the loop above.)
          call Reconstruct(RunParams, grid, RunParams%iFlux, tileWorkspace, ttk)
-      end do
-
-      ! Correct slopes for w, Hnpsi to ensure positivity.
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
-         call CorrectSlopes(RunParams, grid, tileWorkspace, ttk)
-      end do
-
-      ! Compute derived variables Hn, u, v, psi and rho at cell centres.
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
+         ! Correct slopes for w, Hnpsi to ensure positivity. Every tile's
+         ! interior must be corrected before any tile's edges (see
+         ! CorrectSlopes), which are corrected in the next loop.
+         call CorrectSlopesInterior(RunParams, tileWorkspace, ttk)
+         ! Compute derived variables Hn, u, v, psi and rho at cell centres.
+         ! (This only depends on the primary variables at cell centres.)
          call ComputeDesingularisedVariables(RunParams, tileWorkspace, ttk, .true.)
       end do
+      !$omp end do
 
-      ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ! (Uses neighbours' corrected interior reconstructions.)
+         call CorrectSlopesEdges(RunParams, grid, tileWorkspace, ttk)
+         ! Calculate limited spatial derivatives of Hn, u, v, psi, rho.
+         ! (Uses neighbours' derived variables.)
          call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
       end do
+      !$omp end do
 
-      ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
+         ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
+         ! (Uses neighbours' limited derivatives from the loop above.)
          call Reconstruct(RunParams, grid, RunParams%iDesing, tileWorkspace, ttk)
-      end do
-
-      ! Calculate numerical flux terms, and also local propagation speeds which
-      ! give the CFL time step.
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
+         ! Calculate numerical flux terms, and also local propagation speeds
+         ! which give the CFL time step. (Uses neighbours' cell centred values
+         ! and limited derivatives, not their reconstructions.)
          call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileWorkspace, &
-                              ttk, unitCFLTimeStep(ttk))  ! Look at eqn input
-      end do
-
-      advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
-                                               substep, unitCFLTimeStep)
-
-      ! Sum flux and source terms to complete the calculation.
-      do tt = 1, ActiveTiles%Size
-         ttk = ActiveTiles%List(tt)
+                              ttk, unitCFLTimeStep(tt))  ! Look at eqn input
+         ! Sum flux and source terms to complete the calculation.
          call ConstructHydraulicRHS(RunParams, grid, tileWorkspace, ttk, t)
       end do
+      !$omp end do
+
+      !$omp single
+      ! Inactive tiles contribute a CFL time step of maxdt.
+      minUnitCFLTimeStep = minval(unitCFLTimeStep)
+      if (ActiveTiles%Size < grid%nTiles) then
+         minUnitCFLTimeStep = min(minUnitCFLTimeStep, RunParams%maxdt)
+      end if
+
+      advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
+                                               substep, minUnitCFLTimeStep)
+      !$omp end single
+
+      !$omp end parallel
    end subroutine CalculateHydraulicRHS
 
    ! This contains all the logic for computing a suitable time step, i.e. one
    ! that is stable with respect to the CFL condition and the diffusive time
    ! scale set by eddy viscosity.
    function ComputeAdvisedTimeStep(RunParams, grid, substep, &
-                                   unitCFLTimeStep) result(advisedTimeStep)
+                                   minUnitCFLTimeStep) result(advisedTimeStep)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
       integer, intent(in) :: substep ! i.e. stage of multistep timestepper
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%nTiles)
+      real(kind=wp), intent(in) :: minUnitCFLTimeStep ! minimum over all tiles
 
       real(kind=wp) maxTimeStep, advisedTimeStep
 
-      ! N.B. If eddy viscosity is present we need to limit the time step by the 
+      ! N.B. If eddy viscosity is present we need to limit the time step by the
       ! diffusive time scale ~ dx^2 / nu
-      maxTimeStep = min(RunParams%cfl * minval(unitCFLTimeStep), &
+      maxTimeStep = min(RunParams%cfl * minUnitCFLTimeStep, &
                         RunParams%diffusiveTimeScale)
 
       maxTimeStep = min(maxTimeStep, RunParams%maxdt)
@@ -178,7 +197,15 @@ contains
    ! are stored in the uLimX and uLimY arrays respectively. The limiter function
    ! (which is user-settable) tries to prevent oscillations whose lengthscales
    ! are comparable to deltaX, deltaY.
-   subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID)
+   !
+   ! If updateNeighbours is present and true, the derivatives on the adjoining
+   ! boundaries of any active neighbouring tiles are recomputed too, since these
+   ! depend on the data in tile tID. This is needed when a single tile is
+   ! (re)activated. When this routine is called for every active tile in turn
+   ! (as in CalculateHydraulicRHS) it is unnecessary, since each tile computes
+   ! its own boundary derivatives.
+   subroutine CalculateLimitedDerivs(RunParams, grid, variables, tiles, tID, &
+                                     updateNeighbours)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -186,10 +213,15 @@ contains
       integer, dimension(:), intent(in) :: variables
       type(TileType), target, dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID
+      logical, intent(in), optional :: updateNeighbours
 
       real(kind=wp), dimension(:,:,:), pointer :: u
 
       integer :: i, j, k, d, nVars, nYPoints, nXPoints, neighbour
+      logical :: doNeighbours
+
+      doNeighbours = .false.
+      if (present(updateNeighbours)) doNeighbours = updateNeighbours
 
       nXPoints = RunParams%nXpertile
       nYPoints = RunParams%nYpertile
@@ -235,9 +267,9 @@ contains
             end do
          end do
 
-         ! Do south ghost tile too if it exists
+         ! Do south neighbour too if requested and it is active
          neighbour = grid%tileContainer(tID)%South
-         if (grid%tileContainer(neighbour)%TileOn) then
+         if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
             j = nYpoints
             do i = 1, nXPoints
                do k = 1, nVars
@@ -258,9 +290,9 @@ contains
             end do
          end do
 
-         ! Do north ghost tile too if it exists
+         ! Do north neighbour too if requested and it is active
          neighbour = grid%tileContainer(tID)%North
-         if (grid%tileContainer(neighbour)%TileOn) then
+         if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
             j = 1
             do i = 1, nXpoints
                do k = 1, nVars
@@ -282,9 +314,9 @@ contains
          end do
       end do
 
-      ! Do West ghost tile too if it exists
+      ! Do west neighbour too if requested and it is active
       neighbour = grid%tileContainer(tID)%West
-      if (grid%tileContainer(neighbour)%TileOn) then
+      if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
          i = nXpoints
          do j = 1, nYpoints
             do k = 1, nVars
@@ -305,9 +337,9 @@ contains
          end do
       end do
 
-      ! Do East ghost tile too if it exists
+      ! Do east neighbour too if requested and it is active
       neighbour = grid%tileContainer(tID)%East
-      if (grid%tileContainer(neighbour)%TileOn) then
+      if (doNeighbours .and. grid%tileContainer(neighbour)%TileOn) then
          i = 1
          do j = 1, nYpoints
             do k = 1, nVars
@@ -334,7 +366,9 @@ contains
       integer, intent(in) :: tID
       character(len=1), intent(in) :: bid
 
-      integer :: nextTile = 0, prevTile = 0
+      ! N.B. No initialisers here: in Fortran these would imply SAVE, making
+      ! the variables shared between calls (and threads).
+      integer :: nextTile, prevTile
 
       real(kind=wp) :: uN, uS, uE, uW
       real(kind=wp) :: deltaXRecip, deltaYRecip
@@ -557,6 +591,16 @@ contains
    ! balanced approach of Chertock et al. (2015), though the logic ends up being
    ! rather complicated in order to account for tile boundaries and the need to
    ! make sure that calculations are independent of the tiling layout.
+   !
+   ! The work is split into two parts. CorrectSlopesInterior corrects the
+   ! interfaces of each cell using only data from tile tID. CorrectSlopesEdges
+   ! then makes the copies of the tile boundary interfaces held by tile tID
+   ! consistent with its neighbours, which requires that any active neighbours
+   ! have already been through CorrectSlopesInterior. So when correcting many
+   ! tiles, CorrectSlopesInterior must be called for all of them before
+   ! CorrectSlopesEdges is called for any (as in CalculateHydraulicRHS). Each
+   ! routine only writes to tile tID, so tiles may be processed in any order
+   ! (or concurrently) within each stage.
    subroutine CorrectSlopes(RunParams, grid, tiles, tID)
       implicit none
 
@@ -565,10 +609,24 @@ contains
       type(TileType), dimension(:), intent(inout) :: tiles
       integer, intent(in) :: tID ! tileID
 
-      integer :: i, j, prevTile, nextTile
+      call CorrectSlopesInterior(RunParams, tiles, tID)
+      call CorrectSlopesEdges(RunParams, grid, tiles, tID)
+
+   end subroutine CorrectSlopes
+
+   ! Correct the reconstructions at each cell interface of tile tID, using only
+   ! data from that tile. See CorrectSlopes.
+   subroutine CorrectSlopesInterior(RunParams, tiles, tID)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID ! tileID
+
+      integer :: i, j
 
       integer :: nXPoints, nYPoints
-      integer :: iw, iHnpsi, ib0, ibt
+      integer :: iw, iHnpsi
 
       real(kind=wp) :: b_left, b_right, b_bottom, b_top
 
@@ -576,40 +634,9 @@ contains
       nYPoints = RunParams%nYpertile
       iw = RunParams%Vars%w
       iHnpsi = RunParams%Vars%Hnpsi
-      ib0 = RunParams%Vars%b0
-      ibt = RunParams%Vars%bt
 
       ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
       do j = 1, nYPoints
-
-         ! Left tile boundary
-         prevTile = tiles(tID)%West
-         if (.not. RunParams%isOneD) then
-            ! If 2D, have to interpolate b_left/right in middle of cell interface
-            b_left = InterpolateB(tiles(prevTile)%b0(nXpoints,j  ), tiles(prevTile)%b0(nXpoints,j+1), &
-                                  tiles(prevTile)%bt(nXpoints,j  ), tiles(prevTile)%bt(nXpoints,j+1))
-            b_right = InterpolateB(tiles(prevTile)%b0(nXpoints+1,j  ), tiles(prevTile)%b0(nXpoints+1,j+1), &
-                                   tiles(prevTile)%bt(nXpoints+1,j  ), tiles(prevTile)%bt(nXpoints+1,j+1))
-         else
-            b_left = tiles(prevTile)%b0(nXpoints,1) + tiles(prevTile)%bt(nXpoints,1)
-            b_right = tiles(prevTile)%b0(nXpoints+1,1) + tiles(prevTile)%bt(nXpoints+1,1)
-         end if
-         if ((tiles(prevTile)%uMinusX(iw,nXpoints+1,j) < b_right) .or.  &
-            (tiles(prevTile)%uPlusX(iw,nXpoints,j) < b_left)) then
-            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%u(iw,nXpoints,j) +  &
-               0.5_wp * (b_right - b_left)
-         else if (tiles(tID)%uMinusX(iw,1,j) /= tiles(prevTile)%uMinusX(iw,nXpoints+1,j) &
-            .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
-            ! This case covers the fact that if the left tile already corrected
-            ! its uMinusX value, we need to make sure both copies at the tile
-            ! interface are the same (since the previous test will fail to flag it)
-            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%uMinusX(iw,nXpoints+1,j)
-         end if
-
-         if (tiles(tID)%uMinusX(iHnpsi,1,j) < 0.0_wp) then
-            tiles(tID)%uMinusX(iHnpsi,1,j) = tiles(prevTile)%u(iHnpsi,nXPoints,j)
-         end if
-
          do i = 1, nXPoints
             if (.not. RunParams%isOneD) then
                ! If 2D, have to interpolate b_left/right in middle of cell interface
@@ -638,6 +665,89 @@ contains
                tiles(tID)%uPlusX(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
             end if
          end do
+      end do
+
+      if (.not. RunParams%isOneD) then
+         do i = 1, nXPoints
+            do j = 1, nYPoints
+               b_bottom = InterpolateB(tiles(tID)%b0(i  ,j), tiles(tID)%b0(i+1,j), &
+                                       tiles(tID)%bt(i  ,j), tiles(tID)%bt(i+1,j))
+               b_top = InterpolateB(tiles(tID)%b0(i  ,j+1), tiles(tID)%b0(i+1,j+1), &
+                                    tiles(tID)%bt(i  ,j+1), tiles(tID)%bt(i+1,j+1))
+               if ((tiles(tID)%uMinusY(iw,i,j+1) < b_top) .or.  &
+                  (tiles(tID)%uPlusY(iw,i,j) < b_bottom)) then
+                  ! Replace reconstruction by setting w gradient equal to bed gradient
+                  tiles(tID)%uMinusY(iw,i,j+1) = tiles(tID)%u(iw,i,j) +  &
+                     0.5_wp * (b_top - b_bottom)
+                  tiles(tID)%uPlusY(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
+                     0.5_wp * (b_bottom - b_top)
+               end if
+
+               if ((tiles(tID)%uMinusY(iHnpsi,i,j+1) < 0.0_wp) .or.  &
+                  (tiles(tID)%uPlusY(iHnpsi,i,j) < 0.0_wp)) then
+                  tiles(tID)%uMinusY(iHnpsi,i,j+1) = tiles(tID)%u(iHnpsi,i,j)
+                  tiles(tID)%uPlusY(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
+               end if
+            end do
+         end do
+      end if
+
+   end subroutine CorrectSlopesInterior
+
+   ! Make tile tID's copies of the reconstructions at its boundary interfaces
+   ! consistent with those of its neighbours. Active neighbours must already
+   ! have been through CorrectSlopesInterior. See CorrectSlopes.
+   subroutine CorrectSlopesEdges(RunParams, grid, tiles, tID)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tiles
+      integer, intent(in) :: tID ! tileID
+
+      integer :: i, j, prevTile, nextTile
+
+      integer :: nXPoints, nYPoints
+      integer :: iw, iHnpsi
+
+      real(kind=wp) :: b_left, b_right, b_bottom, b_top
+
+      nXPoints = RunParams%nXpertile
+      nYPoints = RunParams%nYpertile
+      iw = RunParams%Vars%w
+      iHnpsi = RunParams%Vars%Hnpsi
+
+      ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
+      do j = 1, nYPoints
+
+         ! Left tile boundary
+         prevTile = tiles(tID)%West
+         if (.not. RunParams%isOneD) then
+            ! If 2D, have to interpolate b_left/right in middle of cell interface
+            b_left = InterpolateB(tiles(prevTile)%b0(nXpoints,j  ), tiles(prevTile)%b0(nXpoints,j+1), &
+                                  tiles(prevTile)%bt(nXpoints,j  ), tiles(prevTile)%bt(nXpoints,j+1))
+            b_right = InterpolateB(tiles(prevTile)%b0(nXpoints+1,j  ), tiles(prevTile)%b0(nXpoints+1,j+1), &
+                                   tiles(prevTile)%bt(nXpoints+1,j  ), tiles(prevTile)%bt(nXpoints+1,j+1))
+         else
+            b_left = tiles(prevTile)%b0(nXpoints,1) + tiles(prevTile)%bt(nXpoints,1)
+            b_right = tiles(prevTile)%b0(nXpoints+1,1) + tiles(prevTile)%bt(nXpoints+1,1)
+         end if
+         if ((tiles(prevTile)%uMinusX(iw,nXpoints+1,j) < b_right) .or.  &
+            (tiles(prevTile)%uPlusX(iw,nXpoints,j) < b_left)) then
+            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%u(iw,nXpoints,j) +  &
+               0.5_wp * (b_right - b_left)
+         else if (tiles(tID)%uMinusX(iw,1,j) /= tiles(prevTile)%uMinusX(iw,nXpoints+1,j) &
+            .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
+            ! This case covers the fact that the left tile may have corrected
+            ! its uMinusX value, in which case we need to make sure both copies
+            ! at the tile interface are the same (since the previous test will
+            ! fail to flag it)
+            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%uMinusX(iw,nXpoints+1,j)
+         end if
+
+         if (tiles(tID)%uMinusX(iHnpsi,1,j) < 0.0_wp) then
+            tiles(tID)%uMinusX(iHnpsi,1,j) = tiles(prevTile)%u(iHnpsi,nXPoints,j)
+         end if
 
          ! Right tile boundary
          nextTile = tiles(tID)%East
@@ -658,9 +768,10 @@ contains
                0.5_wp * (b_left - b_right)
          else if (tiles(tID)%uPlusX(iw,nXpoints+1,j) /= tiles(nextTile)%uPlusX(iw,1,j) &
             .and. grid%tileContainer(nextTile)%isGhostTile .eqv. .false.) then
-            ! Likewise, this case covers the fact that if the right tile already
-            ! corrected its uPlusX value, we need to make sure both copies at the tile
-            ! interface are the same (since the previous test will fail to flag it).
+            ! Likewise, this case covers the fact that the right tile may have
+            ! corrected its uPlusX value, in which case we need to make sure both
+            ! copies at the tile interface are the same (since the previous test
+            ! will fail to flag it).
             tiles(tID)%uPlusX(iw,nXpoints+1,j) = tiles(nextTile)%uPlusX(iw,1,j)
          end if
          if (tiles(tID)%uPlusX(iHnpsi,nXPoints+1,j) < 0.0_wp) then
@@ -689,28 +800,6 @@ contains
                tiles(tID)%uMinusY(iHnpsi,i,1) = tiles(prevTile)%u(iHnpsi,i,nYPoints)
             end if
 
-            ! Interior points
-            do j = 1, nYPoints
-               b_bottom = InterpolateB(tiles(tID)%b0(i  ,j), tiles(tID)%b0(i+1,j), &
-                                       tiles(tID)%bt(i  ,j), tiles(tID)%bt(i+1,j))
-               b_top = InterpolateB(tiles(tID)%b0(i  ,j+1), tiles(tID)%b0(i+1,j+1), &
-                                    tiles(tID)%bt(i  ,j+1), tiles(tID)%bt(i+1,j+1))
-               if ((tiles(tID)%uMinusY(iw,i,j+1) < b_top) .or.  &
-                  (tiles(tID)%uPlusY(iw,i,j) < b_bottom)) then
-                  ! Replace reconstruction by setting w gradient equal to bed gradient
-                  tiles(tID)%uMinusY(iw,i,j+1) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_top - b_bottom)
-                  tiles(tID)%uPlusY(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_bottom - b_top)
-               end if
-
-               if ((tiles(tID)%uMinusY(iHnpsi,i,j+1) < 0.0_wp) .or.  &
-                  (tiles(tID)%uPlusY(iHnpsi,i,j) < 0.0_wp)) then
-                  tiles(tID)%uMinusY(iHnpsi,i,j+1) = tiles(tID)%u(iHnpsi,i,j)
-                  tiles(tID)%uPlusY(iHnpsi,i,j) = tiles(tID)%u(iHnpsi,i,j)
-               end if
-            end do
-
             ! Top tile boundary
             nextTile = tiles(tID)%North
             b_bottom = InterpolateB(tiles(nextTile)%b0(i  ,1), tiles(nextTile)%b0(i+1,1), &
@@ -733,7 +822,7 @@ contains
          end do
       end if
 
-   end subroutine CorrectSlopes
+   end subroutine CorrectSlopesEdges
 
    ! This is a helper function for CorrectSlopes that linearly interpolates b
    ! between two points carefully, making sure to do the addition of the small
@@ -955,8 +1044,12 @@ contains
 
       do j = 1,nYPoints
          do i = 1,nXPoints+1
-            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+            ! Geometric correction factors of the reconstructions either side of
+            ! the interface, used several times below.
+            gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
+            gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
+            wsPlus =  xMaxWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMaxWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
 #if DEBUG_SPD == 1 || DEBUG_SPD == 2
             if (tiles(tID)%uPlusX(iU, i, j) > 50.0) then
                write(stderr, *) 'High x-velocity: uPlusX = ', tiles(tID)%uPlusX(iU,i, j), ' for tile ', tID, ' at cell index ', i, ', ', j
@@ -978,8 +1071,8 @@ contains
             end if
             if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j))
-            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j))
+            wsPlus =  xMinWaveSpeeds(RunParams, tiles(tID)%uPlusX(:,i, j), gamplus)
+            wsMinus = xMinWaveSpeeds(RunParams, tiles(tID)%uMinusX(:,i, j), gamneg)
             if (wsPlus<wsMinus) then
                aNeg = wsPlus
             else
@@ -993,10 +1086,10 @@ contains
                if (i == 1) then
                   prevTile = tiles(tID)%West
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, RunParams%nXpertile, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                              gamplus, 1.0_wp)
                else
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i - 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j)), 1.0_wp)
+                              gamplus, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / aPos, unitCFLTimeStep)
             end if
@@ -1004,16 +1097,16 @@ contains
                if (i == RunParams%nXpertile + 1) then
                   nextTile = tiles(tID)%East
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, 1, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                              gamneg, 1.0_wp)
                else
                   gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                              GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j)), 1.0_wp)
+                              gamneg, 1.0_wp)
                end if
                unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaX / abs(aNeg), unitCFLTimeStep)
             end if
 
-            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusConvectionFlux)
-            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusConvectionFlux)
+            call XConvectionFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusConvectionFlux,gamplus)
+            call XConvectionFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusConvectionFlux,gamneg)
             call XHydrostaticFlux(RunParams,tiles(tID)%uPlusX(:,i,j),uPlusHydrostaticFlux)
             call XHydrostaticFlux(RunParams,tiles(tID)%uMinusX(:,i,j),uMinusHydrostaticFlux)
             if (i == RunParams%nXpertile + 1) then
@@ -1040,8 +1133,6 @@ contains
                   ! This variable is time-stepped by proxy (through Hn*gam) and 
                   ! thus we need to use (Hn*gam)'s interfacial values for this flux
                   ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(RunParams%Vars%Hn, i, j) * gamplus - &
                        tiles(tID)%uMinusX(RunParams%Vars%Hn, i, j) * gamneg
                   hX = hX * aPos * aNeg
@@ -1051,8 +1142,6 @@ contains
                   tiles(tID)%gXFlux(d, i, j) = 0.0_wp
                   tiles(tID)%pXFlux(d, i, j) = 0.0_wp
                else if (d == RunParams%Vars%Hnpsi) then
-                  gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusX(:, i, j))
-                  gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusX(:, i, j))
                   hX = tiles(tID)%uPlusX(d, i, j) * gamplus - tiles(tID)%uMinusX(d, i, j) * gamneg
                   hX = hX * aPos * aNeg
                   hX = hX  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1082,8 +1171,12 @@ contains
       if (.not. RunParams%isOneD) then
          do j = 1, nYPoints + 1
             do i = 1, nXPoints
-               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+               ! Geometric correction factors of the reconstructions either side of
+               ! the interface, used several times below.
+               gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
+               gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
+               wsPlus = yMaxWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMaxWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus>wsMinus) then
                   aPos = wsPlus
                else
@@ -1091,8 +1184,8 @@ contains
                end if
                if (aPos < 0.0_wp) aPos = 0.0_wp 
 
-               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j))
-               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j))
+               wsPlus = yMinWaveSpeeds(RunParams, tiles(tID)%uPlusY(:,i, j), gamplus)
+               wsMinus = yMinWaveSpeeds(RunParams, tiles(tID)%uMinusY(:,i, j), gamneg)
                if (wsPlus<wsMinus) then
                   aNeg = wsPlus
                else
@@ -1104,10 +1197,10 @@ contains
                   if (j == 1) then
                      prevTile = tiles(tID)%South
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(prevTile)%u(:, i, RunParams%nYpertile)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                                 gamplus, 1.0_wp)
                   else
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j - 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j)), 1.0_wp)
+                                 gamplus, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / aPos, unitCFLTimeStep)
                end if
@@ -1116,16 +1209,16 @@ contains
                      ! look elsewhere for gam
                      nextTile = tiles(tID)%North
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(nextTile)%u(:, i, 1)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                                 gamneg, 1.0_wp)
                   else
                      gam_ratio = min(GeometricCorrectionFactor(RunParams, tiles(tID)%u(:, i, j)) / &
-                                 GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j)), 1.0_wp)
+                                 gamneg, 1.0_wp)
                   end if
                   unitCFLTimeStep = min(gam_ratio * gam_ratio * deltaY / abs(aNeg), unitCFLTimeStep)
                end if
 
-               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusConvectionFlux)
-               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusConvectionFlux)
+               call YConvectionFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusConvectionFlux,gamplus)
+               call YConvectionFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusConvectionFlux,gamneg)
                call YHydrostaticFlux(RunParams,tiles(tID)%uPlusY(:,i,j),uPlusHydrostaticFlux)
                call YHydrostaticFlux(RunParams,tiles(tID)%uMinusY(:,i,j),uMinusHydrostaticFlux)
                if (j == RunParams%nYpertile + 1) then
@@ -1152,8 +1245,6 @@ contains
                      ! This variable is time-stepped by proxy (through Hn*gam) and 
                      ! thus we need to use (Hn*gam)'s interfacial values for this flux
                      ! rather than w's. (Nb. gamplus=gamneg in our scheme!)
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(RunParams%Vars%Hn, i, j) * gamplus - &
                           tiles(tID)%uMinusY(RunParams%Vars%Hn, i, j) * gamneg
                      hY = hY * aPos * aNeg
@@ -1163,8 +1254,6 @@ contains
                      tiles(tID)%gYFlux(d, i, j) = 0.0_wp
                      tiles(tID)%pYFlux(d, i, j) = 0.0_wp
                   else if (d == RunParams%Vars%Hnpsi) then
-                     gamplus = GeometricCorrectionFactor(RunParams, tiles(tID)%uPlusY(:, i, j))
-                     gamneg = GeometricCorrectionFactor(RunParams, tiles(tID)%uMinusY(:, i, j))
                      hY = tiles(tID)%uPlusY(d, i, j) * gamplus - tiles(tID)%uMinusY(d, i, j) * gamneg
                      hY = hY * aPos * aNeg
                      hY = hY  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
@@ -1271,7 +1360,7 @@ contains
                end do
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
-                                        tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE)
+                                        tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE, gam)
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
                Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
@@ -1298,7 +1387,7 @@ contains
             end do
 
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
-                                     tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE)
+                                     tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE, gam)
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
             Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))

@@ -42,6 +42,29 @@ function test_identical_simulations(testname, infile1, infile2, tol, dim)
    return result
 end
 
+# Check that a simulation gives identical results regardless of the number of
+# OpenMP threads used to run it. The simulation for testname is run with 1
+# thread and twice with nthreads threads (the repeat is to catch
+# nondeterministic results). All outputs must match exactly: within each
+# parallel loop, every tile is computed using the same arithmetic as in serial,
+# so any difference indicates a bug (e.g. a data race).
+function test_thread_independence(testname, dim, nthreads)
+   dir_serial = "$(testname)_threads1"
+   dir_par = "$(testname)_threads$(nthreads)"
+   dir_repeat = "$(testname)_threads$(nthreads)_repeat"
+
+   if run_simulation_with_threads(testname, 1, dir_serial) ||
+      run_simulation_with_threads(testname, nthreads, dir_par) ||
+      run_simulation_with_threads(testname, nthreads, dir_repeat)
+      return 1
+   end
+
+   result = check_identical_outputs(dir_serial, dir_par)
+   result |= check_identical_outputs(dir_par, dir_repeat)
+
+   return result
+end
+
 # This test runs the same simulation twice. In the second instance, an interrupt
 # is called and the simulation is restarted. If both outputs are the same,
 # return 0.
@@ -75,6 +98,51 @@ function run_simulation(testname)
       end
    end
    wait_for_task(t)
+
+   return error
+end
+
+# Like run_simulation, but with nthreads OpenMP threads and writing the output to
+# outdir. This is done via a temporary copy of the input file (with its output
+# directory replaced), which is removed afterwards.
+function run_simulation_with_threads(testname, nthreads, outdir)
+   infile = test_inputfile(testname)
+   tmpfile = test_inputfile(outdir)
+   logfile = "$outdir.log"
+
+   replaced = false
+   open(tmpfile, "w") do io
+      for line in readlines(infile)
+         if occursin(r"^\s*directory\s*="i, line)
+            println(io, "directory = $outdir/")
+            replaced = true
+         else
+            println(io, line)
+         end
+      end
+   end
+   if !replaced
+      println("No output directory found in $infile.")
+      rm(tmpfile)
+      return true
+   end
+   rm(outdir, force = true, recursive = true)
+
+   cmd = addenv(`$prog $tmpfile`, "OMP_NUM_THREADS" => string(nthreads),
+                "OMP_WAIT_POLICY" => "passive")
+   error = false
+   t = @async begin
+      try
+         run(pipeline(cmd, stdout = logfile, stderr = logfile));
+      catch
+         println("Simulation exited unexpectedly.")
+         println("The command was OMP_NUM_THREADS=$nthreads $prog $tmpfile.")
+         println("Any output has been logged in $logfile.")
+         error = true
+      end
+   end
+   wait_for_task(t)
+   rm(tmpfile)
 
    return error
 end
@@ -406,6 +474,26 @@ function check_identical_simulations(testname1, testname2, tol, dim)
    return result
 end
 
+# Check that the output directories dir1 and dir2 contain the same files with
+# exactly the same contents, apart from RunInfo.txt (which records the date and
+# input file name).
+function check_identical_outputs(dir1, dir2)
+   files1 = sort(filter(f -> f != "RunInfo.txt", readdir(dir1)))
+   files2 = sort(filter(f -> f != "RunInfo.txt", readdir(dir2)))
+   if files1 != files2
+      println("Directories $dir1 and $dir2 contain different sets of files")
+      return 1
+   end
+   for f in files1
+      if read("$dir1/$f") != read("$dir2/$f")
+         println("$dir1/$f differs from $dir2/$f")
+         return 1
+      end
+   end
+
+   return 0
+end
+
 # Retrieve the solids density ρs from the input file.
 function solids_density(infile)
    ρs = 2000.0 # Default value
@@ -503,6 +591,20 @@ function links_to_netcdf(prog)
     end
 
     return match(r"netcdf", cmd_output) !== nothing
+end
+
+# Check whether the executable prog was built with OpenMP, which it reports on
+# start up (before it fails to find the given input file).
+function built_with_openmp(prog)
+   cmd_output = try
+      read(pipeline(ignorestatus(`$prog no_such_input_file.txt`), stderr = devnull), String)
+   catch
+      println("Warning: unable to check whether $prog was built with OpenMP.")
+      println("Continuing without testing OpenMP features.")
+      return false
+   end
+
+   return occursin("OpenMP thread", cmd_output)
 end
 
 # Print a pending animation while waiting for task t to complete.

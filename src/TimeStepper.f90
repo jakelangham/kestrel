@@ -48,7 +48,7 @@ module timestepper_module
    use set_precision_module, only: wp
    use messages_module, only: InfoMessage, TimestepMessage, RevisedTimestepMessage, WarningMessage
    use grid_module, only: GridType, TileList, TileType
-   use redistribute_module, only: AddToRedistList, ExcessDeposition, RedistributeGrid, RedistList
+   use redistribute_module, only: BuildRedistList, ExcessDeposition, RedistributeGrid, RedistList
    use runsettings_module, only: RunSet
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
@@ -171,12 +171,38 @@ contains
          ! This loop tries to complete a single H(dt) * M(2dt) * H(dt) step.
          grid%t0 = grid%t ! t0 is the t to fall back to if dt gets revised.
          do while (.true.)
-            ! Copy necessary data over to the intermed{0-3} arrays, which 
+            ! Copy necessary data over to the intermed{0-3} arrays, which
             ! store the solution vector at each substep of the method.
-            call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0)
-            call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
-            call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
-            call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3)
+            ! The time dependent topographic data are only changed by the
+            ! morphodynamic operator, so they need only be copied if the
+            ! intermed arrays are out of sync with tileContainer, i.e. at the
+            ! start of the simulation, or if a step involving the
+            ! morphodynamic operator was abandoned to refine the time step.
+            ! If the morphodynamic operator itself abandoned the step, it only
+            ! changed the cell centred topographic data (not the interfacial
+            ! data), so only those need to be restored.
+            if (grid%intermedTopogSynced) then
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0, &
+                                     copyTopog=.false.)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3, &
+                                     copyTopog=.false.)
+            else if (grid%intermedInterfTopogSynced) then
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0, &
+                                     copyTopog=.false.)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3, &
+                                     copyTopog=.false.)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
+               call CopyCellTopographicData(RunParams, grid, grid%tileContainer, grid%intermed3)
+               grid%intermedTopogSynced = .true.
+            else
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed0)
+               call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed1)
+               call CopyMutableTopographicData(RunParams, grid, grid%tileContainer, grid%intermed2)
+               call CopySolutionData(RunParams, grid, grid%tileContainer, grid%intermed3)
+               grid%intermedTopogSynced = .true.
+               grid%intermedInterfTopogSynced = .true.
+            end if
 
             call HydraulicTimeStepper(RunParams, grid, dt_hydro, nextT, refineTimeStep)
 
@@ -193,11 +219,17 @@ contains
             ! If no erosion, we're already done
             if (.not.RunParams%MorphodynamicsOn) exit
             ! else copy solution data back into I0 for the next operator.
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed0)
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed1)
-            call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed2)
+            ! (The morphodynamic operator only needs the cell centred data and
+            ! bt. Its RHS is recomputed at each substep, and the interfacial
+            ! topographic data are copied over again afterwards.)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed0)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed1)
+            call CopyCellCentredData(grid, grid%intermed3, grid%intermed2)
             dt_morpho = 2.0_wp * dt_hydro
 
+            ! The morphodynamic operator changes the topographic data in the
+            ! intermed arrays (but not tileContainer).
+            grid%intermedTopogSynced = .false.
             call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep)
 
             if (refineTimeStep) then
@@ -212,6 +244,10 @@ contains
                grid%dt = dt_hydro
                cycle
             end if
+
+            ! Having completed, the morphodynamic operator has also updated the
+            ! interfacial topographic data in intermed3.
+            grid%intermedInterfTopogSynced = .false.
 
             ! N.B. Updated topographic data needed for intermediate computations.
             call CopySolutionData(RunParams, grid, grid%intermed3, grid%intermed0)
@@ -254,8 +290,15 @@ contains
 #endif
          end do
 
-         ! Copy final time step back into main solution vector.
-         call CopySolutionData(RunParams, grid, grid%intermed3, grid%tileContainer)
+         ! Copy final time step back into main solution vector. The topographic
+         ! data are unchanged unless morphodynamics is on. If it is, the
+         ! (updated) topographic data were also copied from intermed3 to
+         ! intermed{0-2} after the morphodynamic operator, so afterwards all
+         ! the intermed arrays are in sync with tileContainer.
+         call CopySolutionData(RunParams, grid, grid%intermed3, grid%tileContainer, &
+                               copyTopog=RunParams%MorphodynamicsOn)
+         grid%intermedTopogSynced = .true.
+         grid%intermedInterfTopogSynced = .true.
 
          ! Record previous simulation time and set current value.
          if (.not.RunParams%MorphodynamicsOn) then
@@ -368,6 +411,7 @@ contains
       refineTimeStep = .false.
 
       ! Compute first substep.
+      !$omp parallel do schedule(runtime) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -384,6 +428,7 @@ contains
             end if
          end do
       end do ! end first substep
+      !$omp end parallel do
 
       ! Compute new RHS from first substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed1, nextT, 2, dt1)
@@ -404,6 +449,7 @@ contains
       end if
 
       ! Compute second substep.
+      !$omp parallel do schedule(runtime) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -442,6 +488,7 @@ contains
             end if
          end do
       end do ! end second substep
+      !$omp end parallel do
 
       ! Compute new RHS from second substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed2, &
@@ -463,6 +510,7 @@ contains
       end if
 
       ! Compute third substep.
+      !$omp parallel do schedule(runtime) private(ttk, k, var, hp_old, hp_new, w_update)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -496,11 +544,13 @@ contains
             end if
          end do
       end do ! end third substep
+      !$omp end parallel do
 
       ! Compute new RHS from third substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
 
       ! Final implicit substep.
+      !$omp parallel do schedule(runtime) private(ttk, k, var)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -523,6 +573,7 @@ contains
          call UpdateMaximumDeposit(RunParams, tileContainer(ttk), nextT)
          call UpdateMaximumSolidsFraction(RunParams, tileContainer(ttk), nextT)
       end do ! end final implicit substep
+      !$omp end parallel do
 
    end subroutine HydraulicTimeStepper
 
@@ -541,11 +592,16 @@ contains
       type(TileList), pointer :: activeTiles
       type(TileType), dimension(:), pointer :: intermed0, intermed1, intermed2, intermed3
 
-      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j
-      real(kind=wp) :: newdt, Hn_old, Hn_new, Hnpsi_old, relhdiff, relhdiffmax
+      integer :: tt, ttk, iw, ib0, ibt, iHnpsi, ipsi, i, j, k, nX, nY, nRedist
+      real(kind=wp) :: newdt, Hn_old, Hn_new, Hnpsi_old, relhdiff
       real(kind=wp) :: deltaBt, psiold, excess_dep, gamold, gamnew, db, w, Hnpsi
 
       type(RedistList) :: redistcells
+      logical, dimension(:), allocatable :: tileRefine
+      logical, dimension(:, :, :), allocatable :: redistCell
+      real(kind=wp), dimension(:, :, :), allocatable :: redistExcess
+      integer, dimension(:), allocatable :: redistTile, redistI, redistJ
+      real(kind=wp), dimension(:), allocatable :: redistVal
 
       tileContainer => grid%tileContainer
       activeTiles => grid%activeTiles
@@ -558,7 +614,6 @@ contains
       ipsi = RunParams%Vars%psi
       iHnpsi = RunParams%Vars%Hnpsi
       refineTimeStep = .false.
-      relhdiffmax = 0.0_wp
 
       ! We compute the initial RHS term in separate ddtExplicit0/ddtExplicitBt0 
       ! arrays. This allows us to roll back to the start of the hydraulic time 
@@ -566,6 +621,8 @@ contains
       call CalculateMorphodynamicRHS(RunParams, grid, intermed0)
 
       ! Compute first substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -580,10 +637,12 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
       ! These updates are linearly dependent on the update to bt, so they may
       ! be explicitly determined in a conservative way.
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! First we have to interpolate bt onto cell centres.
@@ -608,10 +667,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed1, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed1)
 
       ! Compute second substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -628,8 +691,10 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed2, ttk)
@@ -653,10 +718,14 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed2, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed2)
 
       ! Compute third substep for the bed evolution equation.
+      !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
@@ -672,8 +741,10 @@ contains
             end do
          end do
       end do
+      !$omp end do
 
       ! Update the other variables affected by morphodynamics (w, Hnpsi).
+      !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeCellCentredTopographicData(RunParams, grid, intermed3, ttk)
@@ -697,6 +768,8 @@ contains
          end do
          call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .false.)
       end do
+      !$omp end do
+      !$omp end parallel
 
       ! This loop performs two checks on the morphodynamic update.
       ! * Is a cell depositing more solids than it possesses? If so, we
@@ -706,10 +779,23 @@ contains
       !   (N.B. This process can get bogged down if erosionCriticalHeight is
       !   small. In general it should probably be set so it's at least greater
       !   than the solid diameter.)
+      ! Tiles are checked independently (in parallel). Each records whether it
+      ! needs the time step to be refined, and which of its cells need their
+      ! deposition corrected; the shared redistcells list is built afterwards,
+      ! in tile order, so that it doesn't depend on the number of threads.
+      nX = RunParams%nXpertile
+      nY = RunParams%nYpertile
+      allocate(tileRefine(ActiveTiles%Size), redistCell(nX, nY, ActiveTiles%Size), &
+               redistExcess(nX, nY, ActiveTiles%Size))
+
+      !$omp parallel do schedule(runtime) &
+      !$omp private(ttk, i, j, gamold, gamnew, Hn_old, Hn_new, excess_dep, deltaBt, psiold, relhdiff)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
-         do j = 1, RunParams%nYpertile
-            do i = 1, RunParams%nXpertile
+         tileRefine(tt) = .false.
+         redistCell(:, :, tt) = .false.
+         cells: do j = 1, nY
+            do i = 1, nX
                gamold = GeometricCorrectionFactor(RunParams, intermed0(ttk)%u(:,i,j))
                gamnew = GeometricCorrectionFactor(RunParams, intermed3(ttk)%u(:,i,j))
                Hn_old = ComputeHn(intermed0(ttk)%u(iw, i, j), &
@@ -724,7 +810,7 @@ contains
 
                ! n.b. The check for deltaBtn > 0 is in case psi is computed to be slightly
                ! negative, which can be the case for very dilute flows.
-               if ((.not. refineTimeStep) .and. excess_dep > epsilon(excess_dep) .and. &
+               if (excess_dep > epsilon(excess_dep) .and. &
                    deltaBt > epsilon(deltaBt) .and. psiold > -epsilon(psiold)) then
                   ! If the cell is shallow, or only experienced a small 
                   ! amount of deposition, we shall apply a small correction by
@@ -732,10 +818,11 @@ contains
                   ! Otherwise, we must refine the time step.
                   if (Hn_old < RunParams%EroCriticalHeight .or. &
                       abs(Hn_new - Hn_old) < RunParams%EroCriticalHeight) then
-                     call AddToRedistList(redistcells, ttk, i, j, excess_dep)
+                     redistCell(i, j, tt) = .true.
+                     redistExcess(i, j, tt) = excess_dep
                   else
-                     refineTimeStep = .true.
-                     exit
+                     tileRefine(tt) = .true.
+                     exit cells
                   end if
                   cycle
                end if
@@ -743,14 +830,36 @@ contains
                ! changed by too much (and if so, refine the time step).
                if (Hn_old < RunParams%EroCriticalHeight) cycle
                relhdiff = abs(Hn_new - Hn_old) / abs(Hn_old)
-               if (relhdiff > 0.1_wp .and. relhdiff > relhdiffmax) then
-                  relhdiffmax = relhdiff
-                  refineTimeStep = .true.
-                  exit
+               if (relhdiff > 0.1_wp) then
+                  tileRefine(tt) = .true.
+                  exit cells
                end if
             end do
-         end do
+         end do cells
       end do
+      !$omp end parallel do
+
+      refineTimeStep = any(tileRefine)
+      if (.not. refineTimeStep) then
+         nRedist = count(redistCell)
+         allocate(redistTile(nRedist), redistI(nRedist), redistJ(nRedist), redistVal(nRedist))
+         k = 0
+         do tt = 1, ActiveTiles%Size
+            do j = 1, nY
+               do i = 1, nX
+                  if (redistCell(i, j, tt)) then
+                     k = k + 1
+                     redistTile(k) = ActiveTiles%List(tt)
+                     redistI(k) = i
+                     redistJ(k) = j
+                     redistVal(k) = redistExcess(i, j, tt)
+                  end if
+               end do
+            end do
+         end do
+         call BuildRedistList(redistcells, redistTile, redistI, redistJ, redistVal)
+      end if
+      deallocate(tileRefine, redistCell, redistExcess)
 
       ! Some cells may have been marked for redistribution in the loop above.
       ! This is handled by RedistributeGrid, which makes a small correction to
@@ -773,15 +882,30 @@ contains
       end if
 
       ! Update u{Plus,Minus}{X,Y}, b and grad(b) data since the bed has changed.
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          call ComputeInterfacialTopographicData(RunParams, grid, grid%intermed3, ttk)
       end do
+      !$omp end parallel do
 
    end subroutine MorphodynamicTimeStepper
 
    ! Initialise each of the intermediate substep arrays by copying over the
    ! current solution data.
+   !
+   ! A full copy of every active and ghost tile is only needed when the tile
+   ! set has changed since the last call (grid%intermedStale). Otherwise:
+   ! * Active tiles need nothing here. The evolving fields (u, bt and the
+   !   topographic interface data) are copied in by CopySolutionData and
+   !   CopyMutableTopographicData at the start of each step, the remaining
+   !   static fields (b0 etc.) only change on tile activation, and the
+   !   scratch fields (limited derivatives, reconstructions, fluxes, RHS) are
+   !   always rewritten by the RHS routines before being read.
+   ! * Ghost tiles are never written during a step, except in intermed3 by
+   !   RedistributeGrid, which may modify bt and u in neighbouring tiles. Those
+   !   arrays are reset from tileContainer (which is not modified for ghost
+   !   tiles) to discard such changes, as the full copy would.
    subroutine InitialiseTimeSteppingArrays(nActiveTiles, grid)
       implicit none
 
@@ -790,7 +914,22 @@ contains
 
       integer :: tt, ttk
 
+      if (.not. grid%intermedStale) then
+         !$omp parallel do schedule(runtime) private(ttk)
+         do tt = 1, grid%ghostTiles%size
+            ttk = grid%ghostTiles%List(tt)
+            grid%intermed3(ttk)%u(:, :, :) = grid%tileContainer(ttk)%u(:, :, :)
+            grid%intermed3(ttk)%bt(:, :) = grid%tileContainer(ttk)%bt(:, :)
+         end do
+         !$omp end parallel do
+         return
+      end if
+      grid%intermedStale = .false.
+      grid%intermedTopogSynced = .true.
+      grid%intermedInterfTopogSynced = .true.
+
       ! Copy data over to the intermediate time stepping arrays
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, nActiveTiles
          ttk = grid%activeTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -798,6 +937,8 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+      !$omp end parallel do
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, grid%ghostTiles%size
          ttk = grid%ghostTiles%List(tt)
          grid%intermed0(ttk) = grid%tileContainer(ttk)
@@ -805,24 +946,35 @@ contains
          grid%intermed2(ttk) = grid%tileContainer(ttk)
          grid%intermed3(ttk) = grid%tileContainer(ttk)
       end do
+      !$omp end parallel do
    end subroutine InitialiseTimeSteppingArrays
 
    ! Copy the full solution vector from one tile container to another.
-   subroutine CopySolutionData(RunParams, grid, tilesfrom, tilesto)
+   ! If copyTopog is present and false, the time dependent topographic data
+   ! (see CopyMutableTopographicData) are not copied, except where they are
+   ! part of the cell centred solution vector (u).
+   subroutine CopySolutionData(RunParams, grid, tilesfrom, tilesto, copyTopog)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       type(GridType), target, intent(inout) :: grid
       type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+      logical, intent(in), optional :: copyTopog
 
       integer :: tt, ttk
+      logical :: doTopog
 
       type(TileList), pointer :: activeTiles
 
       activeTiles => grid%activeTiles
 
-      call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
+      doTopog = .true.
+      if (present(copyTopog)) doTopog = copyTopog
+      if (doTopog) then
+         call CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
+      end if
 
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
@@ -832,7 +984,32 @@ contains
             tilesto(ttk)%ddtExplicitBt(:, :) = tilesfrom(ttk)%ddtExplicitBt(:, :)
          end if
       end do
+      !$omp end parallel do
    end subroutine CopySolutionData
+
+   ! Copy only the cell centred solution vector and bt from one tile container
+   ! to another. This is much cheaper than CopySolutionData, since it avoids
+   ! the strided copies of individual fields in CopyMutableTopographicData.
+   subroutine CopyCellCentredData(grid, tilesfrom, tilesto)
+      implicit none
+
+      type(GridType), target, intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+
+      integer :: tt, ttk
+
+      type(TileList), pointer :: activeTiles
+
+      activeTiles => grid%activeTiles
+
+      !$omp parallel do schedule(runtime) private(ttk)
+      do tt = 1, ActiveTiles%Size
+         ttk = ActiveTiles%List(tt)
+         tilesto(ttk)%u(:, :, :) = tilesfrom(ttk)%u(:, :, :)
+         tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
+      end do
+      !$omp end parallel do
+   end subroutine CopyCellCentredData
 
    ! Copy the time dependent topographic data from one tile container to another.
    subroutine CopyMutableTopographicData(RunParams, grid, tilesfrom, tilesto)
@@ -848,31 +1025,58 @@ contains
 
       activeTiles => grid%activeTiles
 
+      !$omp parallel do schedule(runtime) private(ttk)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
          tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
          tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
 
-         tilesto(ttk)%uPlusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%bt, :, :)
-         tilesto(ttk)%uMinusX(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%bt, :, :)
-         tilesto(ttk)%uPlusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdx, :, :)
-         tilesto(ttk)%uMinusX(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdx, :, :)
+         ! The interfacial bt, dbdx and dbdy values are copied by copying the
+         ! whole u{Plus,Minus}{X,Y} arrays, which is much faster than copying
+         ! the strided slices for each field. This also copies the
+         ! reconstructed flow fields, but these are always recomputed in
+         ! CalculateHydraulicRHS before they are used.
+         tilesto(ttk)%uPlusX(:, :, :) = tilesfrom(ttk)%uPlusX(:, :, :)
+         tilesto(ttk)%uMinusX(:, :, :) = tilesfrom(ttk)%uMinusX(:, :, :)
          if (.not. RunParams%isOneD) then
             tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
 
-            tilesto(ttk)%uPlusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusX(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uMinusX(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusX(RunParams%Vars%dbdy, :, :)
-
-            tilesto(ttk)%uPlusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%bt, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%bt, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdx, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdx, :, :)
-            tilesto(ttk)%uPlusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uPlusY(RunParams%Vars%dbdy, :, :)
-            tilesto(ttk)%uMinusY(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%uMinusY(RunParams%Vars%dbdy, :, :)
+            tilesto(ttk)%uPlusY(:, :, :) = tilesfrom(ttk)%uPlusY(:, :, :)
+            tilesto(ttk)%uMinusY(:, :, :) = tilesfrom(ttk)%uMinusY(:, :, :)
          end if
       end do
+      !$omp end parallel do
    end subroutine CopyMutableTopographicData
+
+   ! Copy just the cell centred and vertex topographic data from one tile
+   ! container to another, i.e. CopyMutableTopographicData without the
+   ! interfacial data.
+   subroutine CopyCellTopographicData(RunParams, grid, tilesfrom, tilesto)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), target, intent(inout) :: grid
+      type(TileType), dimension(:), intent(inout) :: tilesfrom, tilesto
+
+      integer :: tt, ttk
+
+      type(TileList), pointer :: activeTiles
+
+      activeTiles => grid%activeTiles
+
+      !$omp parallel do schedule(runtime) private(ttk)
+      do tt = 1, ActiveTiles%Size
+         ttk = ActiveTiles%List(tt)
+         tilesto(ttk)%u(RunParams%Vars%bt, :, :) = tilesfrom(ttk)%u(RunParams%Vars%bt, :, :)
+         tilesto(ttk)%u(RunParams%Vars%dbdx, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdx, :, :)
+         if (.not. RunParams%isOneD) then
+            tilesto(ttk)%u(RunParams%Vars%dbdy, :, :) = tilesfrom(ttk)%u(RunParams%Vars%dbdy, :, :)
+         end if
+         tilesto(ttk)%bt(:, :) = tilesfrom(ttk)%bt(:, :)
+      end do
+      !$omp end parallel do
+   end subroutine CopyCellTopographicData
 
    ! Sponge layer modifications to explicit time stepping terms.
    ! morpho_flag = are we in the morphodynamic operator or not?
@@ -921,6 +1125,9 @@ contains
 
    ! Check if the flow as reached any edge of the active region. This is broken
    ! into four separate routines (below) that check each boundary.
+   ! N.B. These must not be run in parallel, since AddTile modifies the tile
+   ! lists and neighbouring tiles, and reads topographic data via a cached
+   ! (non thread-safe) GDAL dataset.
    subroutine CheckIfNearBoundaries(RunParams, grid, nActiveTiles)
       implicit none
 

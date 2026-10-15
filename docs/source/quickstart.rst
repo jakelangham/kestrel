@@ -84,6 +84,35 @@ For testing, the path to a valid Julia executable can be specified with
 
 This will place a symlink to Julia in the ./tests directory.
 
+By default, Kestrel is built without OpenMP (multithreading) support. To
+build with it (this requires compilers and libraries that support OpenMP),
+use
+
+.. code-block:: bash
+
+  $ ./configure --enable-openmp
+
+The number of threads is then set at run time with the ``OMP_NUM_THREADS``
+environment variable (by default, OpenMP uses one thread per available
+processor core). For example, to run on 4 threads
+
+.. code-block:: bash
+
+  $ OMP_NUM_THREADS=4 OMP_WAIT_POLICY=passive ./kestrel [path-to-input-file]
+
+Setting ``OMP_WAIT_POLICY=passive`` stops idle threads from busy-waiting,
+which we have found to be faster when using all of a machine's cores.
+
+If your Fortran and C++ compilers are the same version of GCC (as is typical
+on Linux), building with link-time optimisation makes Kestrel run several
+percent faster:
+
+.. code-block:: bash
+
+  $ ./configure --enable-lto
+
+This can be combined with ``--enable-openmp``.
+
 Some other options are listed in the help dialogue of the configure script
 
 .. code-block:: bash
@@ -362,6 +391,11 @@ The command
    $ ./julia runall.jl help
 
 prints a list of the available categories.
+
+If Kestrel is built with OpenMP, the 'threads' tests are also run. These check
+that some simulations give exactly the same results with 1 and 4 threads, and
+when repeated with 4 threads, which would most likely fail if a change to the
+code introduced a data race.
 
 .. warning::
 
