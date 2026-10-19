@@ -18,6 +18,7 @@ In order to do so, make sure the following dependencies are present on your syst
 * (optional) `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (the
   `NetCDF-Fortran <https://docs.unidata.ucar.edu/netcdf-fortran/current/>`_ 
   library is required in this case)
+* (optional) `OpenMP <https://www.openmp.org/>`_, for multi-threaded simulations
 * (optional) `Julia <https://julialang.org/>`_, for running tests
 
 On GNU/Linux/UNIX systems, these should be available via your package manager.
@@ -93,15 +94,22 @@ use
   $ ./configure --enable-openmp
 
 The number of threads is then set at run time with the ``OMP_NUM_THREADS``
-environment variable (by default, OpenMP uses one thread per available
-processor core). For example, to run on 4 threads
+environment variable. For example, to run on 4 threads
 
 .. code-block:: bash
 
-  $ OMP_NUM_THREADS=4 OMP_WAIT_POLICY=passive ./kestrel [path-to-input-file]
+  $ OMP_NUM_THREADS=4 ./kestrel [path-to-input-file]
 
-Setting ``OMP_WAIT_POLICY=passive`` stops idle threads from busy-waiting,
-which we have found to be faster when using all of a machine's cores.
+By default, each thread works on the same data throughout the run (a static
+OpenMP schedule). This choice opimises for efficient parallel scaling on HPC
+nodes with tens of cores. If you are running Kestrel on a personal computer
+dynamic scheduling of threads may be faster. Set ``OMP_SCHEDULE=dynamic`` to do
+this.
+
+Similarly, idle threads wait briefly for more work before sleeping, which is
+best when Kestrel has the machine to itself. If other programs are using the
+same cores, ``OMP_WAIT_POLICY=passive`` (idle threads sleep immediately) can be
+a few percent faster.
 
 If your Fortran and C++ compilers are the same version of GCC (as is typical
 on Linux), building with link-time optimisation makes Kestrel run several
@@ -110,8 +118,6 @@ percent faster:
 .. code-block:: bash
 
   $ ./configure --enable-lto
-
-This can be combined with ``--enable-openmp``.
 
 Some other options are listed in the help dialogue of the configure script
 
