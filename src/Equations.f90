@@ -50,7 +50,7 @@ contains
 
    ! Compute convection fluxes in the x direction for each of the governing
    ! equations and store in the vector xFlux.
-   pure subroutine XConvectionFlux(RunParams, u, xFlux)
+   pure subroutine XConvectionFlux(RunParams, u, xFlux, gam_in)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -59,6 +59,8 @@ contains
 
       integer :: iw, iu, irhoHnu, irhoHnv, iHnpsi, iHn, irho
       real(kind=wp) :: gam
+      ! GeometricCorrectionFactor(RunParams, u), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -68,7 +70,11 @@ contains
       iu = RunParams%Vars%u
       irho = RunParams%Vars%rho
 
-      gam = GeometricCorrectionFactor(RunParams, u)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, u)
+      end if
       xFlux(iw) = u(iHn) * u(iu) * gam
       xFlux(iHnpsi) = u(iHnpsi) * u(iu) * gam
       xFlux(irhoHnu) = u(irhoHnu) * u(iu)
@@ -78,7 +84,7 @@ contains
 
    ! Compute convection fluxes in the y direction for each of the governing
    ! equations and store in the vector yFlux.
-   pure subroutine YConvectionFlux(RunParams, u, yFlux)
+   pure subroutine YConvectionFlux(RunParams, u, yFlux, gam_in)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -87,6 +93,8 @@ contains
 
       integer :: iw, iv, irhoHnu, irhoHnv, iHnpsi, iHn, irho
       real(kind=wp) :: gam
+      ! GeometricCorrectionFactor(RunParams, u), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       iw = RunParams%Vars%w
       irhoHnu = RunParams%Vars%rhoHnu
@@ -96,7 +104,11 @@ contains
       iv = RunParams%Vars%v
       irho = RunParams%Vars%rho
 
-      gam = GeometricCorrectionFactor(RunParams, u)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, u)
+      end if
       yFlux(iw) = u(iHn) * u(iv) * gam
       yFlux(iHnpsi) = u(iHnpsi) * u(iv) * gam
       yFlux(irhoHnu) = u(irhoHnu) * u(iv)
@@ -246,7 +258,7 @@ contains
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the x direction, return in xMaxWS.
-   pure function XMaxWaveSpeeds(RunParams, uvect) result(xMaxWS)
+   pure function XMaxWaveSpeeds(RunParams, uvect, gam_in) result(xMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -254,6 +266,8 @@ contains
       real(kind=wp) :: xMaxWS
 
       real(kind=wp) :: Hn, u, gam, by
+      ! GeometricCorrectionFactor(RunParams, uvect), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       integer :: iHn, iu
 
@@ -268,7 +282,11 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+      end if
       by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
@@ -280,7 +298,7 @@ contains
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the x direction, return in xMinWS.
-   pure function XMinWaveSpeeds(RunParams, uvect) result(xMinWS)
+   pure function XMinWaveSpeeds(RunParams, uvect, gam_in) result(xMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -288,6 +306,8 @@ contains
       real(kind=wp) :: xMinWS
 
       real(kind=wp) :: Hn, u, gam, by
+      ! GeometricCorrectionFactor(RunParams, uvect), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       integer :: iHn, iu
 
@@ -302,7 +322,11 @@ contains
       end if
 
       u = uvect(iu)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+      end if
       by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
@@ -314,7 +338,7 @@ contains
 
    ! Given a solution vector uvect, compute its maximum characteristic wave
    ! speed in the y direction, return in yMaxWS.
-   pure function YMaxWaveSpeeds(RunParams, uvect) result(yMaxWS)
+   pure function YMaxWaveSpeeds(RunParams, uvect, gam_in) result(yMaxWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -322,6 +346,8 @@ contains
       real(kind=wp) :: yMaxWS
 
       real(kind=wp) :: Hn, v, gam, bx
+      ! GeometricCorrectionFactor(RunParams, uvect), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       integer :: iHn, iv
 
@@ -336,7 +362,11 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+      end if
       bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
@@ -348,7 +378,7 @@ contains
 
    ! Given a solution vector uvect, compute its minimum characteristic wave
    ! speed in the y direction, return in yMinWS.
-   pure function YMinWaveSpeeds(RunParams, uvect) result(yMinWS)
+   pure function YMinWaveSpeeds(RunParams, uvect, gam_in) result(yMinWS)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -356,6 +386,8 @@ contains
       real(kind=wp) :: yMinWS
 
       real(kind=wp) :: Hn, v, gam, bx
+      ! GeometricCorrectionFactor(RunParams, uvect), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       integer :: iHn, iv
 
@@ -370,7 +402,11 @@ contains
       end if
 
       v = uvect(iv)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+      end if
       bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
@@ -453,7 +489,7 @@ contains
    !
    ! The source terms that are time stepped explicitly are: flux sources and
    ! downslope gravitational forcing from the weight of the flow..
-   pure subroutine ExplicitSourceTerms(RunParams, grid, t, x, y, uvect, tile_has_source, stvect)
+   pure subroutine ExplicitSourceTerms(RunParams, grid, t, x, y, uvect, tile_has_source, stvect, gam_in)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
@@ -481,6 +517,8 @@ contains
       integer :: iHn, iu, iv, ib0, ibt
 
       real(kind=wp) :: g, hp_o_gam, gam, dbdx, dbdy
+      ! GeometricCorrectionFactor(RunParams, uvect), if already computed
+      real(kind=wp), intent(in), optional :: gam_in
 
       stvect(:) = 0.0_wp
 
@@ -595,7 +633,11 @@ contains
          if (allocated(psiQf)) deallocate (psiQf)
       end if
 
-      gam = GeometricCorrectionFactor(RunParams, uvect)
+      if (present(gam_in)) then
+         gam = gam_in
+      else
+         gam = GeometricCorrectionFactor(RunParams, uvect)
+      end if
 
       dbdx = uvect(RunParams%Vars%dbdx)
       dbdy = uvect(RunParams%Vars%dbdy)

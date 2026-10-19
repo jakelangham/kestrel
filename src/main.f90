@@ -50,7 +50,10 @@ program Kestrel
    use timestepper_module, only: Run
    use output_module, only: CreateOutDir
    use varstring_module, only: varString
-   use version_module, only: GetVersion 
+   use version_module, only: GetVersion
+   ! (Only compiled when building with OpenMP.)
+   !$ use omp_lib, only: omp_get_max_threads, omp_set_schedule, omp_get_schedule, &
+   !$                    omp_sched_kind, omp_sched_static, omp_sched_dynamic, omp_sched_guided
 
    implicit none
 
@@ -63,6 +66,10 @@ program Kestrel
    type(GridType) :: grid
 
    character(len=:), allocatable :: version
+
+   !$ integer(kind=omp_sched_kind) :: ompSchedule
+   !$ integer :: ompChunk, ompScheduleStatus
+   !$ character(len=16) :: ompScheduleName
 
    ! Set version
    version = GetVersion()
@@ -104,6 +111,30 @@ program Kestrel
 
    write (stdout, *)
    write (stdout, *) "Starting Kestrel (" // RunParams%version%s // ")"
+   ! Tiles are shared out between OpenMP threads in equal contiguous blocks of
+   ! the active tile list (a static schedule), unless OMP_SCHEDULE sets
+   ! another schedule. Each thread then works on the same tiles in every loop,
+   ! and mostly on neighbouring tiles, so the data each loop reads (including
+   ! from neighbouring tiles) is usually still in that thread's cache and
+   ! memory. This matters most on machines whose cores are split between
+   ! several caches or NUMA domains (most servers). A dynamic schedule
+   ! (OMP_SCHEDULE=dynamic) can be slightly faster on single-cache machines
+   ! whose cores are also busy with other programs.
+   !$ call get_environment_variable("OMP_SCHEDULE", status=ompScheduleStatus)
+   !$ if (ompScheduleStatus /= 0) call omp_set_schedule(omp_sched_static, 0)
+   !$ call omp_get_schedule(ompSchedule, ompChunk)
+   !$ select case (ompSchedule)
+   !$ case (omp_sched_static)
+   !$    ompScheduleName = "static"
+   !$ case (omp_sched_dynamic)
+   !$    ompScheduleName = "dynamic"
+   !$ case (omp_sched_guided)
+   !$    ompScheduleName = "guided"
+   !$ case default
+   !$    ompScheduleName = "other"
+   !$ end select
+   !$ write (stdout, '(a,i0,a,a,a,i0,a)') " Using ", omp_get_max_threads(), " OpenMP thread(s), schedule ", &
+   !$    trim(ompScheduleName), " (chunk ", ompChunk, ")."
    write (stdout, *)
 
    ! Read input file and populate the type(RunSet) :: RunParams object

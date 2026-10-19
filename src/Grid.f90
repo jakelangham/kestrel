@@ -154,6 +154,18 @@ module grid_module
       ! intermediate substeps of the time stepping scheme.
       type(tileType), dimension(:), allocatable :: intermed0, intermed1
       type(tileType), dimension(:), allocatable :: intermed2, intermed3
+      ! Do the intermed arrays need a full refresh from tileContainer? This is
+      ! set whenever the set of active/ghost tiles changes (see
+      ! InitialiseTimeSteppingArrays).
+      logical :: intermedStale
+      ! Do all the intermed arrays hold the same time dependent topographic
+      ! data (see CopyMutableTopographicData) as tileContainer? If so, it
+      ! needn't be copied at the start of each time step (see IntegrateTo).
+      logical :: intermedTopogSynced
+      ! Likewise, but for just the interfacial topographic data (stored in
+      ! u{Plus,Minus}{X,Y}), which the morphodynamic operator only changes
+      ! when it completes a step.
+      logical :: intermedInterfTopogSynced
 
    end type GridType
 
@@ -216,6 +228,9 @@ contains
       allocate(grid%intermed1(grid%nTiles))
       allocate(grid%intermed2(grid%nTiles))
       allocate(grid%intermed3(grid%nTiles))
+      grid%intermedStale = .true.
+      grid%intermedTopogSynced = .false.
+      grid%intermedInterfTopogSynced = .false.
 
    end subroutine InitialiseGrid
 

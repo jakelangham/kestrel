@@ -94,6 +94,10 @@ contains
       ActiveTiles => grid%ActiveTiles
       ghostTiles => grid%ghostTiles
 
+      ! Activation changes tile data (in this tile and its neighbours) that
+      ! the intermed arrays only pick up on a full refresh.
+      grid%intermedStale = .true.
+
       ! Is this the first active tile?
       if (.not. allocated(ActiveTiles%List)) then
          allocate(ActiveTiles%List(1))
@@ -372,11 +376,11 @@ contains
       call AddGhostTiles(RunParams, grid, k)
 
       call ComputeInterfacialTopographicData(RunParams, grid, tileContainer, k)
-      call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k)
+      call CalculateLimitedDerivs(RunParams, grid, RunParams%iFlux, tileContainer, k, updateNeighbours=.true.)
       call Reconstruct(RunParams, grid, RunParams%iFlux, tileContainer, k)
       call CorrectSlopes(RunParams, grid, tileContainer, k)
       call ComputeDesingularisedVariables(RunParams, tileContainer, k, .true.)
-      call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileContainer, k)
+      call CalculateLimitedDerivs(RunParams, grid, RunParams%iDesing, tileContainer, k, updateNeighbours=.true.)
       call Reconstruct(RunParams, grid, RunParams%iDesing, tileContainer, k)
       unitCFLTimeStep_dummy = 100000.0_wp
       call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileContainer, &
