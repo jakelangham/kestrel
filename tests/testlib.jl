@@ -431,11 +431,21 @@ end
 function check_identical_simulations(testname1, testname2, tol, dim)
    result = 0 # return value
 
-   # Check that Hn, u, Hnψ & bt are all equal
-   Hnf = Hn_data_field(dim)
-   uf = u_data_field(dim)
-   Hnψf = Hnψ_data_field(dim)
-   btf = bt_data_field(dim)
+   # Compare Hn, u, (v in 2D), Hnψ & bt. Cells are matched by their
+   # coordinates. A cell output by only one simulation (because its tile was
+   # inactive in the other) is compared against a dry cell.
+   #
+   # The text output holds 11 significant figures, so values that differ only
+   # by round-off can differ by one unit in the last printed digit, i.e. by
+   # up to about 1e-10 relative to their magnitude. The tolerance tol is
+   # therefore relative: for each field, the difference must not exceed tol
+   # times the largest magnitude of that field in the two outputs.
+   fields = [("Hn", Hn_data_field(dim)), ("u", u_data_field(dim))]
+   if dim == 2
+      push!(fields, ("v", v_data_field(dim)))
+   end
+   push!(fields, ("Hnψ", Hnψ_data_field(dim)), ("bt", bt_data_field(dim)))
+   coords = (dim == 1) ? [2] : [2, 3]
 
    dir2_contents = readdir(testname2)
    for f in readdir(testname1)
@@ -448,26 +458,49 @@ function check_identical_simulations(testname1, testname2, tol, dim)
 
          f1 = "$testname1/$f"
          f2 = "$testname2/$f"
-         
+
          soln1 = readdlm(f1, ',', skipstart = 1)
          soln2 = readdlm(f2, ',', skipstart = 1)
 
-         # Compute the maximum difference of Hn,u,Hnψ for the two solutions,
-         # sorted by their Hn value, assumed to have enough digits of precision
-         # to be unique. (Though not completely rigorous, this avoids pain
-         # screening out any the empty cells that are not common between f1 and
-         # f2.)
-         idx = [Hnf,uf,Hnψf,btf]
-         fields1 = sortslices(soln1[:, idx], dims = 1)
-         fields2 = sortslices(soln2[:, idx], dims = 1)
-         nfields = min(size(fields1)[1], size(fields2)[1])
-         diff = maximum(abs.(fields1[end-nfields+1:end] - fields2[end-nfields+1:end]))
-
-         if (diff > tol)
-            result = 1
-            println("Solution field in $f1 differs from $f2")
-            break
+         # Pair up the rows of the two outputs by cell coordinates (rounded,
+         # in case the last printed digit of a coordinate differs).
+         key(soln, i) = Tuple(round.(Float64.(soln[i, coords]), digits = 6))
+         rows2 = Dict(key(soln2, i) => i for i in 1:size(soln2, 1))
+         pairs = Tuple{Int,Int}[]
+         matched2 = falses(size(soln2, 1))
+         for i in 1:size(soln1, 1)
+            j = get(rows2, key(soln1, i), 0)
+            push!(pairs, (i, j))
+            j > 0 && (matched2[j] = true)
          end
+         append!(pairs, [(0, j) for j in findall(.!matched2)])
+
+         # Field value of row i (0 = a dry cell absent from that output).
+         val(soln, i, c) = (i == 0) ? 0.0 : Float64(soln[i, c])
+
+         for (name, c) in fields
+            scale = max(maximum(abs, Float64.(soln1[:, c])),
+                        maximum(abs, Float64.(soln2[:, c])), floatmin(Float64))
+            maxdiff, worst = 0.0, (0, 0)
+            for (i, j) in pairs
+               # A cell missing from one output is only compared by its
+               # depth, since the other fields of a dry cell are arbitrary.
+               (i == 0 || j == 0) && name != "Hn" && continue
+               d = abs(val(soln1, i, c) - val(soln2, j, c))
+               if d > maxdiff
+                  maxdiff, worst = d, (i, j)
+               end
+            end
+            if maxdiff > tol * scale
+               i, j = worst
+               where = (i > 0) ? soln1[i, coords] : soln2[j, coords]
+               println("Solution field in $f1 differs from $f2: $name differs by ",
+                       maxdiff, " (", maxdiff / scale, " of its largest magnitude) at ",
+                       Tuple(where))
+               result = 1
+            end
+         end
+         result == 1 && break
       end
    end
 
@@ -553,6 +586,9 @@ function Hn_data_field(dim)
 end
 function u_data_field(dim)
    return (dim == 1) ? 5 : 8
+end
+function v_data_field(dim)
+   return (dim == 1) ? nothing : 9
 end
 function Hnψ_data_field(dim)
    return (dim == 1) ? 9 : 14
