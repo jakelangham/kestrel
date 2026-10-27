@@ -207,7 +207,7 @@ contains
                   tiles(tID)%u(idbdy, 1, j - 1), tiles(tID)%u(idbdy, 1, j)])
                gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
                tiles(tID)%ddtExplicitBt(1, j) = -0.25_wp * gam / psib *  &
-                  KahanSum([tiles(ttW)%EminusD(nXpertile, j - 1), tiles(ttW)%EminusD(nXpertile, j), tiles(tID)%EminusD(1, j - 1) + tiles(tID)%EminusD(1, j)]) 
+                  KahanSum([tiles(ttW)%EminusD(nXpertile, j - 1), tiles(ttW)%EminusD(nXpertile, j), tiles(tID)%EminusD(1, j - 1), tiles(tID)%EminusD(1, j)])
                ! east bdry
                dbdx = 0.25_wp * KahanSum([tiles(tID)%u(idbdx, nXpertile, j - 1), tiles(tID)%u(idbdx, nXpertile, j), &
                   tiles(ttE)%u(idbdx, 1, j - 1), tiles(ttE)%u(idbdx, 1, j)])
@@ -263,7 +263,7 @@ contains
                tiles(tID)%EminusD(1, nYpertile), tiles(ttN )%EminusD(1, 1)])
             ! NE
             dbdx = 0.25_wp * KahanSum([tiles(tID)%u(idbdx, nXpertile, nYpertile), tiles(ttN )%u(idbdx, nXpertile, 1), &
-               tiles(ttE)%u(idbdx, 1, nYpertile) + tiles(ttNE)%u(idbdx, 1, 1)])
+               tiles(ttE)%u(idbdx, 1, nYpertile), tiles(ttNE)%u(idbdx, 1, 1)])
             dbdy = 0.25_wp * KahanSum([tiles(tID)%u(idbdy, nXpertile, nYpertile), tiles(ttN )%u(idbdy, nXpertile, 1), &
                tiles(ttE)%u(idbdy, 1, nYpertile), tiles(ttNE)%u(idbdy, 1, 1)])
             gam = GeometricCorrectionFactor_gradin(dbdx, dbdy)
