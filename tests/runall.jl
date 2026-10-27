@@ -34,16 +34,19 @@ tests_identical = [
    # simulations with different tile sizes. The static test is designed so
    # that all tiles are added at the start with none added during the flow,
    # while the dynamic test features a flow that enters inactive regions.
-   # Comparisons are made up to some tolerance (4th arg). We don't insist on
-   # perfect equivalence because changing the tile layout inevitably reorders
-   # some arithmetic in the method. The dynamic test accepts a weaker
-   # tolerance because tiles are added only when Hn >
+   # Comparisons are made up to some tolerance (4th arg), relative to the
+   # largest magnitude of each field (see check_identical_simulations). We
+   # don't insist on perfect equivalence because changing the tile layout
+   # inevitably reorders some arithmetic in the method, and the text output
+   # holds 11 significant figures, so round-off differences can show up as
+   # differences of about 1e-10 in the last printed digit. The dynamic test
+   # accepts a weaker tolerance because tiles are added only when Hn >
    # RunParams%heightThreshold so it is possible in some cases for very thin
    # flows to run into inactive regions. This is not expected to
    # fundamentally matter, but may potentially to larger than machine eps
    # deviations.
-   ("tile_indep_static", "tile_indep_static_100m", "tile_indep_static_50m", 1e-13, 2)
-   ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 1e-11, 2)
+   ("tile_indep_static", "tile_indep_static_100m", "tile_indep_static_50m", 5e-10, 2)
+   ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 1e-9, 2)
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
