@@ -77,7 +77,8 @@ There are two **required** settings in the *Parameters* block:
 
             for modelling granular friction. Here, :math:`g_\perp` denotes
             gravitational acceleration resolved perpendicular to the local
-            slope.
+            slope (plus the centripetal acceleration over curved terrain if
+            ``curvature friction = on``; see below).
 
             The **conditionally optional** setting
 
@@ -468,6 +469,31 @@ below:
         .. warning::
             Note that, if :code:`geometric factors = off`, then :math:`g_\perp
             \equiv g`.
+
+    :code:`curvature friction = off`
+
+        If ``curvature friction = on``, the basal normal stress in the drag
+        laws that are proportional to it (``coulomb``, ``pouliquen``,
+        ``edwards2019``, the Coulomb part of ``voellmy`` and the Pouliquen part
+        of ``variable``) includes the centripetal acceleration of the flow
+        over the curved bed. That is, :math:`g_\perp = g/\gamma` is replaced
+        by
+
+            :math:`g_\perp = \max\left\{\dfrac{g + Q}{\gamma},\ 0\right\}`,
+
+        with :math:`Q` as defined for ``geometric factors`` above. On concave
+        terrain (channel floors, the outer banks of bends, the foot of a slope)
+        this increases the friction; on convex terrain it decreases it, and the
+        friction vanishes where the flow would leave the bed. The same
+        :math:`g_\perp` is used in the inertial and Froude numbers of the
+        ``pouliquen`` and ``edwards2019`` laws. The other drag laws, and the
+        erosion closures, are unaffected.
+
+        This term matters most for fast flows with granular (Coulomb-type)
+        friction in curved channels. It requires ``geometric factors`` to be
+        ``on`` or ``no curvature``. With ``no curvature``, the term is kept in
+        the friction while the centripetal force is omitted from the momentum
+        equations.
 
     :code:`solid diameter = 1e-3`
 

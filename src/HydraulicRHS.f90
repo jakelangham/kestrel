@@ -1161,7 +1161,7 @@ contains
             ! bed in ConstructHydraulicRHS. Each reconstruction takes w from
             ! the bed slope of the cell it was reconstructed from, extrapolated
             ! to the face with a weighted van Leer limiter (see XFaceSlopes).
-            if (RunParams%curvature) then
+            if (RunParams%curvature .or. RunParams%curvature_friction) then
                if (dif < 1e-10_wp) then
                   tiles(tID)%wXFlux(i, j) = 0.0_wp
                else
@@ -1288,7 +1288,7 @@ contains
                end do
 
                ! Flux of vertical momentum, as for the x fluxes.
-               if (RunParams%curvature) then
+               if (RunParams%curvature .or. RunParams%curvature_friction) then
                   if (dif < 1e-10_wp) then
                      tiles(tID)%wYFlux(i, j) = 0.0_wp
                   else
@@ -1328,7 +1328,7 @@ contains
       real(kind=wp) :: deltaX, deltaY
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: Friction, gam, dbdx, dbdy
-      real(kind=wp) :: advX, advY, advZ, delta
+      real(kind=wp) :: advX, advY, advZ, delta, gn
       integer :: idbdx, irhoHnu, irhoHnv
 
       real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STE(RunParams%nDimensions), STI(RunParams%nDimensions)
@@ -1409,7 +1409,7 @@ contains
                ! tangent by construction. delta is the rate at which advection
                ! would take the momentum off the bed; it converges to
                ! -rho Hn Q, Q = u.Hess(b).u.
-               if (RunParams%curvature) then
+               if (RunParams%curvature .or. RunParams%curvature_friction) then
                   advX = (tiles(tID)%hXFlux(irhoHnu, i, j) - tiles(tID)%hXFlux(irhoHnu, i + 1, j)) * deltaXRecip + &
                      (tiles(tID)%hYFlux(irhoHnu, i, j) - tiles(tID)%hYFlux(irhoHnu, i, j + 1)) * deltaYRecip
                   advY = (tiles(tID)%hXFlux(irhoHnv, i, j) - tiles(tID)%hXFlux(irhoHnv, i + 1, j)) * deltaXRecip + &
@@ -1417,13 +1417,16 @@ contains
                   advZ = (tiles(tID)%wXFlux(i, j) - tiles(tID)%wXFlux(i + 1, j)) * deltaXRecip + &
                      (tiles(tID)%wYFlux(i, j) - tiles(tID)%wYFlux(i, j + 1)) * deltaYRecip
                   delta = (advZ - dbdx * advX - dbdy * advY) / gam
+               end if
+               if (RunParams%curvature) then
                   STE(irhoHnu) = STE(irhoHnu) + delta * dbdx / (gam * gam)
                   STE(irhoHnv) = STE(irhoHnv) + delta * dbdy / (gam * gam)
                end if
 
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
-               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
+               gn = BasalNormalStress(RunParams, tiles(tID)%u(:,i,j), gam, delta)
+               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j), gn)
                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,j), Friction, STI)
                tiles(tID)%ddtImplicit(1:nFlux,i,j) = STI(1:nFlux)
             end do
@@ -1451,23 +1454,52 @@ contains
                                      tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE, gam)
 
             ! Normal reaction of the curved bed, as in the 2D case.
-            if (RunParams%curvature) then
+            if (RunParams%curvature .or. RunParams%curvature_friction) then
                dbdx = tiles(tID)%u(idbdx, i, 1)
                advX = (tiles(tID)%hXFlux(irhoHnu, i, 1) - tiles(tID)%hXFlux(irhoHnu, i + 1, 1)) * deltaXRecip
                advZ = (tiles(tID)%wXFlux(i, 1) - tiles(tID)%wXFlux(i + 1, 1)) * deltaXRecip
                delta = (advZ - dbdx * advX) / gam
+            end if
+            if (RunParams%curvature) then
                STE(irhoHnu) = STE(irhoHnu) + delta * dbdx / (gam * gam)
             end if
 
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
-            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
+            gn = BasalNormalStress(RunParams, tiles(tID)%u(:,i,1), gam, delta)
+            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1), gn)
             call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
             tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
          end do
       end if
 
    end subroutine ConstructHydraulicRHS
+
+   ! Basal normal stress per unit density and depth Hn, for the drag closures:
+   ! the normal component of gravity g/gam and, with 'Curvature friction', the
+   ! centripetal acceleration Q/gam of flow over the curved bed, Q = u.Hess(b).u
+   ! (Peruzzetto et al., J. Geophys. Res. Earth Surf., 2021). Q is taken from
+   ! the normal reaction delta -> -rho Hn Q of the projection, so that the
+   ! drag sees the same bed curvature as the momentum equation, and the
+   ! stress is clipped at zero where the flow would leave the bed.
+   pure function BasalNormalStress(RunParams, uvect, gam, delta) result(gn)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam, delta
+      real(kind=wp) :: gn
+
+      real(kind=wp) :: Hn, Q
+
+      gn = RunParams%g / gam
+      if (.not. RunParams%curvature_friction) return
+
+      Hn = uvect(RunParams%Vars%Hn)
+      if (Hn <= RunParams%heightThreshold) return
+      Q = -delta / (uvect(RunParams%Vars%rho) * Hn)
+      gn = max(0.0_wp, (RunParams%g + Q) / gam)
+   end function BasalNormalStress
 
    ! Vertical momentum rho*Hn*w of the state uvect, for flow tangent to a bed
    ! with the given slopes (dbdx, dbdy): w = dbdx*u + dbdy*v.

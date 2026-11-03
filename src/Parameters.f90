@@ -43,6 +43,7 @@ module parameters_module
    character(len=4), parameter :: morpho_damp_d = 'tanh'
    procedure(MorphoDamping), pointer :: morpho_damp_dfunc => tanhMorphoDamping
    logical, parameter :: geometric_factors_d = .true.
+   logical, parameter :: curvature_friction_d = .false.
    real(kind=wp), parameter :: g_d = 9.81_wp
    real(kind=wp), parameter :: chezyco_d = 0.01_wp
    real(kind=wp), parameter :: manningco_d = 0.03_wp
@@ -96,6 +97,7 @@ contains
       type(varString) :: label
       type(varString) :: DragChoice, DepositionChoice, ErosionChoice
       type(varString) :: geometric_factors, switcher, eroTransition
+      type(varString) :: curvature_friction
       type(varString) :: morpho_damp
 
       integer :: J, N
@@ -132,6 +134,7 @@ contains
       logical :: set_SolidDiameter
       logical :: set_EddyViscosity
       logical :: set_geometric_factors
+      logical :: set_curvature_friction
       logical :: set_SettlingSpeed
       logical :: set_MorphoDamp
 
@@ -171,6 +174,7 @@ contains
       set_SolidDiameter=.FALSE.
       set_EddyViscosity=.FALSE.
       set_geometric_factors = .false.
+      set_curvature_friction = .false.
       set_SettlingSpeed = .false.
       set_MorphoDamp = .false.
 
@@ -275,6 +279,23 @@ contains
                      // "The block value for the variable 'Geometric factors' " // geometric_factors%s // " is not recognized." // new_line('A') &
                      // "Currently accepted 'Geometric factors' values are 'On', 'No curvature' and 'Off'")
             end select
+
+            case ('curvature friction')
+               set_curvature_friction=.true.
+               curvature_friction = ParamValues(J)%to_lower()
+               ! on: the normal stress in Coulomb-type drag includes the
+               !     centripetal acceleration of flow over the curved bed;
+               ! off: it is the normal component of gravity alone.
+               select case (curvature_friction%s)
+                case ('on')
+                  RunParams%curvature_friction = .true.
+                case ('off')
+                  RunParams%curvature_friction = .false.
+                case default
+                  call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
+                     // "The block value for the variable 'Curvature friction' " // curvature_friction%s // " is not recognized." // new_line('A') &
+                     // "Currently accepted 'Curvature friction' values are 'On' and 'Off'")
+               end select
 
             case ('g')
                set_g=.TRUE.
@@ -521,6 +542,11 @@ contains
             GeometricCorrectionFactor => NoGeometricCorrectionFactor
             GeometricCorrectionFactor_gradin => NoGeometricCorrectionFactor_gradin
          end if
+      end if
+      if (.not.set_curvature_friction) RunParams%curvature_friction = curvature_friction_d
+      if (RunParams%curvature_friction .and. .not. RunParams%geometric_factors) then
+         call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
+            // "'Curvature friction = On' requires 'Geometric factors' to be 'On' or 'No curvature'.")
       end if
       if (.not.set_g) RunParams%g = g_d
       if (.not.set_drag) then

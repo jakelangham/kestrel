@@ -134,11 +134,12 @@ module closures_module
 
    pointer :: DragClosure
    interface
-       pure function DragClosure(RunParams, uvect) result(friction)
+       pure function DragClosure(RunParams, uvect, gn) result(friction)
            import :: wp
            import :: RunSet
            type(RunSet), intent(in) :: RunParams
            real(kind=wp), dimension(:), intent(in) :: uvect
+           real(kind=wp), intent(in) :: gn
            real(kind=wp) :: friction
        end function DragClosure
    end interface
@@ -374,24 +375,32 @@ contains
 !    N.B. Because of the way the time stepper works (treating the drag
 !    implicitly), these are required to define a 'friction' function F such that
 !    the basal stress is \tau_x = -F \rho u/|(u,v)|.
+!
+!    gn is the basal normal stress per unit density and depth Hn, i.e. the
+!    normal component of gravity, g/gam, plus the centripetal acceleration
+!    u.Hess(b).u/gam of the flow over the curved bed when 'Curvature friction'
+!    is on. It is >= 0, being zero where the flow would leave the bed. Drag
+!    laws that are proportional to the normal stress use it in place of g/gam.
 
    ! No drag (frictionless flow), F = 0.
-   pure function NoDrag(RunParams, uvect) result(friction)
+   pure function NoDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       friction = 0.0_wp
    end function NoDrag
 
    ! Chezy drag has friction function F = Cd * |u|^2.
-   pure function ChezyDrag(RunParams, uvect) result(friction)
+   pure function ChezyDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: modu2
@@ -401,61 +410,61 @@ contains
       friction = RunParams%ChezyCo * modu2
    end function ChezyDrag
 
-   ! Coulomb drag has friction function F = \mu * g * Hn.
-   pure function CoulombDrag(RunParams, uvect) result(friction)
+   ! Coulomb drag has friction function F = \mu * gn * Hn.
+   pure function CoulombDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn
-      real(kind=wp) :: gam
-      real(kind=wp) :: g
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
       
-      friction = RunParams%CoulombCo * g * Hn
+      friction = RunParams%CoulombCo * gn * Hn
    end function CoulombDrag
 
    ! Voellmy drag is the sum of Chezy and Coulomb drag.
-   pure function VoellmyDrag(RunParams, uvect) result(friction)
+   pure function VoellmyDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
-      friction = ChezyDrag(RunParams, uvect) + CoulombDrag(RunParams, uvect)
+      friction = ChezyDrag(RunParams, uvect, gn) + CoulombDrag(RunParams, uvect, gn)
    end function VoellmyDrag
 
-   ! Pouliquen drag has friction function F = \mu(I) * g * Hn, where mu(I) is a
+   ! Pouliquen drag has friction function F = \mu(I) * gn * Hn, where mu(I) is a
    ! flow-dependent friction coefficient, I is the inertial number.
    ! See e.g. Pouliquen & Forterre, J. Fluid Mech. (2002).
-   pure function PouliquenDrag(RunParams, uvect) result(friction)
+   pure function PouliquenDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn
       real(kind=wp) :: modu2
-      real(kind=wp) :: gam
-      real(kind=wp) :: g
       real(kind=wp) :: mu
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
+
+      if (gn <= 0.0_wp) then
+         friction = 0.0_wp
+         return
+      end if
 
       modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
 
-      mu = PouliquenFrictionCoefficient(RunParams, g, Hn, sqrt(modu2))
+      mu = PouliquenFrictionCoefficient(RunParams, gn, Hn, sqrt(modu2))
 
-      friction = mu * g * Hn
+      friction = mu * gn * Hn
    end function PouliquenDrag
 
    ! Pouliquen's intertial number dependent friction coefficient.
@@ -489,19 +498,23 @@ contains
    ! See Edwards, Russell, Johnson, Gray, J. Fluid Mech. (2019).
    ! N.B. The Fr = 0 is omitted, since stopped regions require special 
    ! attention and this is difficult to implement in Kestrel currently.
-   pure function Edwards2019Drag(RunParams, uvect) result(friction)
+   pure function Edwards2019Drag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
-      real(kind=wp) :: Hn, modu, gam, gperp, Hn_recip, mu, Fr
+      real(kind=wp) :: Hn, modu, gperp, Hn_recip, mu, Fr
       real(kind=wp) :: betastar, beta, mu1, mu2, mu3, capgam, L, kappa
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      gperp = RunParams%g / gam
+      gperp = gn
+      if (gperp <= 0.0_wp) then
+         friction = 0.0_wp
+         return
+      end if
       modu = sqrt(FlowSquaredSpeedSlopeAligned(RunParams, uvect))
 
       mu1 = RunParams%PouliquenMinSlope
@@ -530,11 +543,12 @@ contains
 
    ! Manning drag has friction function F = g * n^2 * |u|^2 / (Hn^{1/3}) where n
    ! is the Manning coefficient.
-   pure function ManningDrag(RunParams, uvect) result(friction)
+   pure function ManningDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn, Hn_recip
@@ -559,11 +573,12 @@ contains
    ! variation from Chezy drag for dilute flows to Pouliquen drag for
    ! concentrated flow. The transition is specified by a switching function
    ! fSwitch.
-   pure function VariableDrag(RunParams, uvect) result(friction)
+   pure function VariableDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: psi
@@ -573,19 +588,20 @@ contains
 
       psi = uvect(RunParams%Vars%psi)
       
-      chezy_friction = ChezyDrag(RunParams, uvect)
-      pouliquen_friction = PouliquenDrag(RunParams, uvect)
+      chezy_friction = ChezyDrag(RunParams, uvect, gn)
+      pouliquen_friction = PouliquenDrag(RunParams, uvect, gn)
       
       fc = fswitch(RunParams, psi)
 
       friction = chezy_friction * (1.0_wp - fc) + pouliquen_friction * fc
    end function VariableDrag
 
-   pure function PowerLawDrag(RunParams, uvect) result(friction)
+   pure function PowerLawDrag(RunParams, uvect, gn) result(friction)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gn
       real(kind=wp) :: friction
 
       real(kind=wp) :: modu, Hn, Hneps, hr

@@ -422,6 +422,11 @@ contains
          write (101, fmt="(a)") "Geometric factors = No curvature"
       else
          write (101, fmt="(a)") "Geometric factors = Off"
+      end if
+      if (RunParams%curvature_friction) then
+         write (101, fmt="(a)") "Curvature friction = On"
+      else
+         write (101, fmt="(a)") "Curvature friction = Off"
       end if      
       write (101, *)
 
@@ -2064,6 +2069,11 @@ contains
          call put_nc_att(ncid, "Geometric factors", 'No curvature')
       else
          call put_nc_att(ncid, "Geometric factors", 'Off')
+      end if
+      if (RunParams%curvature_friction) then
+         call put_nc_att(ncid, "Curvature friction", 'On')
+      else
+         call put_nc_att(ncid, "Curvature friction", 'Off')
       end if
       call put_nc_att(ncid, "g", RunParams%g)
       call put_nc_att(ncid, "water density", RunParams%rhow) ! Density of water
