@@ -341,6 +341,22 @@ contains
                end if
                TopogFunc => xyparab
 
+            case ('xygauss')
+               if (size(RunParams%TopogFuncParams) < 3) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " three 'Topog params' are needed for 'Type = xygauss'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => xygauss
+
+            case ('ybank')
+               if (size(RunParams%TopogFuncParams) /= 2 .and. size(RunParams%TopogFuncParams) /= 4) then
+                  call FatalErrorMessage("In the 'Topog' block in the input file " // &
+                  trim(RunParams%InputFile%s) // new_line('A') &
+                  // " two or four 'Topog params' are needed for 'Type = ybank'; received " // Int2String(size(RunParams%TopogFuncParams)))
+               end if
+               TopogFunc => ybank
+
             case default
                call FatalErrorMessage("In the 'Topog' block in the input file "// trim(RunParams%InputFile%s) // new_line('A') &
                   // " the 'Topog function = "// TopogFuncStr%s //"' is not recognized.")

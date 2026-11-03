@@ -52,6 +52,8 @@
 !   xtanh - one-dimensional tanh on a flat topography
 !   xparab - one-dimensional parabola
 !   xyparab - two-dimensional parabola
+!   xygauss - Gaussian varying along a direction rotated from the x axis
+!   ybank - smooth bank rising towards -y, optionally fading out along x
 module topog_funcs_module
 
    use set_precision_module, only: wp, pi
@@ -78,6 +80,8 @@ module topog_funcs_module
    public :: xtanh ! one-dimensional tanh on a flat topography
    public :: xparab ! one-dimensional parabola
    public :: xyparab ! two-dimensional parabola
+   public :: xygauss ! Gaussian varying along a rotated direction
+   public :: ybank ! smooth bank rising towards -y, optionally fading out along x
 
    pointer :: TopogFunc
    interface
@@ -599,5 +603,70 @@ contains
       end do
       return
    end subroutine xyparab
+
+   ! Gaussian b = A*exp(-s^2/w^2) varying along s = x*cos(theta) + y*sin(theta),
+   ! a direction rotated anticlockwise by theta from the x axis.
+   ! (A < 0 gives a valley.)
+   ! Three parameters required:
+   !  A -- amplitude; passed in RunParams%TopogFuncParams(1)
+   !  w -- width; passed in RunParams%TopogFuncParams(2)
+   !  theta -- angle in degrees; passed in RunParams%TopogFuncParams(3)
+   pure subroutine xygauss(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: A, w, theta, s
+      integer :: ii, jj
+
+      A = RunParams%TopogFuncParams(1)
+      w = RunParams%TopogFuncParams(2)
+      theta = RunParams%TopogFuncParams(3) * pi / 180.0_wp
+
+      do ii=1,size(x)
+         do jj=1,size(y)
+            s = x(ii)*cos(theta) + y(jj)*sin(theta)
+            b0(ii,jj) = A*exp(-(s/w)**2)
+         end do
+      end do
+      return
+   end subroutine xygauss
+
+   ! Bank b = S*w*log(1 + exp(-y/w))*f(x), flat for y >> w and rising with slope
+   ! S towards -y, with f(x) = (1 - tanh((x - x0)/L))/2 fading it out around
+   ! x = x0.
+   ! Two parameters required, two optional:
+   !  S -- slope of the bank far from y = 0; passed in RunParams%TopogFuncParams(1)
+   !  w -- width of the toe; passed in RunParams%TopogFuncParams(2)
+   !  x0 -- centre of the fade; passed in RunParams%TopogFuncParams(3)
+   !  L -- length of the fade; passed in RunParams%TopogFuncParams(4)
+   ! Without x0 and L, f = 1 and the bank does not vary along x.
+   pure subroutine ybank(RunParams, x, y, b0)
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: x
+      real(kind=wp), dimension(:), intent(in) :: y
+      real(kind=wp), dimension(:,:), intent(out) :: b0(size(x),size(y))
+
+      real(kind=wp) :: S, w, x0, L, t, fade
+      integer :: ii, jj
+
+      S = RunParams%TopogFuncParams(1)
+      w = RunParams%TopogFuncParams(2)
+      do ii=1,size(x)
+         fade = 1.0_wp
+         if (size(RunParams%TopogFuncParams) >= 4) then
+            x0 = RunParams%TopogFuncParams(3)
+            L = RunParams%TopogFuncParams(4)
+            fade = 0.5_wp*(1.0_wp - tanh((x(ii) - x0)/L))
+         end if
+         do jj=1,size(y)
+            ! log(1 + exp(t)), written to avoid overflow for large t
+            t = -y(jj)/w
+            b0(ii,jj) = S*w*(max(t, 0.0_wp) + log(1.0_wp + exp(-abs(t))))*fade
+         end do
+      end do
+      return
+   end subroutine ybank
 
 end module topog_funcs_module
