@@ -287,9 +287,9 @@ contains
       else
          gam = GeometricCorrectionFactor(RunParams, uvect)
       end if
-      by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
+         by = uvect(RunParams%Vars%dbdy)
          xMaxWS = u + sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
       else
          xMaxWS = u + sqrt(RunParams%g*Hn)
@@ -327,9 +327,9 @@ contains
       else
          gam = GeometricCorrectionFactor(RunParams, uvect)
       end if
-      by = uvect(RunParams%Vars%dbdy)
 
       if (RunParams%geometric_factors) then
+         by = uvect(RunParams%Vars%dbdy)
          xMinWS = u - sqrt(RunParams%g*Hn*(1.0_wp + by*by)/(gam*gam*gam))
       else
          xMinWS = u - sqrt(RunParams%g*Hn)
@@ -367,9 +367,9 @@ contains
       else
          gam = GeometricCorrectionFactor(RunParams, uvect)
       end if
-      bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
+         bx = uvect(RunParams%Vars%dbdx)
          yMaxWS = v + sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
       else
          yMaxWS = v + sqrt(RunParams%g*Hn)
@@ -407,9 +407,9 @@ contains
       else
          gam = GeometricCorrectionFactor(RunParams, uvect)
       end if
-      bx = uvect(RunParams%Vars%dbdx)
 
       if (RunParams%geometric_factors) then
+         bx = uvect(RunParams%Vars%dbdx)
          yMinWS = v - sqrt(RunParams%g*Hn*(1.0_wp + bx*bx)/(gam*gam*gam))
       else
          yMinWS = v - sqrt(RunParams%g*Hn)
