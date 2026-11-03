@@ -19,6 +19,7 @@ closures to be selected at runtime to specialise simulations for particular purp
 * Simulation on user-specified topographies: simple geometric surfaces and digital elevation maps (DEMs).
 * Variety of boundary conditions for initiating flows, including from multiple locations.
 * Output via geo-referenced NetCDF or plain-text.
+* **New** in v1.2.0! Parallel multi-threading via OpenMP.
 
 An overview of the physical modelling framework may be found 
 [here](https://kestrel-unibristol.readthedocs.io/en/latest/physical%20model.html).
