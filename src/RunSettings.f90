@@ -215,6 +215,8 @@ module runsettings_module
    ! -- Parameters. --
       ! Use geometrically corrected coordinates?
       logical :: geometric_factors
+      ! Include the centripetal (bed curvature) term? Only with geometric_factors.
+      logical :: curvature
       real(kind=wp) :: g ! gravity
       real(kind=wp) :: rhow ! Density of water
       real(kind=wp) :: rhos ! Density of solids

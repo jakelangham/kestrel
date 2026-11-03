@@ -442,10 +442,25 @@ below:
         This option selects whether the model equations that Kestrel solves
         should consider geometric corrections that arise due to variations in
         the topographic surface. This is the default model, described in
-        :ref:`physical_model`. If ``geometric factors = off``, the only effect
-        of slope variation left in the model is that of gravitational forcing
-        along the direction of steepest descent. This is equivalent to setting
-        :math:`\gamma \equiv 1` in :ref:`physical_model`.
+        :ref:`physical_model`, with one addition: the momentum equations
+        include the centripetal force that a curved bed exerts on the flow to
+        keep it on the bed. Its horizontal part is
+        :math:`-\bar{\rho} H Q \nabla b / \gamma^2`, where :math:`Q =
+        \bar{\mathbf{u}}^{\mathsf{T}} (\nabla\nabla b)\,\bar{\mathbf{u}}`,
+        :math:`\bar{\mathbf{u}} = (\bar{u}, \bar{v})` is the horizontal
+        velocity and :math:`\nabla\nabla b` the Hessian of the bed elevation.
+        With it, the model conserves energy for smooth, frictionless flow. It
+        matters where the bed curves appreciably over the distance
+        :math:`|\mathbf{u}|^2/g`, such as the floors and banks of channels and
+        the foot of a slope, so results on such terrain differ from those of
+        versions of Kestrel without it.
+
+        If ``geometric factors = no curvature``, the geometric factors are
+        kept but the centripetal force is omitted, which is the model of
+        :ref:`physical_model` exactly. If ``geometric factors = off``, the only
+        effect of slope variation left in the model is that of gravitational
+        forcing along the direction of steepest descent. This is equivalent to
+        setting :math:`\gamma \equiv 1` in :ref:`physical_model`.
 
         For more information, see this `reference
         <https://arxiv.org/abs/2306.16185>`_.
