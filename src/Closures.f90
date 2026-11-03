@@ -517,8 +517,8 @@ contains
       friction = friction * gperp * Hn
    end function Edwards2019Drag
 
-   ! Manning drag has friction function F = g * n^2 / (Hn^{1/3}) where n is the
-   ! Manning coefficient.
+   ! Manning drag has friction function F = g * n^2 * |u|^2 / (Hn^{1/3}) where n
+   ! is the Manning coefficient.
    pure function ManningDrag(RunParams, uvect) result(friction)
       implicit none
 
@@ -530,16 +530,19 @@ contains
       real(kind=wp) :: gam
       real(kind=wp) :: g
       real(kind=wp) :: ManningCo
+      real(kind=wp) :: modu2
 
       Hn = uvect(RunParams%Vars%Hn)
       gam = GeometricCorrectionFactor(RunParams, uvect)
       g = RunParams%g / gam
 
       ManningCo = RunParams%ManningCo
-      
+
       Hn_recip = Reciprocal(Hn, RunParams%heightThreshold)
 
-      friction = g * ManningCo*ManningCo * (Hn_recip**(1.0_wp/3.0_wp))
+      modu2 = FlowSquaredSpeedSlopeAligned(RunParams, uvect)
+
+      friction = g * ManningCo*ManningCo * modu2 * (Hn_recip**(1.0_wp/3.0_wp))
 
    end function ManningDrag
 

@@ -40,7 +40,7 @@ There are two **required** settings in the *Parameters* block:
 
             Sets the Manning drag law
             
-                :math:`\mathcal{F} = \dfrac{g_\perp n^2}{H^{1/3}}`,
+                :math:`\mathcal{F} = \dfrac{g_\perp n^2 |\mathbf{u}|^2}{H^{1/3}}`,
 
             where :math:`g_\perp` is gravitational acceleration resolved
             perpendicular to the local slope.
