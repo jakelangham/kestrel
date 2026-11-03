@@ -43,7 +43,7 @@ module output_module
    use closures_module, only : FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
    use runsettings_module, only : RunSet
    use varstring_module, only: varString
-   use messages_module, only: InfoMessage, WarningMessage
+   use messages_module, only: InfoMessage, WarningMessage, FatalErrorMessage
    use morphodynamic_rhs_module, only: ComputeCellCentredTopographicData
 #if HAVE_NETCDF4
    use netcdf_utils_module
@@ -771,6 +771,8 @@ contains
       !integer :: d
       integer :: i, j
       integer :: nTiles, tt, ttk, nYvertices
+      integer :: ios
+      character(len=256) :: iomsg
       type(varString) :: filename_full
       type(varString) :: topo_filename_full
 
@@ -789,16 +791,20 @@ contains
 
       inquire (file=filename_full%s, exist=FileExists)
       if (FileExists) then
-         open (101, file=filename_full%s, status='replace')
+         open (101, file=filename_full%s, status='replace', iostat=ios, iomsg=iomsg)
       else
-         open (101, file=filename_full%s, status='new')
+         open (101, file=filename_full%s, status='new', iostat=ios, iomsg=iomsg)
       end if
+      if (ios /= 0) call FatalErrorMessage("Could not open the output file " // &
+         filename_full%s // new_line('A') // trim(iomsg))
       inquire (file=topo_filename_full%s, exist=FileExists)
       if (FileExists) then
-         open (102, file=topo_filename_full%s, status='replace')
+         open (102, file=topo_filename_full%s, status='replace', iostat=ios, iomsg=iomsg)
       else
-         open (102, file=topo_filename_full%s, status='new')
+         open (102, file=topo_filename_full%s, status='new', iostat=ios, iomsg=iomsg)
       end if
+      if (ios /= 0) call FatalErrorMessage("Could not open the output file " // &
+         topo_filename_full%s // new_line('A') // trim(iomsg))
 
       if (RunParams%isOneD) then
          write (101, fmt="(a8,a2,11(a18,a2),a18)", advance='yes') &
