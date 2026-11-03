@@ -103,12 +103,12 @@ environment variable. For example, to run on 4 threads
 By default, each thread works on the same data throughout the run (a static
 OpenMP schedule). This choice opimises for efficient parallel scaling on HPC
 nodes with tens of cores. If you are running Kestrel on a personal computer
-dynamic scheduling of threads may be faster. Set ``OMP_SCHEDULE=dynamic`` to do
+dynamic scheduling of threads may be faster. Set the environment variable ``OMP_SCHEDULE=dynamic`` to do
 this.
 
 Similarly, idle threads wait briefly for more work before sleeping, which is
 best when Kestrel has the machine to itself. If other programs are using the
-same cores, ``OMP_WAIT_POLICY=passive`` (idle threads sleep immediately) can be
+same cores, setting the environment variable  ``OMP_WAIT_POLICY=passive`` (idle threads sleep immediately) can be
 a few percent faster.
 
 If your Fortran and C++ compilers are the same version of GCC (as is typical
@@ -405,6 +405,6 @@ code introduced a data race.
 
 .. warning::
 
-   Running these is the first step in debugging and won't catch everything.
+   Running these tests is the first step in debugging and won't catch everything.
    At this stage, you will most likely need to read runall.jl and testlib.jl
    carefully to understand what each test is doing.
