@@ -517,6 +517,7 @@ contains
          end do
 
          call ComputeDesingularisedVariables(RunParams, tileContainer, ttk, .true.)
+         call ClearDryCells(RunParams, tileContainer(ttk))
          call UpdateMaximumHeights(RunParams, tileContainer(ttk), nextT)
          call UpdateMaximumSpeeds(RunParams, tileContainer(ttk), nextT)
          call UpdateMaximumErosion(RunParams, tileContainer(ttk), nextT)
@@ -919,6 +920,33 @@ contains
       end if
    end subroutine ApplySpongeLayer
 
+   ! Remove the solids, momentum and velocity from cells whose depth is zero.
+   ! The depth is computed from the free surface, Hn = (w - b0 - bt)*gam, so
+   ! fluid much thinner than the spacing of floating point numbers near the bed
+   ! elevation (~1e-15 m) is lost to rounding when it is fluxed into a dry cell,
+   ! while the solids and momentum carried with it, stored directly, are not.
+   ! Without this, they spread through dry cells, and how far depends on which
+   ! tiles are active, so results depend on the tile layout.
+   subroutine ClearDryCells(RunParams, tile)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(tileType), intent(inout) :: tile
+
+      where (tile%u(RunParams%Vars%Hn, :, :) <= 0.0_wp)
+         tile%u(RunParams%Vars%Hnpsi, :, :) = 0.0_wp
+         tile%u(RunParams%Vars%psi, :, :) = 0.0_wp
+         tile%u(RunParams%Vars%rhoHnu, :, :) = 0.0_wp
+         tile%u(RunParams%Vars%u, :, :) = 0.0_wp
+      end where
+      if (.not. RunParams%isOneD) then
+         where (tile%u(RunParams%Vars%Hn, :, :) <= 0.0_wp)
+            tile%u(RunParams%Vars%rhoHnv, :, :) = 0.0_wp
+            tile%u(RunParams%Vars%v, :, :) = 0.0_wp
+         end where
+      end if
+   end subroutine ClearDryCells
+
    ! Check if the flow as reached any edge of the active region. This is broken
    ! into four separate routines (below) that check each boundary.
    subroutine CheckIfNearBoundaries(RunParams, grid, nActiveTiles)
@@ -981,7 +1009,7 @@ contains
             do ii = 1, nXpertile
                Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
                do jj = nYpertile, 1, -1
-                  if (Hn(jj) > RunParams%heightThreshold) then
+                  if (Hn(jj) > 0.0_wp) then
                      ydist = jj
                      exit
                   end if
@@ -1032,7 +1060,7 @@ contains
             do jj = 1, nYpertile
                Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
                do ii = nXpertile, 1, -1
-                  if (Hn(ii) > RunParams%heightThreshold) then
+                  if (Hn(ii) > 0.0_wp) then
                      xdist = ii
                      exit
                   end if
@@ -1083,7 +1111,7 @@ contains
             do ii = 1, nXpertile
                Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
                do jj = 1, nYpertile
-                  if (Hn(jj) > RunParams%heightThreshold) then
+                  if (Hn(jj) > 0.0_wp) then
                      ydist = jj
                      exit
                   end if
@@ -1134,7 +1162,7 @@ contains
             do jj = 1, nYpertile
                Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
                do ii = 1, nXpertile
-                  if (Hn(ii) > RunParams%heightThreshold) then
+                  if (Hn(ii) > 0.0_wp) then
                      xdist = ii
                      exit
                   end if
