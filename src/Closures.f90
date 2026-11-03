@@ -527,14 +527,12 @@ contains
       real(kind=wp) :: friction
 
       real(kind=wp) :: Hn, Hn_recip
-      real(kind=wp) :: gam
       real(kind=wp) :: g
       real(kind=wp) :: ManningCo
       real(kind=wp) :: modu2
 
       Hn = uvect(RunParams%Vars%Hn)
-      gam = GeometricCorrectionFactor(RunParams, uvect)
-      g = RunParams%g / gam
+      g = RunParams%g
 
       ManningCo = RunParams%ManningCo
 
