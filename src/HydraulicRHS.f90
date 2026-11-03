@@ -73,13 +73,15 @@ contains
       real(kind=wp), intent(out) :: advisedTimeStep
 
       type(TileList), pointer :: ActiveTiles
-      ! CFL time step for each active tile (indexed by position in ActiveTiles).
-      real(kind=wp), dimension(:) :: unitCFLTimeStep(grid%activeTiles%size)
+      ! CFL time step of a tile, and its minimum over all tiles.
+      real(kind=wp) :: unitCFLTimeStep
       real(kind=wp) :: minUnitCFLTimeStep
 
       integer :: tt, ttk
 
       activeTiles => grid%activeTiles
+
+      minUnitCFLTimeStep = huge(minUnitCFLTimeStep)
 
       ! The calculation is done in four loops over the active tiles. Within a
       ! loop, each tile only writes to its own data, so the tiles may be
@@ -87,7 +89,7 @@ contains
       ! of neighbouring tiles that was computed in an earlier loop, relying on
       ! the barrier at the end of the previous loop. Within each loop, as much
       ! work as possible is done on a tile while its data are in cache.
-      !$omp parallel private(ttk)
+      !$omp parallel private(ttk, unitCFLTimeStep)
 
       ! Calculate limited spatial derivatives of w, rhoHnu, rhoHnv, Hnpsi.
       !$omp do schedule(runtime)
@@ -124,7 +126,7 @@ contains
       end do
       !$omp end do
 
-      !$omp do schedule(runtime)
+      !$omp do schedule(runtime) reduction(min:minUnitCFLTimeStep)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
          ! Reconstruct cell boundary values of Hn, u, v, psi, rho.
@@ -134,24 +136,17 @@ contains
          ! which give the CFL time step. (Uses neighbours' cell centred values
          ! and limited derivatives, not their reconstructions.)
          call CalculateFluxes(RunParams, grid, RunParams%iFlux, tileWorkspace, &
-                              ttk, unitCFLTimeStep(tt))  ! Look at eqn input
+                              ttk, unitCFLTimeStep)  ! Look at eqn input
+         minUnitCFLTimeStep = min(minUnitCFLTimeStep, unitCFLTimeStep)
          ! Sum flux and source terms to complete the calculation.
          call ConstructHydraulicRHS(RunParams, grid, tileWorkspace, ttk, t)
       end do
       !$omp end do
 
-      !$omp single
-      ! Inactive tiles contribute a CFL time step of maxdt.
-      minUnitCFLTimeStep = minval(unitCFLTimeStep)
-      if (ActiveTiles%Size < grid%nTiles) then
-         minUnitCFLTimeStep = min(minUnitCFLTimeStep, RunParams%maxdt)
-      end if
+      !$omp end parallel
 
       advisedTimeStep = ComputeAdvisedTimeStep(RunParams, grid, &
                                                substep, minUnitCFLTimeStep)
-      !$omp end single
-
-      !$omp end parallel
    end subroutine CalculateHydraulicRHS
 
    ! This contains all the logic for computing a suitable time step, i.e. one
