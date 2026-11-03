@@ -49,7 +49,10 @@ module equations_module
 contains
 
    ! Compute convection fluxes in the x direction for each of the governing
-   ! equations and store in the vector xFlux.
+   ! equations and store in the vector xFlux. All fluxes are weighted by the
+   ! geometric correction factor gam, so that the volume gam*Hn and the momentum
+   ! gam*rho*Hn*u per unit horizontal area are advected consistently (their
+   ! numerical flux differences are divided by gam in ConstructHydraulicRHS).
    pure subroutine XConvectionFlux(RunParams, u, xFlux, gam_in)
       implicit none
 
@@ -77,8 +80,8 @@ contains
       end if
       xFlux(iw) = u(iHn) * u(iu) * gam
       xFlux(iHnpsi) = u(iHnpsi) * u(iu) * gam
-      xFlux(irhoHnu) = u(irhoHnu) * u(iu)
-      xFlux(irhoHnv) = u(irhoHnv) * u(iu)
+      xFlux(irhoHnu) = u(irhoHnu) * u(iu) * gam
+      xFlux(irhoHnv) = u(irhoHnv) * u(iu) * gam
 
    end subroutine XConvectionFlux
 
@@ -111,8 +114,8 @@ contains
       end if
       yFlux(iw) = u(iHn) * u(iv) * gam
       yFlux(iHnpsi) = u(iHnpsi) * u(iv) * gam
-      yFlux(irhoHnu) = u(irhoHnu) * u(iv)
-      yFlux(irhoHnv) = u(irhoHnv) * u(iv)
+      yFlux(irhoHnu) = u(irhoHnu) * u(iv) * gam
+      yFlux(irhoHnv) = u(irhoHnv) * u(iv) * gam
 
    end subroutine YConvectionFlux
 
