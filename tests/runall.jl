@@ -32,18 +32,14 @@ tests_noflow = [
 tests_identical = [
    # These two tests check for independence of the tiling layout by comparing
    # simulations with different tile sizes. The static test is designed so
-   # that all tiles are added at the start with none added during the flow,
-   # while the dynamic test features a flow that enters inactive regions.
+   # that the flow stays largely within the tiles added at the start, while
+   # the dynamic test features a flow that enters inactive regions.
    # Comparisons are made up to some tolerance (4th arg), relative to the
-   # largest magnitude of each field (see check_identical_simulations). The
-   # static test is bitwise independent of the tile layout, so its output
-   # must be identical. The dynamic test is not: tiles are added only
-   # when Hn > RunParams%heightThreshold, so very thin flows can run into
-   # tiles that are active in one layout but not the other. Its results then
-   # differ by round-off, which in the text output (11 significant figures)
-   # can show up as differences of about 1e-10 in the last printed digit.
+   # largest magnitude of each field (see check_identical_simulations). Both
+   # tests are bitwise independent of the tile layout, so their output must
+   # be identical.
    ("tile_indep_static", "tile_indep_static_100m", "tile_indep_static_50m", 0.0, 2)
-   ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 1e-9, 2)
+   ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 0.0, 2)
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
