@@ -200,6 +200,10 @@ There are two **required** settings in the *Parameters* block:
             **conditionally optional** statements :code:`chezy co` and
             :code:`coulomb co` respectively.
 
+        :code:`none`
+
+            Sets :math:`\mathcal{F} = 0`, for frictionless flow.
+
     :code:`erosion = on`
 
         This sets the closure function :math:`\mathcal{E}` for erosion (see
