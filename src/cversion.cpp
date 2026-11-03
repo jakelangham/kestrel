@@ -1,7 +1,7 @@
 // This file is part of the Kestrel software for simulations
 // of sediment-laden Earth surface flows.
 //
-// Version v1.1.2
+// Version v1.2.0
 //
 // Copyright 2023 Mark J. Woodhouse, Jake Langham, (University of Bristol).
 //
@@ -22,7 +22,7 @@
 
 // Define a default GIT_TAG if not provided
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "v1.1.2"
+#define PACKAGE_VERSION "v1.2.0"
 #endif
 
 extern "C" {
