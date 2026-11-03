@@ -14,7 +14,7 @@ There are two **required** settings in the *Parameters* block:
 
     .. math::
 
-        {\tau_b}_{x} = \mathcal{F} \bar{\rho}\bar{u}/|\bar{\mathbf{u}}|, \qquad {\tau_b}_{y} = \mathcal{F} \bar{\rho}\bar{v}/|\bar{\mathbf{u}}|,
+        {\tau_b}_{x} = \mathcal{F} \bar{\rho}\bar{u}/|\mathbf{u}|, \qquad {\tau_b}_{y} = \mathcal{F} \bar{\rho}\bar{v}/|\mathbf{u}|,
         
     where (as detailed in
     :ref:`physical_model`) :math:`\mathcal{F}` is a friction function that may
