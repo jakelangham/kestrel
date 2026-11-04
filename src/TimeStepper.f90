@@ -1189,10 +1189,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
       integer :: tt, ttk, ttN
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      integer :: nBuffer, iHn
+      logical :: near_bndry
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1202,6 +1201,8 @@ contains
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
+      nBuffer = RunParams%TileBuffer
+      iHn = RunParams%Vars%Hn
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
@@ -1212,20 +1213,11 @@ contains
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttN > 0 .and. (.not. tileContainer(ttN)%TileOn)) then
-            ydist = 0
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = nYpertile, 1, -1
-                  if (Hn(jj) > 0.0_wp) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist > (RunParams%nYpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttN, RunParams)
-                  exit
-               end if
-            end do
+            ! Activate it if there is flow within TileBuffer cells of the edge.
+            near_bndry = any(tileContainer(ttk)%u(iHn, :, (nYpertile-nBuffer+1):nYpertile) > 0.0_wp)
+            if (near_bndry) then
+               call AddTile(grid, ttN, RunParams)
+            end if
          end if
       end do
 
@@ -1240,10 +1232,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
       integer :: tt, ttk, ttE
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      integer :: nBuffer, iHn
+      logical :: near_bndry
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1253,6 +1244,8 @@ contains
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
+      nBuffer = RunParams%TileBuffer
+      iHn = RunParams%Vars%Hn
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
@@ -1263,20 +1256,11 @@ contains
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttE > 0 .and. (.not. tileContainer(ttE)%TileOn)) then
-            xdist = 0
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = nXpertile, 1, -1
-                  if (Hn(ii) > 0.0_wp) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist > (RunParams%nXpertile - RunParams%TileBuffer)) then
-                  call AddTile(grid, ttE, RunParams)
-                  exit
-               end if
-            end do
+            ! Activate it if there is flow within TileBuffer cells of the edge.
+            near_bndry = any(tileContainer(ttk)%u(iHn, (nXpertile-nBuffer+1):nXpertile, :) > 0.0_wp)
+            if (near_bndry) then
+               call AddTile(grid, ttE, RunParams)
+            end if
          end if
       end do
 
@@ -1291,10 +1275,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
       integer :: tt, ttk, ttS
-      real(kind=wp), dimension(:) :: Hn(RunParams%nYpertile)
-      integer(kind=wp) :: ydist
+      integer :: nBuffer, iHn
+      logical :: near_bndry
 
       type(tileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1304,6 +1287,8 @@ contains
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
+      nBuffer = RunParams%TileBuffer
+      iHn = RunParams%Vars%Hn
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
@@ -1314,20 +1299,11 @@ contains
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttS > 0 .and. (.not. tileContainer(ttS)%TileOn)) then
-            ydist = nYpertile
-            do ii = 1, nXpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, ii, :)
-               do jj = 1, nYpertile
-                  if (Hn(jj) > 0.0_wp) then
-                     ydist = jj
-                     exit
-                  end if
-               end do
-               if (ydist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttS, RunParams)
-                  exit
-               end if
-            end do
+            ! Activate it if there is flow within TileBuffer cells of the edge.
+            near_bndry = any(tileContainer(ttk)%u(iHn, :, 1:nBuffer) > 0.0_wp)
+            if (near_bndry) then
+               call AddTile(grid, ttS, RunParams)
+            end if
          end if
       end do
 
@@ -1342,10 +1318,9 @@ contains
 
       integer :: nXtiles, nYtiles
       integer :: nXpertile, nYpertile
-      integer :: ii, jj
       integer :: tt, ttk, ttW
-      real(kind=wp), dimension(:) :: Hn(RunParams%nXpertile)
-      integer(kind=wp) :: xdist
+      integer :: nBuffer, iHn
+      logical :: near_bndry
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: ActiveTiles
@@ -1355,6 +1330,8 @@ contains
 
       nXpertile = RunParams%nXpertile
       nYpertile = RunParams%nYpertile
+      nBuffer = RunParams%TileBuffer
+      iHn = RunParams%Vars%Hn
 
       tileContainer => grid%tileContainer
       ActiveTiles => grid%ActiveTiles
@@ -1365,20 +1342,11 @@ contains
 
          ! Check if there exists an inactive neighbour that needs activating.
          if (ttW > 0 .and. (.not. tileContainer(ttW)%TileOn)) then
-            xdist = nXpertile
-            do jj = 1, nYpertile
-               Hn = tileContainer(ttk)%u(RunParams%Vars%Hn, :, jj)
-               do ii = 1, nXpertile
-                  if (Hn(ii) > 0.0_wp) then
-                     xdist = ii
-                     exit
-                  end if
-               end do
-               if (xdist <= RunParams%TileBuffer) then
-                  call AddTile(grid, ttW, RunParams)
-                  exit
-               end if
-            end do
+            ! Activate it if there is flow within TileBuffer cells of the edge.
+            near_bndry = any(tileContainer(ttk)%u(iHn, 1:nBuffer, :) > 0.0_wp)
+            if (near_bndry) then
+               call AddTile(grid, ttW, RunParams)
+            end if
          end if
       end do
 
