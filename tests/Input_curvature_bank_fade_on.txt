@@ -1,0 +1,45 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 18
+nYtiles = 18
+nXpertile = 20
+nYpertile = 20
+Xtilesize = 0.1
+Boundary Conditions = halt
+
+Cap:
+  capX = -0.12
+  capY = -0.1
+  capRadius = 0.03
+  capHeight = 0.002
+  capShape = para
+  capU = 1.5
+  capV = 0.0
+  capConc = 0.0
+
+Parameters:
+g = 9.81
+Drag = None
+Erosion = Off
+Eddy Viscosity = 0
+Geometric factors = on
+
+Solver:
+T end = 0.3
+cfl = 0.25
+max dt = 0.01
+Tile Buffer = 2
+Height threshold = 1e-9
+
+Output:
+N out = 6
+directory = curvature_bank_fade_on/
+Format = txt
+
+Topog:
+Type = Function
+Topog function = ybank
+Topog params = (0.5773502691896258, 0.01, 0.0, 0.1)

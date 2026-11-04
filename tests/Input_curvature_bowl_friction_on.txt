@@ -1,0 +1,44 @@
+%%ListType
+
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 30
+nYtiles = 1
+nXpertile = 20
+nYpertile = 1
+Xtilesize = 20.0
+Boundary Conditions = halt
+
+Cap:
+  capX = 0.0
+  capHeight = 0.1
+  capRadius = 5.0
+  capShape = para
+  capU = 28.18882757405849
+  capConc = 0.0
+
+Parameters:
+g = 9.81
+Drag = Coulomb
+Coulomb Co = 0.2
+Erosion = Off
+Eddy Viscosity = 0
+Curvature friction = On
+
+Solver:
+T end = 20.0
+cfl = 0.5
+max dt = 0.1
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 400
+directory = curvature_bowl_friction_on/
+Format = txt
+
+Topog:
+Type = Function
+Topog function = xParab
+Topog params = (0.005)

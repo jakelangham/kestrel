@@ -299,3 +299,35 @@ functions:
 
             - :code:`A` -- coefficient of :math:`x^{2}` for the parabola.
             - :code:`B` -- coefficient of :math:`y^{2}` for the parabola.
+
+    :code:`Topog function = xygauss`
+
+        Gaussian ridge (or, for :math:`A < 0`, valley) varying along a
+        direction rotated anticlockwise by :math:`\theta` from the :math:`x`
+        axis,
+
+            :math:`b_{0}(x,y) = A \exp\left(-s^{2}/w^{2}\right)`, with :math:`s = x\cos\theta + y\sin\theta`.
+
+        :code:`Topog params = (A, w, theta)`
+
+            - :code:`A` -- the amplitude.
+            - :code:`w` -- the width.
+            - :code:`theta` -- the angle :math:`\theta`, in degrees.
+
+    :code:`Topog function = ybank`
+
+        Smooth bank, flat for :math:`y \gg w` and rising with slope :math:`S`
+        towards :math:`-y`, optionally fading out along :math:`x`,
+
+            :math:`b_{0}(x,y) = S w \log\left(1 + e^{-y/w}\right) f(x)`,
+
+        where the function :math:`f(x) = \tfrac{1}{2}\left[1 - \tanh\left((x - x_{0})/L\right)\right]`
+        fades the bank out along :math:`x`, or :math:`f = 1` if only two
+        parameters are given.
+
+        :code:`Topog params = (S, w)` or :code:`Topog params = (S, w, x0, L)`
+
+            - :code:`S` -- the slope of the bank far from its toe.
+            - :code:`w` -- the width of the toe.
+            - :code:`x0` -- the centre of the fade.
+            - :code:`L` -- the length of the fade.

@@ -79,6 +79,121 @@ function test_netcdf_restart(testname, dim)
    end
 end
 
+# Run-up of a thin layer launched from the bottom of a 1D bowl. The maximum,
+# over the outputs, of the mass-weighted height of the layer,
+#    z_b = sum(gam Hn b) / sum(gam Hn),   gam = sqrt(1 + b_x^2),
+# must be within rtol (relative) of zmax, the height reached by a point mass
+# sliding on the bed, and the mass sum(gam Hn) must be constant. For a
+# frictionless flow with the curvature force (check_energy = true), the energy
+#    E = sum(gam Hn |u|^2/2 + g gam Hn b + g Hn^2/2),   |u|^2 = u^2 gam^2
+# (per unit density and cell width) must not rise by more than 1%.
+function test_curvature_runup(testname, zmax, rtol, check_energy)
+   if run_simulation(testname)
+      return 1
+   end
+
+   g = input_value(test_inputfile(testname), "g", 9.81)
+   zbmax = -Inf
+   M = Float64[]
+   E = Float64[]
+   for f in sort(filter(is_resultfile_txt, readdir(testname)))
+      data, header = readdlm("$testname/$f", ',', header = true)
+      col(name) = Float64.(data[:, findfirst(==(name), strip.(vec(header)))])
+      Hn, u, b, bx = col("flow_depth"), col("x_velocity"), col("base_elevation"), col("x_slope")
+      gam = sqrt.(1 .+ bx .^ 2)
+      push!(M, sum(gam .* Hn))
+      push!(E, sum(gam .* Hn .* (0.5 .* u .^ 2 .* gam .^ 2 .+ g .* b) .+ 0.5 .* g .* Hn .^ 2))
+      zbmax = max(zbmax, sum(gam .* Hn .* b) / M[end])
+   end
+
+   result = 0
+   println("Maximum mass-weighted height: $zbmax m (point mass: $zmax m)")
+   if abs(zbmax / zmax - 1) > rtol
+      println("This differs from the point mass by more than $(100 * rtol)%")
+      result = 1
+   end
+   dM = (maximum(M) - minimum(M)) / M[1]
+   println("Relative change in mass:      $dM")
+   if dM > 1e-8
+      result = 1
+   end
+   if check_energy
+      dE = maximum(E) / E[1] - 1
+      println("Largest relative rise in energy: $dE")
+      if dE > 0.01
+         result = 1
+      end
+   end
+
+   return result
+end
+
+# Thin layer moving across a bank in 2D. At the last output, the direction of
+# the mass-weighted mean horizontal velocity (degrees from the x axis) must be
+# within angtol of angle, and the centroid of the layer within postol (m) of
+# centroid, these being the values for point masses sliding on the bed. (Each
+# cell is weighted by its mass gam Hn, with gam = sqrt(1 + b_x^2 + b_y^2).) The
+# volume must also be conserved.
+function test_curvature_bank(testname, angle, angtol, centroid, postol)
+   if run_simulation(testname)
+      return 1
+   end
+
+   f = sort(filter(is_resultfile_txt, readdir(testname)))[end]
+   data, header = readdlm("$testname/$f", ',', header = true)
+   col(name) = Float64.(data[:, findfirst(==(name), strip.(vec(header)))])
+   x, y, Hn, u, v = col("x"), col("y"), col("flow_depth"), col("x_velocity"), col("y_velocity")
+   m = sqrt.(1 .+ col("x_slope") .^ 2 .+ col("y_slope") .^ 2) .* Hn
+   dir = atand(sum(m .* v), sum(m .* u))
+   dist = hypot(sum(m .* x) / sum(m) - centroid[1], sum(m .* y) / sum(m) - centroid[2])
+
+   result = 0
+   println("Direction of the mean velocity: $dir deg (point masses: $angle deg)")
+   if abs(dir - angle) > angtol
+      println("This differs from the point masses by more than $angtol deg")
+      result = 1
+   end
+   println("Distance of the centroid from the point masses': $dist m")
+   if dist > postol
+      println("This is more than $postol m")
+      result = 1
+   end
+   result |= check_volume_change(testname, 1e-8)
+
+   return result
+end
+
+# Layer slumping against a steep wall. The simulation must reach its end time
+# (within a wall-clock limit, since a collapsing time step would otherwise
+# stall it) and the speed of the fluid, in cells deeper than 0.1 mm, must not
+# exceed umax. If check_volume is set, the total (flow + bed) volume must be
+# conserved.
+function test_curvature_wall(testname, umax, check_volume)
+   if run_simulation_with_timeout(testname, 120.0)
+      return 1
+   end
+
+   speed = 0.0
+   for f in filter(is_resultfile_txt, readdir(testname))
+      data, header = readdlm("$testname/$f", ',', header = true)
+      col(name) = Float64.(data[:, findfirst(==(name), strip.(vec(header)))])
+      wet = col("flow_depth") .> 1e-4
+      any(wet) && (speed = max(speed, maximum(abs.(col("x_velocity")[wet]))))
+   end
+
+   result = 0
+   println("Largest speed: $speed m/s")
+   if speed > umax
+      println("This is more than $umax m/s")
+      result = 1
+   end
+   if check_volume
+      result |= check_conservativity(testname)
+   end
+
+   return result
+end
+
 # Run $prog on the input file corresponding to the test with name testname and
 # log the output in "$testname.log". Return a helpful error if the command
 # fails.
@@ -100,6 +215,33 @@ function run_simulation(testname)
    wait_for_task(t)
 
    return error
+end
+
+# Like run_simulation, but stop the simulation, and return an error, if it runs
+# for longer than timeout (s) of wall-clock time.
+function run_simulation_with_timeout(testname, timeout)
+   infile = test_inputfile(testname)
+   logfile = "$testname.log"
+
+   p = run(pipeline(`$prog $infile`, stdout = logfile, stderr = logfile), wait = false)
+   t0 = time()
+   while process_running(p) && time() - t0 < timeout
+      sleep(0.1)
+   end
+   if process_running(p)
+      kill(p)
+      println("Simulation did not finish within $timeout s and was stopped.")
+      println("Any output has been logged in $logfile.")
+      return true
+   end
+   if !success(p)
+      println("Simulation exited unexpectedly.")
+      println("The command was $prog $infile.")
+      println("Any output has been logged in $logfile.")
+      return true
+   end
+
+   return false
 end
 
 # Like run_simulation, but with nthreads OpenMP threads and writing the output to
@@ -556,6 +698,30 @@ function erosion_depth(infile)
 
    ero_dep = parse(Float64, strip(split(ero_dep_str, "=")[2]))
    return ero_dep
+end
+
+# Retrieve the numerical value of the setting key (e.g. "g") from the input
+# file, or default if it is not set.
+function input_value(infile, key, default)
+   for line in readlines(infile)
+      parts = split(split(line, "%")[1], "=")
+      if length(parts) == 2 && lowercase(strip(parts[1])) == lowercase(key)
+         return parse(Float64, strip(parts[2]))
+      end
+   end
+
+   return default
+end
+
+# Check that the flow volume in Volume.txt, for the simulation output in dir,
+# changed by at most rtol (relative).
+function check_volume_change(dir, rtol)
+   rows = filter(!isempty, strip.(readlines("$dir/Volume.txt")))[2:end]
+   volume(row) = parse(Float64, strip(split(row, ",")[2]))
+   err = abs(volume(rows[end]) / volume(rows[1]) - 1)
+   println("Relative change in volume:    $err")
+
+   return (err > rtol) ? 1 : 0
 end
 
 function test_inputfile(testname)

@@ -1010,6 +1010,8 @@ contains
 
       real(kind=wp) :: dif
       real(kind=wp) :: hX, hY
+      ! Vertical momentum rho*Hn*w either side of an interface (see below).
+      real(kind=wp) :: wMomPlus, wMomMinus
 #if DEBUG_SPD==1 || DEBUG_SPD==2
       integer :: iu, iv
 
@@ -1145,7 +1147,7 @@ contains
                   tiles(tID)%gXFlux(d, i, j) = 0.0_wp
                   tiles(tID)%pXFlux(d, i, j) = 0.0_wp
                else
-                  hX = tiles(tID)%uPlusX(d, i, j) - tiles(tID)%uMinusX(d, i, j)
+                  hX = tiles(tID)%uPlusX(d, i, j) * gamplus - tiles(tID)%uMinusX(d, i, j) * gamneg
                   hX = hX * aPos * aNeg
                   hX = hX  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
                   hX = hX / dif
@@ -1154,6 +1156,24 @@ contains
                   tiles(tID)%pXFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
                end if
             end do
+
+            ! Flux of vertical momentum rho*Hn*w, for the projection onto the
+            ! bed in ConstructHydraulicRHS. Each reconstruction takes w from
+            ! the bed slope of the cell it was reconstructed from, extrapolated
+            ! to the face with a weighted van Leer limiter (see XFaceSlopes).
+            if (RunParams%curvature .or. RunParams%curvature_friction) then
+               if (dif < 1e-10_wp) then
+                  tiles(tID)%wXFlux(i, j) = 0.0_wp
+               else
+                  wMomPlus = VerticalMomentum(RunParams, tiles(tID)%uPlusX(:, i, j), &
+                     XFaceSlopes(RunParams, tiles, tID, i, j, .true.))
+                  wMomMinus = VerticalMomentum(RunParams, tiles(tID)%uMinusX(:, i, j), &
+                     XFaceSlopes(RunParams, tiles, tID, i, j, .false.))
+                  tiles(tID)%wXFlux(i, j) = (aPos * aNeg * (wMomPlus * gamplus - wMomMinus * gamneg) &
+                     + aPos * wMomMinus * tiles(tID)%uMinusX(RunParams%Vars%u, i, j) * gamneg &
+                     - aNeg * wMomPlus * tiles(tID)%uPlusX(RunParams%Vars%u, i, j) * gamplus) / dif
+               end if
+            end if
          end do
       end do
 
@@ -1257,7 +1277,7 @@ contains
                      tiles(tID)%gYFlux(d, i, j) = 0.0_wp
                      tiles(tID)%pYFlux(d, i, j) = 0.0_wp
                   else
-                     hY = tiles(tID)%uPlusY(d, i, j) - tiles(tID)%uMinusY(d, i, j)
+                     hY = tiles(tID)%uPlusY(d, i, j) * gamplus - tiles(tID)%uMinusY(d, i, j) * gamneg
                      hY = hY * aPos * aNeg
                      hY = hY  + (aPos * uMinusConvectionFlux(k) - aNeg * uPlusConvectionFlux(k))
                      hY = hY / dif
@@ -1266,6 +1286,21 @@ contains
                      tiles(tID)%pYFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
                   end if
                end do
+
+               ! Flux of vertical momentum, as for the x fluxes.
+               if (RunParams%curvature .or. RunParams%curvature_friction) then
+                  if (dif < 1e-10_wp) then
+                     tiles(tID)%wYFlux(i, j) = 0.0_wp
+                  else
+                     wMomPlus = VerticalMomentum(RunParams, tiles(tID)%uPlusY(:, i, j), &
+                        YFaceSlopes(RunParams, tiles, tID, i, j, .true.))
+                     wMomMinus = VerticalMomentum(RunParams, tiles(tID)%uMinusY(:, i, j), &
+                        YFaceSlopes(RunParams, tiles, tID, i, j, .false.))
+                     tiles(tID)%wYFlux(i, j) = (aPos * aNeg * (wMomPlus * gamplus - wMomMinus * gamneg) &
+                        + aPos * wMomMinus * tiles(tID)%uMinusY(RunParams%Vars%v, i, j) * gamneg &
+                        - aNeg * wMomPlus * tiles(tID)%uPlusY(RunParams%Vars%v, i, j) * gamplus) / dif
+                  end if
+               end if
             end do
          end do
       end if
@@ -1293,6 +1328,8 @@ contains
       real(kind=wp) :: deltaX, deltaY
       real(kind=wp) :: deltaXRecip, deltaYRecip
       real(kind=wp) :: Friction, gam, dbdx, dbdy
+      real(kind=wp) :: advX, advY, advZ, delta, gn
+      integer :: idbdx, irhoHnu, irhoHnv
 
       real(kind=wp), dimension(:) :: STF(RunParams%nDimensions), STE(RunParams%nDimensions), STI(RunParams%nDimensions)
       real(kind=wp), dimension(:) :: gX_prefactors(RunParams%nDimensions), gY_prefactors(RunParams%nDimensions)
@@ -1308,6 +1345,9 @@ contains
       deltaYRecip = grid%deltaYRecip
 
       bt = RunParams%Vars%bt
+      idbdx = RunParams%Vars%dbdx
+      irhoHnu = RunParams%Vars%rhoHnu
+      irhoHnv = RunParams%Vars%rhoHnv
 
       ! These premultiply the derivatives of the hydrostatic pressure fluxes.
       ! In particular, they are needed for the 2D surface gradient operator and
@@ -1343,11 +1383,15 @@ contains
                      STF(d) = (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam +  &
                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam
                   else
+                     ! Momentum is advected in the form gam*rho*Hn*u, like the
+                     ! volume, so its advection fluxes are gamma-weighted and
+                     ! divided by gamma here. The pressure and eddy viscosity
+                     ! terms are unchanged.
                      STF(d) = KahanSum([ &
-                         (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip, &
+                         (tiles(tID)%hXFlux(d, i, j) - tiles(tID)%hXFlux(d, i + 1, j)) * deltaXRecip / gam, &
                          (tiles(tID)%gXFlux(d, i, j) - tiles(tID)%gXFlux(d, i + 1, j)) * gX_prefactors(d) * deltaXRecip, &
                          (tiles(tID)%pXFlux(d, i + 1, j) - tiles(tID)%pXFlux(d, i, j)) * deltaXRecip, &
-                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip, &
+                         (tiles(tID)%hYFlux(d, i, j) - tiles(tID)%hYFlux(d, i, j + 1)) * deltaYRecip / gam, &
                          (tiles(tID)%gYFlux(d, i, j) - tiles(tID)%gYFlux(d, i, j + 1)) * gY_prefactors(d) * deltaYRecip, &
                          (tiles(tID)%pYFlux(d, i, j + 1) - tiles(tID)%pYFlux(d, i, j)) * deltaYRecip ]) 
 
@@ -1356,9 +1400,33 @@ contains
 
                call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(j), &
                                         tiles(tID)%u(:,i,j), tiles(tID)%containsSource, STE, gam)
+
+               ! Normal reaction of the curved bed. The momentum is advected
+               ! in three dimensions, and the part of its rate of change
+               ! normal to the bed is removed by the reaction, i.e. the RHS is
+               ! projected onto the bed's tangent plane. Only the advection
+               ! terms have a normal part: the pressure and gravity terms are
+               ! tangent by construction. delta is the rate at which advection
+               ! would take the momentum off the bed; it converges to
+               ! -rho Hn Q, Q = u.Hess(b).u.
+               if (RunParams%curvature .or. RunParams%curvature_friction) then
+                  advX = (tiles(tID)%hXFlux(irhoHnu, i, j) - tiles(tID)%hXFlux(irhoHnu, i + 1, j)) * deltaXRecip + &
+                     (tiles(tID)%hYFlux(irhoHnu, i, j) - tiles(tID)%hYFlux(irhoHnu, i, j + 1)) * deltaYRecip
+                  advY = (tiles(tID)%hXFlux(irhoHnv, i, j) - tiles(tID)%hXFlux(irhoHnv, i + 1, j)) * deltaXRecip + &
+                     (tiles(tID)%hYFlux(irhoHnv, i, j) - tiles(tID)%hYFlux(irhoHnv, i, j + 1)) * deltaYRecip
+                  advZ = (tiles(tID)%wXFlux(i, j) - tiles(tID)%wXFlux(i + 1, j)) * deltaXRecip + &
+                     (tiles(tID)%wYFlux(i, j) - tiles(tID)%wYFlux(i, j + 1)) * deltaYRecip
+                  delta = (advZ - dbdx * advX - dbdy * advY) / gam
+               end if
+               if (RunParams%curvature) then
+                  STE(irhoHnu) = STE(irhoHnu) + delta * dbdx / (gam * gam)
+                  STE(irhoHnv) = STE(irhoHnv) + delta * dbdy / (gam * gam)
+               end if
+
                tiles(tID)%ddtExplicit(1:nFlux,i,j) = STF(1:nFlux) + STE(1:nFlux)
 
-               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j))
+               gn = BasalNormalStress(RunParams, tiles(tID)%u(:,i,j), gam, delta)
+               Friction = DragClosure(RunParams, tiles(tID)%u(:,i,j), gn)
                call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,j), Friction, STI)
                tiles(tID)%ddtImplicit(1:nFlux,i,j) = STI(1:nFlux)
             end do
@@ -1375,7 +1443,8 @@ contains
                else if (d == RunParams%Vars%Hnpsi) then
                   STF(d) = (tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) * deltaXRecip / gam
                else
-                  STF(d) = KahanSum([tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1), &
+                  ! Momentum advection is gamma-weighted, as in the 2D case.
+                  STF(d) = KahanSum([(tiles(tID)%hXFlux(d, i, 1) - tiles(tID)%hXFlux(d, i + 1, 1)) / gam, &
                      (tiles(tID)%gXFlux(d, i, 1) - tiles(tID)%gXFlux(d, i + 1, 1)) / gam,  &
                      tiles(tID)%pXFlux(d, i + 1, 1) - tiles(tID)%pXFlux(d, i, 1)]) * deltaXRecip
                end if
@@ -1383,14 +1452,195 @@ contains
 
             call ExplicitSourceTerms(RunParams, grid, t, tiles(tID)%x(i), tiles(tID)%y(1), &
                                      tiles(tID)%u(:,i,1), tiles(tID)%containsSource, STE, gam)
+
+            ! Normal reaction of the curved bed, as in the 2D case.
+            if (RunParams%curvature .or. RunParams%curvature_friction) then
+               dbdx = tiles(tID)%u(idbdx, i, 1)
+               advX = (tiles(tID)%hXFlux(irhoHnu, i, 1) - tiles(tID)%hXFlux(irhoHnu, i + 1, 1)) * deltaXRecip
+               advZ = (tiles(tID)%wXFlux(i, 1) - tiles(tID)%wXFlux(i + 1, 1)) * deltaXRecip
+               delta = (advZ - dbdx * advX) / gam
+            end if
+            if (RunParams%curvature) then
+               STE(irhoHnu) = STE(irhoHnu) + delta * dbdx / (gam * gam)
+            end if
+
             tiles(tID)%ddtExplicit(1:nFlux,i,1) = STF(1:nFlux) + STE(1:nFlux)
 
-            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1))
+            gn = BasalNormalStress(RunParams, tiles(tID)%u(:,i,1), gam, delta)
+            Friction = DragClosure(RunParams, tiles(tID)%u(:,i,1), gn)
             call ImplicitSourceTerms(RunParams, tiles(tID)%u(:,i,1), Friction, STI)
             tiles(tID)%ddtImplicit(1:nFlux,i,1) = STI(1:nFlux)
          end do
       end if
 
    end subroutine ConstructHydraulicRHS
+
+   ! Basal normal stress per unit density and depth Hn, for the drag closures:
+   ! the normal component of gravity g/gam and, with 'Curvature friction', the
+   ! centripetal acceleration Q/gam of flow over the curved bed, Q = u.Hess(b).u
+   ! (Peruzzetto et al., J. Geophys. Res. Earth Surf., 2021). Q is taken from
+   ! the normal reaction delta -> -rho Hn Q of the projection, so that the
+   ! drag sees the same bed curvature as the momentum equation, and the
+   ! stress is clipped at zero where the flow would leave the bed.
+   pure function BasalNormalStress(RunParams, uvect, gam, delta) result(gn)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), intent(in) :: gam, delta
+      real(kind=wp) :: gn
+
+      real(kind=wp) :: Hn, Q
+
+      gn = RunParams%g / gam
+      if (.not. RunParams%curvature_friction) return
+
+      Hn = uvect(RunParams%Vars%Hn)
+      if (Hn <= RunParams%heightThreshold) return
+      Q = -delta / (uvect(RunParams%Vars%rho) * Hn)
+      gn = max(0.0_wp, (RunParams%g + Q) / gam)
+   end function BasalNormalStress
+
+   ! Vertical momentum rho*Hn*w of the state uvect, for flow tangent to a bed
+   ! with the given slopes (dbdx, dbdy): w = dbdx*u + dbdy*v.
+   pure function VerticalMomentum(RunParams, uvect, slopes) result(wMom)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp), dimension(2), intent(in) :: slopes
+      real(kind=wp) :: wMom
+
+      wMom = slopes(1) * uvect(RunParams%Vars%u)
+      if (.not. RunParams%isOneD) wMom = wMom + slopes(2) * uvect(RunParams%Vars%v)
+      wMom = wMom * uvect(RunParams%Vars%rho) * uvect(RunParams%Vars%Hn)
+   end function VerticalMomentum
+
+   ! Bed slopes used for the vertical velocity of the reconstruction on the
+   ! plus (cell i) or minus (cell i - 1) side of x face i. These are the slopes
+   ! of that cell, extrapolated to the face with a van Leer limiter, weighted
+   ! down where the bed is not resolved (see LimitedSlopeChange). Where the bed
+   ! is smooth this is a second order approximation of the slope at the face,
+   ! so the turning of the flow between cells is split between the faces and
+   ! the curvature term is second order accurate. Where the slope changes
+   ! direction, or changes by O(1) from one cell to the next, as on a steep
+   ! bank that the grid does not resolve, the face value reverts to the cell's
+   ! own slope, so that fluid leaving a cell carries that cell's bed-tangent
+   ! velocity. This is what stops the velocity in a thin cell that is only
+   ! losing fluid from growing without bound.
+   pure function XFaceSlopes(RunParams, tiles, tID, i, j, plus) result(slopes)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(in) :: tiles
+      integer, intent(in) :: tID, i, j
+      logical, intent(in) :: plus
+      real(kind=wp), dimension(2) :: slopes
+
+      integer :: c
+
+      c = merge(i, i - 1, plus)
+      slopes = XCellSlopes(RunParams, tiles, tID, c, j)
+      slopes = slopes + merge(-0.5_wp, 0.5_wp, plus) * &
+         LimitedSlopeChange(XCellSlopes(RunParams, tiles, tID, c + 1, j) - slopes, &
+                            slopes - XCellSlopes(RunParams, tiles, tID, c - 1, j), slopes)
+   end function XFaceSlopes
+
+   ! As XFaceSlopes, for y face j.
+   pure function YFaceSlopes(RunParams, tiles, tID, i, j, plus) result(slopes)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(in) :: tiles
+      integer, intent(in) :: tID, i, j
+      logical, intent(in) :: plus
+      real(kind=wp), dimension(2) :: slopes
+
+      integer :: c
+
+      c = merge(j, j - 1, plus)
+      slopes = YCellSlopes(RunParams, tiles, tID, i, c)
+      slopes = slopes + merge(-0.5_wp, 0.5_wp, plus) * &
+         LimitedSlopeChange(YCellSlopes(RunParams, tiles, tID, i, c + 1) - slopes, &
+                            slopes - YCellSlopes(RunParams, tiles, tID, i, c - 1), slopes)
+   end function YFaceSlopes
+
+   ! Change in slope across a cell, componentwise, given the one-sided
+   ! differences a and b and the cell's slopes s: the van Leer (harmonic mean)
+   ! limiter, 2ab/(a + b) where a and b have the same sign and 0 otherwise,
+   ! weighted by 1/(1 + (rho/rho0)^2). Here rho = |s m| / (2 (1 + |s|^2)), with
+   ! m the van Leer value, is the turning of the flow over half a cell that
+   ! the change would produce, so the weight is close to 1 where the bed is
+   ! resolved and small on steep banks the grid does not resolve. Both factors
+   ! vary smoothly with their arguments, which keeps symmetric flows symmetric
+   ! and avoids cell-to-cell oscillations where the bed is not resolved.
+   pure function LimitedSlopeChange(a, b, s) result(m)
+      implicit none
+
+      real(kind=wp), dimension(2), intent(in) :: a, b, s
+      real(kind=wp), dimension(2) :: m
+
+      real(kind=wp), parameter :: rho0 = 0.2_wp
+      real(kind=wp), dimension(2) :: rho
+
+      where (a * b > 0.0_wp)
+         m = 2.0_wp * a * b / (a + b)
+      elsewhere
+         m = 0.0_wp
+      end where
+      rho = abs(s * m) / (2.0_wp * (1.0_wp + sum(s * s)))
+      m = m / (1.0_wp + (rho / rho0)**2)
+   end function LimitedSlopeChange
+
+   ! Bed slopes (dbdx, dbdy) of cell (i, j) of tile tID, where i < 1 or
+   ! i > nXpertile refers to the cells of the west or east tiles.
+   pure function XCellSlopes(RunParams, tiles, tID, i, j) result(slopes)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(in) :: tiles
+      integer, intent(in) :: tID, i, j
+      real(kind=wp), dimension(2) :: slopes
+
+      integer :: t, ii
+
+      t = tID
+      ii = i
+      if (i < 1) then
+         t = tiles(tID)%West
+         ii = RunParams%nXpertile + i
+      else if (i > RunParams%nXpertile) then
+         t = tiles(tID)%East
+         ii = i - RunParams%nXpertile
+      end if
+      slopes(1) = tiles(t)%u(RunParams%Vars%dbdx, ii, j)
+      slopes(2) = 0.0_wp
+      if (.not. RunParams%isOneD) slopes(2) = tiles(t)%u(RunParams%Vars%dbdy, ii, j)
+   end function XCellSlopes
+
+   ! As XCellSlopes, with j < 1 or j > nYpertile referring to the south or
+   ! north tiles.
+   pure function YCellSlopes(RunParams, tiles, tID, i, j) result(slopes)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(TileType), dimension(:), intent(in) :: tiles
+      integer, intent(in) :: tID, i, j
+      real(kind=wp), dimension(2) :: slopes
+
+      integer :: t, jj
+
+      t = tID
+      jj = j
+      if (j < 1) then
+         t = tiles(tID)%South
+         jj = RunParams%nYpertile + j
+      else if (j > RunParams%nYpertile) then
+         t = tiles(tID)%North
+         jj = j - RunParams%nYpertile
+      end if
+      slopes(1) = tiles(t)%u(RunParams%Vars%dbdx, i, jj)
+      slopes(2) = tiles(t)%u(RunParams%Vars%dbdy, i, jj)
+   end function YCellSlopes
 
 end module hydraulic_rhs_module
