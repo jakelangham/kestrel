@@ -14,7 +14,7 @@ There are two **required** settings in the *Parameters* block:
 
     .. math::
 
-        {\tau_b}_{x} = \mathcal{F} \bar{\rho}\bar{u}/|\bar{\mathbf{u}}|, \qquad {\tau_b}_{y} = \mathcal{F} \bar{\rho}\bar{v}/|\bar{\mathbf{u}}|,
+        {\tau_b}_{x} = \mathcal{F} \bar{\rho}\bar{u}/|\mathbf{u}|, \qquad {\tau_b}_{y} = \mathcal{F} \bar{\rho}\bar{v}/|\mathbf{u}|,
         
     where (as detailed in
     :ref:`physical_model`) :math:`\mathcal{F}` is a friction function that may
@@ -40,10 +40,7 @@ There are two **required** settings in the *Parameters* block:
 
             Sets the Manning drag law
             
-                :math:`\mathcal{F} = \dfrac{g_\perp n^2}{H^{1/3}}`,
-
-            where :math:`g_\perp` is gravitational acceleration resolved
-            perpendicular to the local slope.
+                :math:`\mathcal{F} = \dfrac{g n^2 |\mathbf{u}|^2}{H^{1/3}}`.
 
             The **conditionally optional** setting
 
