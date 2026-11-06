@@ -257,13 +257,13 @@ contains
 
             call CalculateHydraulicRHS(RunParams, grid, grid%intermed0, &
                                        grid%t, 1, advisedTimeStep)
-            if (advisedTimeStep < dt_hydro) then
-               ! Make sure dt changes by at least 10%
-               if ((dt_hydro - advisedTimeStep) / dt_hydro < 0.1_wp) then
-                  dt_hydro = 0.9_wp * dt_hydro
-               else
-                  dt_hydro = advisedTimeStep
-               end if
+            ! The advised step for substep 1 is 90% of the largest stable step
+            ! (see ComputeAdvisedTimeStep). That safety factor is for choosing
+            ! a new dt, so it is removed here, where we only ask whether the
+            ! current dt is still stable. Otherwise, any step taken at exactly
+            ! the advised dt is abandoned if the wave speeds have grown at all.
+            if (advisedTimeStep / 0.9_wp < dt_hydro) then
+               dt_hydro = advisedTimeStep
                grid%dt = dt_hydro
                grid%t = grid%t0 ! otherwise need to reset t
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
