@@ -124,7 +124,7 @@ contains
       real(kind=wp) :: advisedTimeStep, nextT, tmax
       real(kind=wp) :: dt_hydro, dt_morpho
 
-      integer :: nTiles, nActiveTiles, nDimensions, nFlux
+      integer :: nTiles, nActiveTiles, nDimensions, nFlux, tt
 
       logical :: integrating, firstStep, refineTimeStep
 
@@ -299,6 +299,15 @@ contains
                                copyTopog=RunParams%MorphodynamicsOn)
          grid%intermedTopogSynced = .true.
          grid%intermedInterfTopogSynced = .true.
+
+         ! Clear the dry cells of the state just committed. The next attempt
+         ! starts from this state whether or not this step needed a retry, so
+         ! round-off in dry cells can't leak tile layout dependence into it.
+         !$omp parallel do schedule(runtime)
+         do tt = 1, grid%activeTiles%size
+            call ClearDryCells(RunParams, grid%tileContainer(grid%activeTiles%List(tt)))
+         end do
+         !$omp end parallel do
 
          ! Record previous simulation time and set current value.
          if (.not.RunParams%MorphodynamicsOn) then
