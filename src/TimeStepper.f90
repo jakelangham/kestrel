@@ -63,6 +63,16 @@ module timestepper_module
    private
    public :: Run
 
+   ! Parameters of the controller for the morphodynamic time step. After each
+   ! accepted step or morphodynamic rejection, dt is scaled to aim for this
+   ! fraction of the morphodynamic limits (see MorphodynamicTimeStepper)...
+   real(kind=wp), parameter :: morphoDtSafety = 0.8_wp
+   ! ...but it grows by no more than this factor from one step to the next...
+   real(kind=wp), parameter :: morphoDtMaxGrowth = 1.2_wp
+   ! ...and a rejection scales it by a factor within these bounds.
+   real(kind=wp), parameter :: morphoDtMinShrink = 0.1_wp
+   real(kind=wp), parameter :: morphoDtMaxShrink = 0.7_wp
+
 contains
 
    ! Run the simulation, assuming RunParams has been loaded and the numerical
@@ -123,10 +133,11 @@ contains
 
       real(kind=wp) :: advisedTimeStep, nextT, tmax
       real(kind=wp) :: dt_hydro, dt_morpho
+      real(kind=wp) :: dtLimit, morphoEta
 
       integer :: nTiles, nActiveTiles, nDimensions, nFlux, tt
 
-      logical :: integrating, firstStep, refineTimeStep
+      logical :: integrating, firstStep, refineTimeStep, dtClampedToTmax
 
       nTiles = grid%nTiles
       nActiveTiles = grid%activeTiles%size
@@ -142,6 +153,14 @@ contains
       end if
 
       firstStep = .true.
+
+      ! The morphodynamic operator can limit dt far below the CFL step. We
+      ! remember that limit between steps, to avoid abandoning each step
+      ! several times to find it again. It is forgotten every output interval,
+      ! so that a run restarted from an output file takes the same time steps.
+      dtLimit = huge(dtLimit)
+      morphoEta = 0.0_wp
+      dtClampedToTmax = .false.
 
       ! We integrate using Strang operator splitting method to separate the
       ! hydraulic and morphodynamic parts. If morphodynamics is not set
@@ -163,6 +182,8 @@ contains
          if (.not. RunParams%MorphodynamicsOn) then
             advisedTimeStep = min(advisedTimeStep, tmax - grid%t)
          else
+            advisedTimeStep = min(advisedTimeStep, dtLimit)
+            dtClampedToTmax = 0.5_wp * (tmax - grid%t) < advisedTimeStep
             advisedTimeStep = min(advisedTimeStep, 0.5_wp * (tmax - grid%t))
          end if
          grid%dt = advisedTimeStep
@@ -230,7 +251,7 @@ contains
             ! The morphodynamic operator changes the topographic data in the
             ! intermed arrays (but not tileContainer).
             grid%intermedTopogSynced = .false.
-            call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep)
+            call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep, morphoEta)
 
             if (refineTimeStep) then
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
@@ -242,6 +263,7 @@ contains
                ! Set hydraulic dt to new suggested step.
                dt_hydro = 0.5_wp * dt_morpho
                grid%dt = dt_hydro
+               dtClampedToTmax = .false.
                cycle
             end if
 
@@ -289,6 +311,13 @@ contains
 #endif
 #endif
          end do
+
+         ! Set the limit on the next step. A step shortened only to land on
+         ! tmax says little about the step that the flow could take, so it
+         ! doesn't change the limit.
+         if (RunParams%MorphodynamicsOn .and. .not. dtClampedToTmax) then
+            dtLimit = dt_hydro * morphoDtSafety / max(morphoEta, morphoDtSafety / morphoDtMaxGrowth)
+         end if
 
          ! Copy final time step back into main solution vector. The topographic
          ! data are unchanged unless morphodynamics is on. If it is, the
@@ -590,13 +619,17 @@ contains
    ! Try to compute a single time step of interval thisdt for the morphodynamic
    ! subproblem. If thisdt is deemed to be too large for a stable time step to 
    ! be taken return refineTimeStep = .true.
-   subroutine MorphodynamicTimeStepper(RunParams, grid, thisdt, refineTimeStep)
+   ! Also returns eta, the largest ratio of a quantity limiting thisdt to its
+   ! limit (see below), so that eta > 1 implies a violation. For a smooth update
+   ! this is roughly proportional to dt, so it is used to choose the next dt.
+   subroutine MorphodynamicTimeStepper(RunParams, grid, thisdt, refineTimeStep, eta)
       implicit none
 
       type(RunSet), intent(inout) :: RunParams
       type(GridType), target, intent(inout) :: grid
       real(kind=wp), intent(inout) :: thisdt
       logical, intent(inout) :: refineTimeStep
+      real(kind=wp), intent(out) :: eta
 
       type(TileType), dimension(:), pointer :: tileContainer
       type(TileList), pointer :: activeTiles
@@ -612,6 +645,7 @@ contains
       real(kind=wp), dimension(:, :, :), allocatable :: redistExcess
       integer, dimension(:), allocatable :: redistTile, redistI, redistJ
       real(kind=wp), dimension(:), allocatable :: redistVal
+      real(kind=wp), dimension(:), allocatable :: tileEta
 
       tileContainer => grid%tileContainer
       activeTiles => grid%activeTiles
@@ -793,10 +827,12 @@ contains
       ! needs the time step to be refined, and which of its cells need their
       ! deposition corrected; the shared redistcells list is built afterwards,
       ! in tile order, so that it doesn't depend on the number of threads.
+      ! All cells are checked even after a violation is found, to get the
+      ! largest violation for eta.
       nX = RunParams%nXpertile
       nY = RunParams%nYpertile
       allocate(tileRefine(ActiveTiles%Size), redistCell(nX, nY, ActiveTiles%Size), &
-               redistExcess(nX, nY, ActiveTiles%Size))
+               redistExcess(nX, nY, ActiveTiles%Size), tileEta(ActiveTiles%Size))
 
       !$omp parallel do schedule(runtime) &
       !$omp private(ttk, i, j, gamold, gamnew, Hn_old, Hn_new, excess_dep, deltaBt, psiold, relhdiff)
@@ -804,7 +840,8 @@ contains
          ttk = ActiveTiles%List(tt)
          tileRefine(tt) = .false.
          redistCell(:, :, tt) = .false.
-         cells: do j = 1, nY
+         tileEta(tt) = 0.0_wp
+         do j = 1, nY
             do i = 1, nX
                gamold = GeometricCorrectionFactor(RunParams, intermed0(ttk)%u(:,i,j))
                gamnew = GeometricCorrectionFactor(RunParams, intermed3(ttk)%u(:,i,j))
@@ -832,7 +869,10 @@ contains
                      redistExcess(i, j, tt) = excess_dep
                   else
                      tileRefine(tt) = .true.
-                     exit cells
+                     ! Over-deposition ratio, bounded in case the cell deposits
+                     ! everything that it has (or more).
+                     tileEta(tt) = max(tileEta(tt), &
+                        deltaBt / max(deltaBt - excess_dep, deltaBt / 16.0_wp))
                   end if
                   cycle
                end if
@@ -840,16 +880,17 @@ contains
                ! changed by too much (and if so, refine the time step).
                if (Hn_old < RunParams%EroCriticalHeight) cycle
                relhdiff = abs(Hn_new - Hn_old) / abs(Hn_old)
+               tileEta(tt) = max(tileEta(tt), relhdiff / 0.1_wp)
                if (relhdiff > 0.1_wp) then
                   tileRefine(tt) = .true.
-                  exit cells
                end if
             end do
-         end do cells
+         end do
       end do
       !$omp end parallel do
 
       refineTimeStep = any(tileRefine)
+      eta = maxval(tileEta)
       if (.not. refineTimeStep) then
          nRedist = count(redistCell)
          allocate(redistTile(nRedist), redistI(nRedist), redistJ(nRedist), redistVal(nRedist))
@@ -869,7 +910,7 @@ contains
          end do
          call BuildRedistList(redistcells, redistTile, redistI, redistJ, redistVal)
       end if
-      deallocate(tileRefine, redistCell, redistExcess)
+      deallocate(tileRefine, redistCell, redistExcess, tileEta)
 
       ! Some cells may have been marked for redistribution in the loop above.
       ! This is handled by RedistributeGrid, which makes a small correction to
@@ -879,7 +920,13 @@ contains
       end if
 
       if (refineTimeStep) then
-         newdt = 0.5_wp * thisdt
+         ! Aim directly for a dt that satisfies the limits. If the rejection
+         ! didn't come from them (i.e. RedistributeGrid failed), just halve dt.
+         if (eta > 1.0_wp) then
+            newdt = max(morphoDtMinShrink, min(morphoDtMaxShrink, morphoDtSafety / eta)) * thisdt
+         else
+            newdt = 0.5_wp * thisdt
+         end if
          thisdt = newdt
          call ReportRevisedTimeStep(RunParams, grid%t0, newdt * 0.5_wp)
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
