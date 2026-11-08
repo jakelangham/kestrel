@@ -604,6 +604,10 @@ contains
             end if
          end do
 
+         ! The correction changed the momenta, so the velocities in intermed3
+         ! must be recomputed. The morphodynamic operator, which starts from
+         ! intermed3, uses them to compute erosion.
+         call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .true.)
          call ComputeDesingularisedVariables(RunParams, tileContainer, ttk, .true.)
          call ClearDryCells(RunParams, tileContainer(ttk))
          call UpdateMaximumHeights(RunParams, tileContainer(ttk), nextT)
@@ -709,7 +713,10 @@ contains
                intermed1(ttk)%u(iHnpsi, i, j) = Hnpsi
             end do
          end do
-         call ComputeDesingularisedVariables(RunParams, intermed1, ttk, .false.)
+         ! The momenta are unchanged but the density isn't, so the velocities
+         ! (which erosion depends on) must be recomputed for the next substep.
+         ! Using those of the previous substep makes the operator first order.
+         call ComputeDesingularisedVariables(RunParams, intermed1, ttk, .true.)
       end do
       !$omp end do
       !$omp end parallel
@@ -760,7 +767,7 @@ contains
                intermed2(ttk)%u(iHnpsi, i, j) = Hnpsi
             end do
          end do
-         call ComputeDesingularisedVariables(RunParams, intermed2, ttk, .false.)
+         call ComputeDesingularisedVariables(RunParams, intermed2, ttk, .true.)
       end do
       !$omp end do
       !$omp end parallel
@@ -810,7 +817,7 @@ contains
                intermed3(ttk)%u(iHnpsi, i, j) = Hnpsi
             end do
          end do
-         call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .false.)
+         call ComputeDesingularisedVariables(RunParams, intermed3, ttk, .true.)
       end do
       !$omp end do
       !$omp end parallel
