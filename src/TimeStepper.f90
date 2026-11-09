@@ -50,7 +50,7 @@ module timestepper_module
    use grid_module, only: GridType, TileList, TileType, TileInBounds, OnDomainEdge
    use redistribute_module, only: BuildRedistList, ExcessDeposition, RedistributeGrid, RedistList
    use runsettings_module, only: RunSet
-   use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
+   use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor, FrontRamp
    use hydraulic_rhs_module, only: CalculateHydraulicRHS, ComputeDesingularisedVariables
    use morphodynamic_rhs_module, only: CalculateMorphodynamicRHS, ComputeCellCentredTopographicData, ComputeInterfacialTopographicData
    use update_tiles_module, only: AddTile
@@ -470,9 +470,10 @@ contains
 
       real(kind=wp), pointer :: t
       real(kind=wp) :: dt1, dt2, dt3
-      integer :: tt, ttk, k, nFlux, var
+      integer :: tt, ttk, k, nFlux, var, i, j
+      real(kind=wp) :: r
 
-      real(kind=wp), dimension(:,:), allocatable :: hp_old, hp_new, w_update
+      real(kind=wp), dimension(:,:), allocatable :: hp_old, hp_new, w_update, uStage, wCorr
 
       ! These pointers simplify notation.
       tileContainer => grid%tileContainer
@@ -483,7 +484,9 @@ contains
       ! Temp arrays needed for partial calculations.
       allocate(hp_old(RunParams%nXpertile, RunParams%nYpertile), &
                hp_new(RunParams%nXpertile, RunParams%nYpertile), &
-               w_update(RunParams%nXpertile, RunParams%nYpertile))
+               w_update(RunParams%nXpertile, RunParams%nYpertile), &
+               uStage(RunParams%nXpertile, RunParams%nYpertile), &
+               wCorr(RunParams%nXpertile, RunParams%nYpertile))
 
       t => grid%t
       nextT = grid%t + thisdt
@@ -634,19 +637,45 @@ contains
       call RequestTileActivation(RunParams, grid, intermed3)
 
       ! Final implicit substep.
-      !$omp parallel do schedule(runtime) private(ttk, k, var)
+      !$omp parallel do schedule(runtime) private(ttk, k, var, i, j, r, uStage, wCorr)
       do tt = 1, ActiveTiles%Size
          ttk = ActiveTiles%List(tt)
 
          call ApplySpongeLayer(RunParams, ttk, tileContainer, intermed3, .false.)
 
+         ! Weight of the correction below. The correction assumes that the
+         ! stages have resolved how the cell's mass changes over the step. It
+         ! is not valid where the depth changes by O(1) within the step, e.g.
+         ! where a front arrives at a dry cell late in the step. There, E is
+         ! the inflow from a deeper neighbour that the stages have hardly
+         ! integrated, and the correction sets the momentum to near the drag
+         ! balance -E/I while w (which isn't corrected) holds little mass,
+         ! giving speeds of up to ~80 m/s that then limit the CFL time step.
+         ! The weight is 1 while the relative depth change over a step,
+         ! r = dt |dw/dt| / Hn, is below 1, and falls smoothly to 0 at r = 2.
+         ! In smooth flow r ~ dx / (length scale of the flow), so the
+         ! correction is unchanged away from fronts, and as dt -> 0.
+         do j = 1, RunParams%nYpertile
+            do i = 1, RunParams%nXpertile
+               if (intermed3(ttk)%u(RunParams%Vars%Hn, i, j) > 0.0_wp) then
+                  r = thisdt * abs(intermed3(ttk)%ddtExplicit(RunParams%Vars%w, i, j)) / &
+                      intermed3(ttk)%u(RunParams%Vars%Hn, i, j)
+                  wCorr(i, j) = 1.0_wp - FrontRamp(0.5_wp * (r - 1.0_wp))
+               else
+                  wCorr(i, j) = 1.0_wp
+               end if
+            end do
+         end do
+
          do k = 1, nFlux
             var = RunParams%iFlux(k)
             if (RunParams%ImplicitStep(var)) then
+               uStage = intermed3(ttk)%u(var,:,:)
                intermed3(ttk)%u(var,:,:) = &
                   (intermed3(ttk)%u(var,:,:) - &
                   thisdt * thisdt * intermed3(ttk)%ddtExplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:)) / &
                   (1.0_wp + thisdt * thisdt * intermed3(ttk)%ddtImplicit(var,:,:) * intermed3(ttk)%ddtImplicit(var,:,:))
+               intermed3(ttk)%u(var,:,:) = uStage + wCorr * (intermed3(ttk)%u(var,:,:) - uStage)
             end if
          end do
 
