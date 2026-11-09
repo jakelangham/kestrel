@@ -47,7 +47,7 @@ module timestepper_module
 
    use set_precision_module, only: wp
    use messages_module, only: InfoMessage, TimestepMessage, RevisedTimestepMessage, WarningMessage
-   use grid_module, only: GridType, TileList, TileType
+   use grid_module, only: GridType, TileList, TileType, TileInBounds, OnDomainEdge
    use redistribute_module, only: BuildRedistList, ExcessDeposition, RedistributeGrid, RedistList
    use runsettings_module, only: RunSet
    use closures_module, only : ComputeHn, FlowSquaredSpeedSlopeAligned, GeometricCorrectionFactor
@@ -134,6 +134,10 @@ contains
       real(kind=wp) :: advisedTimeStep, nextT, tmax
       real(kind=wp) :: dt_hydro, dt_morpho
       real(kind=wp) :: dtLimit, morphoEta
+      ! dt and dtClampedToTmax at the start of the current attempt at a step,
+      ! which is repeated with them if it needs more tiles.
+      real(kind=wp) :: dtAttempt
+      logical :: dtClampedAttempt
 
       integer :: nTiles, nActiveTiles, nDimensions, nFlux, tt
 
@@ -192,6 +196,9 @@ contains
          ! This loop tries to complete a single H(dt) * M(2dt) * H(dt) step.
          grid%t0 = grid%t ! t0 is the t to fall back to if dt gets revised.
          do while (.true.)
+            dtAttempt = dt_hydro
+            dtClampedAttempt = dtClampedToTmax
+
             ! Copy necessary data over to the intermed{0-3} arrays, which
             ! store the solution vector at each substep of the method.
             ! The time dependent topographic data are only changed by the
@@ -227,6 +234,18 @@ contains
 
             call HydraulicTimeStepper(RunParams, grid, dt_hydro, nextT, refineTimeStep)
 
+            ! Flow reached an inactive tile during the attempt, so it is
+            ! repeated with the same dt once that tile is active. This takes
+            ! precedence over refining dt, since the attempt is not what it
+            ! would have been with the tile active (see RequestTileActivation).
+            if (grid%activationPending) then
+               call RestartStepWithRequestedTiles(RunParams, grid, nActiveTiles)
+               dt_hydro = dtAttempt
+               grid%dt = dt_hydro
+               dtClampedToTmax = dtClampedAttempt
+               cycle
+            end if
+
             if (refineTimeStep) then
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
                call InfoMessage('Refining at first hydraulic substep')
@@ -252,6 +271,14 @@ contains
             ! intermed arrays (but not tileContainer).
             grid%intermedTopogSynced = .false.
             call MorphodynamicTimeStepper(RunParams, grid, dt_morpho, refineTimeStep, morphoEta)
+
+            if (grid%activationPending) then
+               call RestartStepWithRequestedTiles(RunParams, grid, nActiveTiles)
+               dt_hydro = dtAttempt
+               grid%dt = dt_hydro
+               dtClampedToTmax = dtClampedAttempt
+               cycle
+            end if
 
             if (refineTimeStep) then
 #if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
@@ -279,6 +306,14 @@ contains
 
             call CalculateHydraulicRHS(RunParams, grid, grid%intermed0, &
                                        grid%t, 1, advisedTimeStep)
+            call RequestTileActivation(RunParams, grid, grid%intermed0)
+            if (grid%activationPending) then
+               call RestartStepWithRequestedTiles(RunParams, grid, nActiveTiles)
+               dt_hydro = dtAttempt
+               grid%dt = dt_hydro
+               dtClampedToTmax = dtClampedAttempt
+               cycle
+            end if
             ! The advised step for substep 1 is 90% of the largest stable step
             ! (see ComputeAdvisedTimeStep). That safety factor is for choosing
             ! a new dt, so it is removed here, where we only ask whether the
@@ -299,6 +334,14 @@ contains
             end if
 
             call HydraulicTimeStepper(RunParams, grid, dt_hydro, nextT, refineTimeStep)
+
+            if (grid%activationPending) then
+               call RestartStepWithRequestedTiles(RunParams, grid, nActiveTiles)
+               dt_hydro = dtAttempt
+               grid%dt = dt_hydro
+               dtClampedToTmax = dtClampedAttempt
+               cycle
+            end if
 
             if (.not. refineTimeStep) then
                exit ! We're done
@@ -470,6 +513,7 @@ contains
 
       ! Compute new RHS from first substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed1, nextT, 2, dt1)
+      call RequestTileActivation(RunParams, grid, intermed1)
 
       ! Check that the first substep was ok. If too big, we recommend a new 
       ! dt and return.
@@ -531,6 +575,7 @@ contains
       ! Compute new RHS from second substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed2, &
                                  t + 0.5_wp * thisdt, 3, dt2)
+      call RequestTileActivation(RunParams, grid, intermed2)
 
       ! Check that the second substep was ok. If too big, we recommend a new 
       ! dt and return.
@@ -586,6 +631,7 @@ contains
 
       ! Compute new RHS from third substep.
       call CalculateHydraulicRHS(RunParams, grid, intermed3, nextT, 4, dt3)
+      call RequestTileActivation(RunParams, grid, intermed3)
 
       ! Final implicit substep.
       !$omp parallel do schedule(runtime) private(ttk, k, var)
@@ -663,6 +709,7 @@ contains
       ! arrays. This allows us to roll back to the start of the hydraulic time 
       ! step if necessary.
       call CalculateMorphodynamicRHS(RunParams, grid, intermed0)
+      call RequestTileActivation(RunParams, grid, intermed0)
 
       ! Compute first substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
@@ -715,6 +762,7 @@ contains
       !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed1)
+      call RequestTileActivation(RunParams, grid, intermed1)
 
       ! Compute second substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
@@ -766,6 +814,7 @@ contains
       !$omp end parallel
 
       call CalculateMorphodynamicRHS(RunParams, grid, intermed2)
+      call RequestTileActivation(RunParams, grid, intermed2)
 
       ! Compute third substep for the bed evolution equation.
       !$omp parallel private(ttk, i, j, gamold, gamnew, Hn_old, db, w, Hnpsi_old, Hnpsi)
@@ -1206,6 +1255,108 @@ contains
          end where
       end if
    end subroutine ClearDryCells
+
+   ! Flag for activation each inactive tile next to a wet cell on the edge of an
+   ! active tile, in the stage of a time step held in tiles. Call this on the
+   ! input of every stage whose RHS updates the solution (once the RHS has been
+   ! computed, so that the depths in tiles are current).
+   !
+   ! Inactive (ghost) tiles are never time stepped, so flux across their edges
+   ! would be lost, and results would depend on the tile layout.
+   ! CheckIfNearBoundaries activates tiles before each step, but it cannot know
+   ! how far flow will spread during the step: up to one cell per Runge-Kutta
+   ! stage, i.e. 3 cells per hydraulic step and 6 per step with
+   ! morphodynamics, which is most of a small tile. Nor does it cover tiles
+   ! diagonal to the flow, since tiles that it activates hold no flow yet.
+   ! Instead, the attempt at a step is repeated once the flagged tiles are
+   ! active (see RestartStepWithRequestedTiles). No flux then ever reaches an
+   ! inactive tile. Up to and including the stage that sets a flag, the attempt
+   ! is identical to one with the tile active, since its cells are still dry.
+   !
+   ! Tiles that AddTile would refuse (outside the domain, or on its edge for
+   ! non-periodic boundaries) are not flagged, and are left to
+   ! CheckIfNearBoundaries, so that the boundary conditions behave as before.
+   subroutine RequestTileActivation(RunParams, grid, tiles)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), target, intent(inout) :: grid
+      type(TileType), dimension(:), intent(in) :: tiles
+
+      integer :: tt, ttk, side, nSides, nb, nX, nY, iHn
+      logical :: wet
+
+      nX = RunParams%nXpertile
+      nY = RunParams%nYpertile
+      iHn = RunParams%Vars%Hn
+      ! Neighbours are ordered W, E, N, S.
+      nSides = 4
+      if (RunParams%isOneD) nSides = 2
+
+      do tt = 1, grid%activeTiles%size
+         ttk = grid%activeTiles%List(tt)
+         do side = 1, nSides
+            nb = grid%tileContainer(ttk)%neighbours(side)
+            if (.not. TileInBounds(grid, nb)) cycle
+            if (grid%tileContainer(nb)%TileOn) cycle
+            if (grid%activationRequested(nb)) cycle
+            if (OnDomainEdge(grid, nb) .and. RunParams%bcs%s /= "periodic") cycle
+
+            select case (side)
+            case (1)
+               wet = any(tiles(ttk)%u(iHn, 1, :) > 0.0_wp)
+            case (2)
+               wet = any(tiles(ttk)%u(iHn, nX, :) > 0.0_wp)
+            case (3)
+               wet = any(tiles(ttk)%u(iHn, :, nY) > 0.0_wp)
+            case default
+               wet = any(tiles(ttk)%u(iHn, :, 1) > 0.0_wp)
+            end select
+
+            if (wet) then
+               grid%activationRequested(nb) = .true.
+               grid%activationPending = .true.
+            end if
+         end do
+      end do
+   end subroutine RequestTileActivation
+
+   ! Activate the tiles flagged by RequestTileActivation, and reset the grid to
+   ! repeat the current attempt at a step from grid%t0. The caller restores dt.
+   ! The intermed arrays are refreshed in full, as for any change to the tile
+   ! set, and the RHS of the first stage is recomputed, since it is needed for
+   ! the new tiles and changes at the edges they share with active tiles.
+   ! N.B. This must not be run in parallel (see CheckIfNearBoundaries).
+   subroutine RestartStepWithRequestedTiles(RunParams, grid, nActiveTiles)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      type(GridType), target, intent(inout) :: grid
+      integer, intent(inout) :: nActiveTiles
+
+      integer :: k
+      real(kind=wp) :: advisedTimeStep
+
+#if DEBUG_TIMESTEP==1 || DEBUG_TIMESTEP==2
+      call InfoMessage('Activating tiles reached during the step and repeating it')
+#endif
+
+      ! Activate in tile order, so the result doesn't depend on which stage
+      ! or tile flagged them.
+      do k = 1, grid%nTiles
+         if (grid%activationRequested(k)) then
+            call AddTile(grid, k, RunParams)
+            grid%activationRequested(k) = .false.
+         end if
+      end do
+      grid%activationPending = .false.
+      nActiveTiles = grid%activeTiles%size
+
+      grid%t = grid%t0
+      call InitialiseTimeSteppingArrays(nActiveTiles, grid)
+      call CalculateHydraulicRHS(RunParams, grid, grid%tileContainer, &
+                                 grid%t, 1, advisedTimeStep)
+   end subroutine RestartStepWithRequestedTiles
 
    ! Check if the flow as reached any edge of the active region. This is broken
    ! into four separate routines (below) that check each boundary.
