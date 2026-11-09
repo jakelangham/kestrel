@@ -407,6 +407,22 @@ below:
             * ``tanh`` (default). Sets :math:`\chi = \tfrac{1}{2}[1 + \tanh(10
               \log(H/H_c))]`.
 
+        At a flow front, a cell's mean depth :math:`H` mostly says how much of
+        the cell the flow covers, rather than how deep the flow on it is. So
+        in each cell, :math:`\chi` is evaluated at the largest depth
+        :math:`H_{\max}` among the cell and its neighbours, and the transfer
+        rates are further multiplied by :math:`s(H/H_{\max})\,s(H_{\min}/H_{\max})`,
+        where :math:`H_{\min}` is the smallest depth among the neighbours and
+        :math:`s(r) = q^2(3 - 2q)` with :math:`q = \min(2r, 1)`. The first
+        factor scales the rates with the covered fraction of the cell. The
+        second stops morphodynamics next to a dry cell, which prevents
+        erosion at the front bulking the flow and so spreading erosion into
+        dry cells. Both factors are 1 unless a neighbour's depth is less than
+        half the largest, so they only affect cells at fronts. Because they
+        change smoothly as a front crosses a cell, the results converge
+        properly as the time step is reduced, which they don't if the
+        morphodynamics switches on abruptly as :math:`H` passes :math:`H_c`.
+
     :code:`erosion depth = 1`
 
         Sets the depth in metres up to which erosion is permitted. In the
