@@ -32,7 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal, FrontRamp
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -847,6 +847,27 @@ contains
 
    end subroutine CorrectSlopesEdges
 
+   ! Factor applied to the eddy-viscosity flux at an interface whose two edge
+   ! depths are hA and hB: 1 unless one is less than half the other, and 0 if
+   ! either is dry. Without it, the average of the two sides' fluxes carries
+   ! momentum from a wet cell into a dry (or almost dry) neighbour with no
+   ! mass, where it accumulates step after step (ClearDryCells only clears
+   ! cells of exactly zero depth). When the cell later receives a little
+   ! mass, its velocity is then huge (> 100 m/s seen on real terrain) and
+   ! limits the CFL time step. In smooth wet flow the edge depths agree to
+   ! O(dx), so the flux is unchanged.
+   pure function WetInterfaceFraction(hA, hB) result(f)
+      implicit none
+      real(kind=wp), intent(in) :: hA, hB
+      real(kind=wp) :: f
+
+      if (min(hA, hB) <= 0.0_wp) then
+         f = 0.0_wp
+      else
+         f = FrontRamp(min(hA, hB) / max(hA, hB))
+      end if
+   end function WetInterfaceFraction
+
    ! Correct the reconstruction at the low (A) and high (B) edges of a cell
    ! whose free surface is wbar and bed (at its centre) is bc, where the bed at
    ! the edges is bA and bB. wA and wB are the free surface and qA and qB the
@@ -1250,7 +1271,9 @@ contains
                   hX = hX / dif
                   tiles(tID)%hXFlux(d, i, j) = hX
                   tiles(tID)%gXFlux(d, i, j) =  (aPos*uMinusHydrostaticFlux(k) - aNeg*uPlusHydrostaticFlux(k))/dif
-                  tiles(tID)%pXFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
+                  tiles(tID)%pXFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k)) * &
+                     WetInterfaceFraction(tiles(tID)%uPlusX(RunParams%Vars%Hn, i, j), &
+                                          tiles(tID)%uMinusX(RunParams%Vars%Hn, i, j))
                end if
             end do
          end do
@@ -1362,7 +1385,9 @@ contains
                      hY = hY / dif
                      tiles(tID)%hYFlux(d, i, j) = hY
                      tiles(tID)%gYFlux(d, i, j) = (aPos*uMinusHydrostaticFlux(k) - aNeg*uPlusHydrostaticFlux(k))/dif
-                     tiles(tID)%pYFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
+                     tiles(tID)%pYFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k)) * &
+                        WetInterfaceFraction(tiles(tID)%uPlusY(RunParams%Vars%Hn, i, j), &
+                                             tiles(tID)%uMinusY(RunParams%Vars%Hn, i, j))
                   end if
                end do
             end do
