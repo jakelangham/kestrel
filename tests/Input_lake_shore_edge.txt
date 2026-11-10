@@ -1,0 +1,44 @@
+%%ListType
+% Lake at rest in a parabolic bowl, b = 0.001 x^2, whose shoreline lies on a
+% cell edge (x = +-44 m, where b = 1.936). The wet/dry correction must keep it
+% exactly at rest.
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 16
+nYtiles = 1
+nXpertile = 10
+nYpertile = 1
+Xtilesize = 20
+Boundary Conditions = halt
+
+Cap:
+  capX = 0.0
+  capHeight = 1.9359999999
+  capRadius = 80.0
+  capShape = level
+  capU = 0
+  capConc = 0.0
+
+Parameters:
+Drag = Chezy
+Chezy Co = 0.04
+Erosion = Off
+Deposition = None
+Eddy Viscosity = 0
+
+Solver:
+T end = 1000.0
+cfl = 0.5
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_shore_edge/
+
+Topog:
+Type = Function
+Topog function = xparab
+Topog params = (0.001)
