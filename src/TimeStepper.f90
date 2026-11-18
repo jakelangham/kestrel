@@ -942,8 +942,8 @@ contains
 
                ! n.b. The check for deltaBtn > 0 is in case psi is computed to be slightly
                ! negative, which can be the case for very dilute flows.
-               if (excess_dep > epsilon(excess_dep) .and. &
-                   deltaBt > epsilon(deltaBt) .and. psiold > -epsilon(psiold)) then
+               if (excess_dep > 0.0_wp .and. &
+                   deltaBt > 0.0_wp .and. psiold > -epsilon(psiold)) then
                   ! If the cell is shallow, or only experienced a small 
                   ! amount of deposition, we shall apply a small correction by
                   ! calling RedistributeGrid (below).
