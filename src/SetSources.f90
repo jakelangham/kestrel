@@ -65,7 +65,7 @@ contains
       real(kind=wp) :: srcX, srcY, srcR
       real(kind=wp) :: R2
 
-      real(kind=wp) :: rho, rhow, rhos, rho_orig, Hn_orig, gam, hp
+      real(kind=wp) :: rho, rhow, rhos, rho_orig, Hn_orig, Hn_new, gam, hp
 
       ! These pointers and variables simplify notation.
       tileContainer => grid%tileContainer
@@ -156,7 +156,12 @@ contains
                                  tileContainer(k)%psimax(ii,:,1) = tileContainer(k)%psimax(ii,:,1) + cappsi
                               end if
                            end select
-                           tileContainer(k)%u(irho,ii,1) = (rho_orig * Hn_orig + rho * Hn) / (Hn_orig + Hn)
+                           ! Weight by the depth actually added, which is not always Hn and
+                           ! is zero where a 'level' source lies below the bed
+                           Hn_new = tileContainer(k)%u(iHn,ii,1)
+                           if (Hn_new > 0.0_wp) then
+                              tileContainer(k)%u(irho,ii,1) = (rho_orig*Hn_orig + rho*(Hn_new - Hn_orig)) / Hn_new
+                           end if
                         end if
 
                      end if
@@ -203,7 +208,12 @@ contains
                               tileContainer(k)%Hnmax(ii,:,1) = tileContainer(k)%Hnmax(ii,:,1) + cubeHn
                               tileContainer(k)%u(iHnpsi,ii,:) = tileContainer(k)%u(iHnpsi,ii,:) + cubepsi*cubeHn
                            end select
-                           tileContainer(k)%u(irho,ii,1) = (rho_orig * Hn_orig + rho * Hn) / (Hn_orig + Hn)
+                           ! Weight by the depth actually added, which is not always Hn and
+                           ! is zero where a 'level' source lies below the bed
+                           Hn_new = tileContainer(k)%u(iHn,ii,1)
+                           if (Hn_new > 0.0_wp) then
+                              tileContainer(k)%u(irho,ii,1) = (rho_orig*Hn_orig + rho*(Hn_new - Hn_orig)) / Hn_new
+                           end if
                         end if
 
                      end if
@@ -296,7 +306,12 @@ contains
                                        tileContainer(k)%u(iHnpsi,ii,jj) = tileContainer(k)%u(iHnpsi,ii,jj) + cappsi*Hn
                                     end if
                                  end select
-                                 tileContainer(k)%u(irho,ii,jj) = (rho_orig * Hn_orig + rho * Hn) / (Hn_orig + Hn)
+                                 ! Weight by the depth actually added, which is not always Hn and
+                                 ! is zero where a 'level' source lies below the bed
+                                 Hn_new = tileContainer(k)%u(iHn,ii,jj)
+                                 if (Hn_new > 0.0_wp) then
+                                    tileContainer(k)%u(irho,ii,jj) = (rho_orig*Hn_orig + rho*(Hn_new - Hn_orig)) / Hn_new
+                                 end if
                               end if
                            end if
                         end do
@@ -348,7 +363,12 @@ contains
                                     tileContainer(k)%u(irhoHnv,ii,jj) = tileContainer(k)%u(irhoHnv,ii,jj) + 0.0_wp
                                     tileContainer(k)%u(iHnpsi,ii,jj) = tileContainer(k)%u(iHnpsi,ii,jj) + cubepsi*cubeHn
                                  end select
-                                 tileContainer(k)%u(irho,ii,jj) = (rho_orig * Hn_orig + rho * Hn) / (Hn_orig + Hn)
+                                 ! Weight by the depth actually added, which is not always Hn and
+                                 ! is zero where a 'level' source lies below the bed
+                                 Hn_new = tileContainer(k)%u(iHn,ii,jj)
+                                 if (Hn_new > 0.0_wp) then
+                                    tileContainer(k)%u(irho,ii,jj) = (rho_orig*Hn_orig + rho*(Hn_new - Hn_orig)) / Hn_new
+                                 end if
                               end if
                            end if
                         end do
