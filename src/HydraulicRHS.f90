@@ -580,12 +580,12 @@ contains
       end if
    end subroutine Reconstruct
 
-   ! This routine applies a correction to the default reconstruction of w and
-   ! Hnpsi at cell interfaces (see above) in order to ensure that no
-   ! reconstructed points end up with w or Hnpsi < 0. We follow the well
-   ! balanced approach of Chertock et al. (2015), though the logic ends up being
-   ! rather complicated in order to account for tile boundaries and the need to
-   ! make sure that calculations are independent of the tiling layout.
+   ! This routine corrects the default reconstruction of w and Hnpsi at cell
+   ! interfaces (see above) so that no reconstructed edge has its free surface
+   ! below the bed or negative solids. The correction is that of Kurganov &
+   ! Petrova (2007), eqs (3.20)-(3.23); see CorrectWetDryEdges. The logic is
+   ! split in two to account for tile boundaries and to keep the results
+   ! independent of the tiling layout.
    !
    ! The work is split into two parts. CorrectSlopesInterior corrects the
    ! interfaces of each cell using only data from tile tID. CorrectSlopesEdges
@@ -960,9 +960,10 @@ contains
    ! flow variables. It employs 'desingularisation' formulae to prevent
    ! unphysical blow-up when flow depths are lower than
    ! RunParams%heightThreshold.  It is called within both the hydraulic and
-   ! morphodynamic parts of the time stepper. The computeVelocities flag exists
-   ! so we can exclude u & v computation within the morphodynamic part (within
-   ! which u & v are considered constant).
+   ! morphodynamic parts of the time stepper. With computeVelocities = .false.
+   ! u and v are left unchanged. The morphodynamic part holds the momenta fixed,
+   ! but it changes the depth and density, so it recomputes u and v after each
+   ! substep as well, since erosion depends on them.
    recursive subroutine ComputeDesingularisedVariables(RunParams, tiles, tID, &
       computeVelocities)
       implicit none
