@@ -652,15 +652,19 @@ contains
          ! balance -E/I while w (which isn't corrected) holds little mass,
          ! giving speeds of up to ~80 m/s that then limit the CFL time step.
          ! The weight is 1 while the relative depth change over a step,
-         ! r = dt |dw/dt| / Hn, is below 1, and falls smoothly to 0 at r = 2.
+         ! r = dt |dw/dt| / Hn, is below 2, and falls smoothly to 0 at r = 4.
          ! In smooth flow r ~ dx / (length scale of the flow), so the
-         ! correction is unchanged away from fronts, and as dt -> 0.
+         ! correction is unchanged away from fronts, and as dt -> 0. The
+         ! interval [2, 4] was chosen by testing: a ramp over [1, 2] also
+         ! removed the correction behind fronts in 1D runup at CFL 0.5,
+         ! raising the error fourfold, while starting it later than 2 risks
+         ! the time-step collapses it exists to prevent.
          do j = 1, RunParams%nYpertile
             do i = 1, RunParams%nXpertile
                if (intermed3(ttk)%u(RunParams%Vars%Hn, i, j) > 0.0_wp) then
                   r = thisdt * abs(intermed3(ttk)%ddtExplicit(RunParams%Vars%w, i, j)) / &
                       intermed3(ttk)%u(RunParams%Vars%Hn, i, j)
-                  wCorr(i, j) = 1.0_wp - FrontRamp(0.5_wp * (r - 1.0_wp))
+                  wCorr(i, j) = 1.0_wp - FrontRamp(0.25_wp * (r - 2.0_wp))
                else
                   wCorr(i, j) = 1.0_wp
                end if
