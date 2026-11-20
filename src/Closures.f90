@@ -54,7 +54,7 @@ module closures_module
    public :: SmoothErosionTransition, StepErosionTransition, NoErosionTransition
 
    public :: DragClosure
-   public :: ChezyDrag, ManningDrag, PowerLawDrag
+   public :: NoDrag, ChezyDrag, ManningDrag, PowerLawDrag
    public :: CoulombDrag, PouliquenDrag, Edwards2019Drag
    public :: VoellmyDrag, VariableDrag
 
@@ -64,6 +64,7 @@ module closures_module
 
    public :: MorphoDamping
    public :: NoMorphoDamping, tanhMorphoDamping, rat3MorphoDamping
+   public :: FrontRamp
 
    public :: Reciprocal
    public :: Desingularize_L1, Desingularize_L2, Desingularize_Linfty, Desingularize_step
@@ -374,6 +375,18 @@ contains
 !    N.B. Because of the way the time stepper works (treating the drag
 !    implicitly), these are required to define a 'friction' function F such that
 !    the basal stress is \tau_x = -F \rho u/|(u,v)|.
+
+   ! No drag: F = 0, for frictionless flows. A separate closure rather than
+   ! Chezy drag with Cd = 0, so that a zero coefficient can't be set by mistake.
+   pure function NoDrag(RunParams, uvect) result(friction)
+      implicit none
+
+      type(RunSet), intent(in) :: RunParams
+      real(kind=wp), dimension(:), intent(in) :: uvect
+      real(kind=wp) :: friction
+
+      friction = 0.0_wp
+   end function NoDrag
 
    ! Chezy drag has friction function F = Cd * |u|^2.
    pure function ChezyDrag(RunParams, uvect) result(friction)
@@ -820,6 +833,23 @@ contains
            damping = (t**3) / ((1.0_wp - t)**3 + t**3)
        end if
     end function rat3MorphoDamping
+
+    ! Smooth (C1) ramp in a depth ratio r, from 0 at r = 0 to 1 for
+    ! r >= frontRampWidth. Used to reduce E - D at flow fronts, where r is the
+    ! ratio of a cell's depth to the deepest depth in its stencil (see
+    ! CalculateMorphodynamicRHS in MorphodynamicRHS.f90).
+    pure function FrontRamp(r) result(s)
+       implicit none
+
+       real(kind=wp), intent(in) :: r
+       real(kind=wp) :: s
+
+       real(kind=wp), parameter :: frontRampWidth = 0.5_wp
+       real(kind=wp) :: q
+
+       q = min(max(r / frontRampWidth, 0.0_wp), 1.0_wp)
+       s = q * q * (3.0_wp - 2.0_wp * q)
+    end function FrontRamp
 
 ! -- Switching functions -- 
 !    Chezy-Pouliquen switching term as a function of the solid fraction psi.

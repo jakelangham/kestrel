@@ -254,7 +254,7 @@ contains
       do while (.true.)
          call ExcessDeposition(RunParams, intermed0, intermed3, &
                                cell%ttk, cell%i, cell%j, excess_dep, deltaBt, psiold)
-         if (excess_dep > epsilon(excess_dep)) then
+         if (excess_dep > 0.0_wp) then
             call RedistributeCell(RunParams, grid, &
                cell%ttk, cell%i, cell%j, excess_dep, redist_success)
             if (.not. redist_success) then

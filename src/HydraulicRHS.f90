@@ -32,7 +32,7 @@ module hydraulic_rhs_module
    use runsettings_module, only: RunSet
    use equations_module
    use limiters_module, only: limiter
-   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal
+   use closures_module, only: ComputeHn, GeometricCorrectionFactor, Density, DragClosure, Reciprocal, FrontRamp
    use messages_module, only: FatalErrorMessage
 
    implicit none
@@ -580,12 +580,12 @@ contains
       end if
    end subroutine Reconstruct
 
-   ! This routine applies a correction to the default reconstruction of w and
-   ! Hnpsi at cell interfaces (see above) in order to ensure that no
-   ! reconstructed points end up with w or Hnpsi < 0. We follow the well
-   ! balanced approach of Chertock et al. (2015), though the logic ends up being
-   ! rather complicated in order to account for tile boundaries and the need to
-   ! make sure that calculations are independent of the tiling layout.
+   ! This routine corrects the default reconstruction of w and Hnpsi at cell
+   ! interfaces (see above) so that no reconstructed edge has its free surface
+   ! below the bed or negative solids. The correction is that of Kurganov &
+   ! Petrova (2007), eqs (3.20)-(3.23); see CorrectWetDryEdges. The logic is
+   ! split in two to account for tile boundaries and to keep the results
+   ! independent of the tiling layout.
    !
    ! The work is split into two parts. CorrectSlopesInterior corrects the
    ! interfaces of each cell using only data from tile tID. CorrectSlopesEdges
@@ -621,7 +621,7 @@ contains
       integer :: i, j
 
       integer :: nXPoints, nYPoints
-      integer :: iw, iHnpsi
+      integer :: iw, iHnpsi, ib0, ibt
 
       real(kind=wp) :: b_left, b_right, b_bottom, b_top
 
@@ -629,6 +629,8 @@ contains
       nYPoints = RunParams%nYpertile
       iw = RunParams%Vars%w
       iHnpsi = RunParams%Vars%Hnpsi
+      ib0 = RunParams%Vars%b0
+      ibt = RunParams%Vars%bt
 
       ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
       do j = 1, nYPoints
@@ -644,14 +646,10 @@ contains
                b_right = tiles(tID)%b0(i+1,1) + tiles(tID)%bt(i+1,1)
             end if
 
-            if ((tiles(tID)%uMinusX(iw,i+1,j) < b_right) .or.  &
-               (tiles(tID)%uPlusX(iw,i,j) < b_left)) then
-               ! Replace reconstruction by setting w gradient equal to bed gradient
-               tiles(tID)%uMinusX(iw,i+1,j) = tiles(tID)%u(iw,i,j) +  &
-                  0.5_wp * (b_right - b_left)
-               tiles(tID)%uPlusX(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
-                  0.5_wp * (b_left - b_right)
-            end if
+            call CorrectWetDryEdges(tiles(tID)%u(iw,i,j), &
+               tiles(tID)%u(ib0,i,j) + tiles(tID)%u(ibt,i,j), b_left, b_right, &
+               tiles(tID)%uPlusX(iw,i,j), tiles(tID)%uMinusX(iw,i+1,j), &
+               tiles(tID)%uPlusX(iHnpsi,i,j), tiles(tID)%uMinusX(iHnpsi,i+1,j))
 
             ! Force reconstruction to have non-negative height at cell edges
             if ((tiles(tID)%uMinusX(iHnpsi,i+1,j) < 0.0_wp) .or.  &
@@ -669,14 +667,10 @@ contains
                                        tiles(tID)%bt(i  ,j), tiles(tID)%bt(i+1,j))
                b_top = InterpolateB(tiles(tID)%b0(i  ,j+1), tiles(tID)%b0(i+1,j+1), &
                                     tiles(tID)%bt(i  ,j+1), tiles(tID)%bt(i+1,j+1))
-               if ((tiles(tID)%uMinusY(iw,i,j+1) < b_top) .or.  &
-                  (tiles(tID)%uPlusY(iw,i,j) < b_bottom)) then
-                  ! Replace reconstruction by setting w gradient equal to bed gradient
-                  tiles(tID)%uMinusY(iw,i,j+1) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_top - b_bottom)
-                  tiles(tID)%uPlusY(iw,i,j) = tiles(tID)%u(iw,i,j) +  &
-                     0.5_wp * (b_bottom - b_top)
-               end if
+               call CorrectWetDryEdges(tiles(tID)%u(iw,i,j), &
+                  tiles(tID)%u(ib0,i,j) + tiles(tID)%u(ibt,i,j), b_bottom, b_top, &
+                  tiles(tID)%uPlusY(iw,i,j), tiles(tID)%uMinusY(iw,i,j+1), &
+                  tiles(tID)%uPlusY(iHnpsi,i,j), tiles(tID)%uMinusY(iHnpsi,i,j+1))
 
                if ((tiles(tID)%uMinusY(iHnpsi,i,j+1) < 0.0_wp) .or.  &
                   (tiles(tID)%uPlusY(iHnpsi,i,j) < 0.0_wp)) then
@@ -705,12 +699,18 @@ contains
       integer :: nXPoints, nYPoints
       integer :: iw, iHnpsi
 
+      real(kind=wp) :: wA, wB, qA, qB, hdx, hdy
       real(kind=wp) :: b_left, b_right, b_bottom, b_top
+      integer :: ib0, ibt
 
       nXPoints = RunParams%nXpertile
       nYPoints = RunParams%nYpertile
       iw = RunParams%Vars%w
       iHnpsi = RunParams%Vars%Hnpsi
+      ib0 = RunParams%Vars%b0
+      ibt = RunParams%Vars%bt
+      hdx = 0.5_wp * grid%deltaX
+      hdy = 0.5_wp * grid%deltaY
 
       ! First check the 'horizontal' reconstructions, ie uMinusX/uPlusX.
       do j = 1, nYPoints
@@ -727,17 +727,22 @@ contains
             b_left = tiles(prevTile)%b0(nXpoints,1) + tiles(prevTile)%bt(nXpoints,1)
             b_right = tiles(prevTile)%b0(nXpoints+1,1) + tiles(prevTile)%bt(nXpoints+1,1)
          end if
-         if ((tiles(prevTile)%uMinusX(iw,nXpoints+1,j) < b_right) .or.  &
-            (tiles(prevTile)%uPlusX(iw,nXpoints,j) < b_left)) then
-            tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%u(iw,nXpoints,j) +  &
-               0.5_wp * (b_right - b_left)
-         else if (tiles(tID)%uMinusX(iw,1,j) /= tiles(prevTile)%uMinusX(iw,nXpoints+1,j) &
-            .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
-            ! This case covers the fact that the left tile may have corrected
-            ! its uMinusX value, in which case we need to make sure both copies
-            ! at the tile interface are the same (since the previous test will
-            ! fail to flag it)
+         if (.not. grid%tileContainer(prevTile)%isGhostTile) then
+            ! Copy the neighbour's corrected interior values exactly.
             tiles(tID)%uMinusX(iw,1,j) = tiles(prevTile)%uMinusX(iw,nXpoints+1,j)
+            tiles(tID)%uMinusX(iHnpsi,1,j) = tiles(prevTile)%uMinusX(iHnpsi,nXpoints+1,j)
+         else
+            ! Ghost tiles aren't reconstructed: rebuild from the same data
+            ! used for this tile's own copy.
+            wB = tiles(tID)%uMinusX(iw,1,j)
+            qB = tiles(tID)%uMinusX(iHnpsi,1,j)
+            wA = tiles(prevTile)%u(iw,nXpoints,j) - tiles(prevTile)%uLimX(iw,nXpoints,j) * hdx
+            qA = tiles(prevTile)%u(iHnpsi,nXpoints,j) - tiles(prevTile)%uLimX(iHnpsi,nXpoints,j) * hdx
+            call CorrectWetDryEdges(tiles(prevTile)%u(iw,nXpoints,j), &
+               tiles(prevTile)%u(ib0,nXpoints,j) + tiles(prevTile)%u(ibt,nXpoints,j), b_left, b_right, &
+               wA, wB, qA, qB)
+            tiles(tID)%uMinusX(iw,1,j) = wB
+            tiles(tID)%uMinusX(iHnpsi,1,j) = qB
          end if
 
          if (tiles(tID)%uMinusX(iHnpsi,1,j) < 0.0_wp) then
@@ -757,17 +762,22 @@ contains
             b_right = tiles(nextTile)%b0(2,1) + tiles(nextTile)%bt(2,1)
          end if
 
-         if ((tiles(nextTile)%uMinusX(iw,2,j) < b_right) .or.  &
-            (tiles(nextTile)%uPlusX(iw,1,j) < b_left)) then
-            tiles(tID)%uPlusX(iw,nXpoints+1,j) = tiles(nextTile)%u(iw,1,j) +  &
-               0.5_wp * (b_left - b_right)
-         else if (tiles(tID)%uPlusX(iw,nXpoints+1,j) /= tiles(nextTile)%uPlusX(iw,1,j) &
-            .and. grid%tileContainer(nextTile)%isGhostTile .eqv. .false.) then
-            ! Likewise, this case covers the fact that the right tile may have
-            ! corrected its uPlusX value, in which case we need to make sure both
-            ! copies at the tile interface are the same (since the previous test
-            ! will fail to flag it).
+         if (.not. grid%tileContainer(nextTile)%isGhostTile) then
+            ! Copy the neighbour's corrected interior values exactly.
             tiles(tID)%uPlusX(iw,nXpoints+1,j) = tiles(nextTile)%uPlusX(iw,1,j)
+            tiles(tID)%uPlusX(iHnpsi,nXpoints+1,j) = tiles(nextTile)%uPlusX(iHnpsi,1,j)
+         else
+            ! Ghost tiles aren't reconstructed: rebuild from the same data
+            ! used for this tile's own copy.
+            wA = tiles(tID)%uPlusX(iw,nXpoints+1,j)
+            qA = tiles(tID)%uPlusX(iHnpsi,nXpoints+1,j)
+            wB = tiles(nextTile)%u(iw,1,j) + tiles(nextTile)%uLimX(iw,1,j) * hdx
+            qB = tiles(nextTile)%u(iHnpsi,1,j) + tiles(nextTile)%uLimX(iHnpsi,1,j) * hdx
+            call CorrectWetDryEdges(tiles(nextTile)%u(iw,1,j), &
+               tiles(nextTile)%u(ib0,1,j) + tiles(nextTile)%u(ibt,1,j), b_left, b_right, &
+               wA, wB, qA, qB)
+            tiles(tID)%uPlusX(iw,nXpoints+1,j) = wA
+            tiles(tID)%uPlusX(iHnpsi,nXpoints+1,j) = qA
          end if
          if (tiles(tID)%uPlusX(iHnpsi,nXPoints+1,j) < 0.0_wp) then
             tiles(tID)%uPlusX(iHnpsi,nXPoints+1,j) = tiles(nextTile)%u(iHnpsi,1,j)
@@ -783,13 +793,22 @@ contains
                                     tiles(prevTile)%bt(i  ,nYpoints), tiles(prevTile)%bt(i+1,nYpoints))
             b_top = InterpolateB(tiles(prevTile)%b0(i  ,nYpoints+1), tiles(prevTile)%b0(i+1,nYpoints+1), &
                                  tiles(prevTile)%bt(i  ,nYpoints+1), tiles(prevTile)%bt(i+1,nYpoints+1))
-            if ((tiles(prevTile)%uMinusY(iw,i,nYpoints+1) < b_top) .or.  &
-               (tiles(prevTile)%uPlusY(iw,i,nYpoints) < b_bottom)) then
-               tiles(tID)%uMinusY(iw,i,1) = tiles(prevTile)%u(iw,i,nYpoints) +  &
-                  0.5_wp * (b_top - b_bottom)
-            else if (tiles(tID)%uMinusY(iw,i,1) /= tiles(prevTile)%uMinusY(iw,i,nYpoints+1) &
-               .and. grid%tileContainer(prevTile)%isGhostTile .eqv. .false.) then
+            if (.not. grid%tileContainer(prevTile)%isGhostTile) then
+               ! Copy the neighbour's corrected interior values exactly.
                tiles(tID)%uMinusY(iw,i,1) = tiles(prevTile)%uMinusY(iw,i,nYpoints+1)
+               tiles(tID)%uMinusY(iHnpsi,i,1) = tiles(prevTile)%uMinusY(iHnpsi,i,nYpoints+1)
+            else
+               ! Ghost tiles aren't reconstructed: rebuild from the same data
+               ! used for this tile's own copy.
+               wB = tiles(tID)%uMinusY(iw,i,1)
+               qB = tiles(tID)%uMinusY(iHnpsi,i,1)
+               wA = tiles(prevTile)%u(iw,i,nYpoints) - tiles(prevTile)%uLimY(iw,i,nYpoints) * hdy
+               qA = tiles(prevTile)%u(iHnpsi,i,nYpoints) - tiles(prevTile)%uLimY(iHnpsi,i,nYpoints) * hdy
+               call CorrectWetDryEdges(tiles(prevTile)%u(iw,i,nYpoints), &
+                  tiles(prevTile)%u(ib0,i,nYpoints) + tiles(prevTile)%u(ibt,i,nYpoints), b_bottom, b_top, &
+                  wA, wB, qA, qB)
+               tiles(tID)%uMinusY(iw,i,1) = wB
+               tiles(tID)%uMinusY(iHnpsi,i,1) = qB
             end if
             if (tiles(tID)%uMinusY(iHnpsi,i,1) < 0.0_wp) then
                tiles(tID)%uMinusY(iHnpsi,i,1) = tiles(prevTile)%u(iHnpsi,i,nYPoints)
@@ -801,13 +820,22 @@ contains
                                     tiles(nextTile)%bt(i  ,1), tiles(nextTile)%bt(i+1,1))
             b_top = InterpolateB(tiles(nextTile)%b0(i  ,2), tiles(nextTile)%b0(i+1,2), &
                                  tiles(nextTile)%bt(i  ,2), tiles(nextTile)%bt(i+1,2))
-            if ((tiles(nextTile)%uMinusY(iw,i,2) < b_top) .or.  &
-               (tiles(nextTile)%uPlusY(iw,i,1) < b_bottom)) then
-               tiles(tID)%uPlusY(iw,i,nYpoints+1) = tiles(nextTile)%u(iw,i,1) +  &
-                  0.5_wp * (b_bottom - b_top)
-            else if (tiles(tID)%uPlusY(iw,i,nYpoints+1) /= tiles(nextTile)%uPlusY(iw,i,1) &
-               .and. grid%tileContainer(nextTile)%isGhostTile .eqv. .false.) then
+            if (.not. grid%tileContainer(nextTile)%isGhostTile) then
+               ! Copy the neighbour's corrected interior values exactly.
                tiles(tID)%uPlusY(iw,i,nYpoints+1) = tiles(nextTile)%uPlusY(iw,i,1)
+               tiles(tID)%uPlusY(iHnpsi,i,nYpoints+1) = tiles(nextTile)%uPlusY(iHnpsi,i,1)
+            else
+               ! Ghost tiles aren't reconstructed: rebuild from the same data
+               ! used for this tile's own copy.
+               wA = tiles(tID)%uPlusY(iw,i,nYpoints+1)
+               qA = tiles(tID)%uPlusY(iHnpsi,i,nYpoints+1)
+               wB = tiles(nextTile)%u(iw,i,1) + tiles(nextTile)%uLimY(iw,i,1) * hdy
+               qB = tiles(nextTile)%u(iHnpsi,i,1) + tiles(nextTile)%uLimY(iHnpsi,i,1) * hdy
+               call CorrectWetDryEdges(tiles(nextTile)%u(iw,i,1), &
+                  tiles(nextTile)%u(ib0,i,1) + tiles(nextTile)%u(ibt,i,1), b_bottom, b_top, &
+                  wA, wB, qA, qB)
+               tiles(tID)%uPlusY(iw,i,nYpoints+1) = wA
+               tiles(tID)%uPlusY(iHnpsi,i,nYpoints+1) = qA
             end if
 
             if (tiles(tID)%uPlusY(iHnpsi,i,nYPoints+1) < 0.0_wp) then
@@ -818,6 +846,98 @@ contains
       end if
 
    end subroutine CorrectSlopesEdges
+
+   ! Factor applied to the eddy-viscosity flux at an interface whose two edge
+   ! depths are hA and hB: 1 unless one is less than half the other, and 0 if
+   ! either is dry. Without it, the average of the two sides' fluxes carries
+   ! momentum from a wet cell into a dry (or almost dry) neighbour with no
+   ! mass, where it accumulates step after step (ClearDryCells only clears
+   ! cells of exactly zero depth). When the cell later receives a little
+   ! mass, its velocity is then huge (> 100 m/s seen on real terrain) and
+   ! limits the CFL time step. In smooth wet flow the edge depths agree to
+   ! O(dx), so the flux is unchanged.
+   pure function WetInterfaceFraction(hA, hB) result(f)
+      implicit none
+      real(kind=wp), intent(in) :: hA, hB
+      real(kind=wp) :: f
+
+      if (min(hA, hB) <= 0.0_wp) then
+         f = 0.0_wp
+      else
+         f = FrontRamp(min(hA, hB) / max(hA, hB))
+      end if
+   end function WetInterfaceFraction
+
+   ! Correct the reconstruction at the low (A) and high (B) edges of a cell
+   ! whose free surface is wbar and bed (at its centre) is bc, where the bed at
+   ! the edges is bA and bB. wA and wB are the free surface and qA and qB the
+   ! solids (Hnpsi) at the edges.
+   !
+   ! An edge whose free surface is below the bed is lifted onto it by blending
+   ! the reconstruction towards one parallel to the bed, by the smallest
+   ! amount theta that is enough. Both reconstructions are linear through
+   ! wbar, so the lifted edge ends up on the bed and the other at
+   ! 2 wbar - (bed at the lifted edge): this is the correction of Kurganov &
+   ! Petrova (2007), eqs (3.20)-(3.23). The edge values change continuously
+   ! with the state. Replacing the whole reconstruction with the bed-parallel
+   ! one whenever an edge is below the bed (Chertock, Cui, Kurganov & Wu
+   ! 2015, section 3, as was done before) switches the edge values by an
+   ! O(1) fraction of the depth as a front cell fills, which makes the fluxes,
+   ! and so the solution, a discontinuous function of the time step. Fully
+   ! wet cells and the lake at rest are unchanged, and the mean of the two
+   ! edges is still the cell average, so the fluxes remain conservative.
+   !
+   ! The solids at each edge keep the concentration of the reconstruction, so
+   ! that an edge left with no water carries no solids. Otherwise solids are
+   ! carried into dry cells, where ClearDryCells deletes them.
+   !
+   ! A dry cell has no water, and so no solids, at either edge. This is decided
+   ! from the cell average alone, because the reconstructions in ghost tiles,
+   ! which CorrectSlopesEdges recomputes, may be stale.
+   pure subroutine CorrectWetDryEdges(wbar, bc, bA, bB, wA, wB, qA, qB)
+      implicit none
+      real(kind=wp), intent(in) :: wbar, bc, bA, bB
+      real(kind=wp), intent(inout) :: wA, wB, qA, qB
+      real(kind=wp) :: dA, dB, hbar, theta, wApar, wBpar, hA0, hB0
+
+      if (wbar <= bc) then
+         wA = bA
+         wB = bB
+         qA = 0.0_wp
+         qB = 0.0_wp
+         return
+      end if
+      if ((wA >= bA) .and. (wB >= bB)) return
+
+      ! Reconstruction parallel to the bed.
+      wApar = wbar + 0.5_wp * (bA - bB)
+      wBpar = wbar + 0.5_wp * (bB - bA)
+      ! Depth below the bed at each edge (<= 0) and depth at the centre.
+      dA = min(wA - bA, 0.0_wp)
+      dB = min(wB - bB, 0.0_wp)
+      hbar = wbar - 0.5_wp * (bA + bB)
+      if (hbar <= 0.0_wp) then
+         theta = 1.0_wp
+      else
+         theta = max(-dA / (hbar - dA), -dB / (hbar - dB))
+      end if
+      hA0 = wA - bA
+      hB0 = wB - bB
+      ! The max() only removes round-off: the blend puts the lifted edge on
+      ! the bed (and with hbar > 0 only one edge can start below it).
+      wA = max((1.0_wp - theta) * wA + theta * wApar, bA)
+      wB = max((1.0_wp - theta) * wB + theta * wBpar, bB)
+      if (hA0 > 0.0_wp) then
+         qA = qA * ((wA - bA) / hA0)
+      else
+         qA = 0.0_wp
+      end if
+      if (hB0 > 0.0_wp) then
+         qB = qB * ((wB - bB) / hB0)
+      else
+         qB = 0.0_wp
+      end if
+   end subroutine CorrectWetDryEdges
 
    ! This is a helper function for CorrectSlopes that linearly interpolates b
    ! between two points carefully, making sure to do the addition of the small
@@ -840,9 +960,10 @@ contains
    ! flow variables. It employs 'desingularisation' formulae to prevent
    ! unphysical blow-up when flow depths are lower than
    ! RunParams%heightThreshold.  It is called within both the hydraulic and
-   ! morphodynamic parts of the time stepper. The computeVelocities flag exists
-   ! so we can exclude u & v computation within the morphodynamic part (within
-   ! which u & v are considered constant).
+   ! morphodynamic parts of the time stepper. With computeVelocities = .false.
+   ! u and v are left unchanged. The morphodynamic part holds the momenta fixed,
+   ! but it changes the depth and density, so it recomputes u and v after each
+   ! substep as well, since erosion depends on them.
    recursive subroutine ComputeDesingularisedVariables(RunParams, tiles, tID, &
       computeVelocities)
       implicit none
@@ -1151,7 +1272,9 @@ contains
                   hX = hX / dif
                   tiles(tID)%hXFlux(d, i, j) = hX
                   tiles(tID)%gXFlux(d, i, j) =  (aPos*uMinusHydrostaticFlux(k) - aNeg*uPlusHydrostaticFlux(k))/dif
-                  tiles(tID)%pXFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
+                  tiles(tID)%pXFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k)) * &
+                     WetInterfaceFraction(tiles(tID)%uPlusX(RunParams%Vars%Hn, i, j), &
+                                          tiles(tID)%uMinusX(RunParams%Vars%Hn, i, j))
                end if
             end do
          end do
@@ -1263,7 +1386,9 @@ contains
                      hY = hY / dif
                      tiles(tID)%hYFlux(d, i, j) = hY
                      tiles(tID)%gYFlux(d, i, j) = (aPos*uMinusHydrostaticFlux(k) - aNeg*uPlusHydrostaticFlux(k))/dif
-                     tiles(tID)%pYFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k))
+                     tiles(tID)%pYFlux(d, i, j) = 0.5_wp * (uPlusDiffusionFlux(k) + uMinusDiffusionFlux(k)) * &
+                        WetInterfaceFraction(tiles(tID)%uPlusY(RunParams%Vars%Hn, i, j), &
+                                             tiles(tID)%uMinusY(RunParams%Vars%Hn, i, j))
                   end if
                end do
             end do

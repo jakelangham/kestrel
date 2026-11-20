@@ -1,4 +1,5 @@
 using DelimitedFiles
+using Printf
 
 prog = "../src/kestrel"
 
@@ -25,6 +26,32 @@ function test_no_flow(testname, dim)
    end
 
    result = check_no_flow(testname, dim)
+
+   return result
+end
+
+# Run a lake at rest whose state is not represented exactly in the output (e.g.
+# a shoreline a rounding distance from a cell edge), and check that it stays at
+# rest to within tolerances: flow speed <= utol and change of depth <= htol in
+# every cell.
+function test_near_rest(testname, dim, utol, htol)
+   if run_simulation(testname)
+      return 1
+   end
+
+   return check_near_rest(testname, utol, htol)
+end
+
+# Run a lake at rest with morphodynamics on, and check that the bed does not
+# change by more than tol anywhere (any spurious motion at its shorelines must
+# not erode or deposit), and that the depth stays positive.
+function test_no_bed_change(testname, dim, tol)
+   if run_simulation(testname)
+      return 1
+   end
+
+   result = check_positivity(testname, dim)
+   result |= check_no_bed_change(testname, tol)
 
    return result
 end
@@ -423,6 +450,55 @@ function check_no_flow(testname, dim)
       println("Initial condition and subsequent depth fields agree")
    end
    return result
+end
+
+# Read a (.txt) result file. Returns a function giving the column of a named
+# field, and the cell keys (x, or (x, y) in 2D) of its rows.
+function read_result_txt(f)
+   data, hdr = readdlm(f, ',', Float64; header = true)
+   names = strip.(vec(hdr))
+   col(name) = data[:, findfirst(==(name), names)]
+   keys = ("y" in names) ? collect(zip(col("x"), col("y"))) : col("x")
+   return col, keys
+end
+
+# Check that every (.txt) result in directory testname has flow speed <= utol
+# and depth within htol of "000000.txt" in each cell. Cells absent at t = 0
+# (in tiles activated later) count as dry at t = 0.
+function check_near_rest(testname, utol, htol)
+   col0, keys0 = read_result_txt(joinpath(testname, "000000.txt"))
+   depth0 = Dict(zip(keys0, col0("flow_depth")))
+
+   umax = 0.0
+   dhmax = 0.0
+   for f in readdir(testname)
+      if is_resultfile_txt(f) && f != "000000.txt"
+         col, keys = read_result_txt(joinpath(testname, f))
+         for (k, h, s) in zip(keys, col("flow_depth"), col("flow_speed"))
+            dhmax = max(dhmax, abs(h - get(depth0, k, 0.0)))
+            umax = max(umax, s)
+         end
+      end
+   end
+
+   @printf("Max flow speed %.3e m/s (tolerance %.1e), max depth change %.3e m (tolerance %.1e)\n",
+           umax, utol, dhmax, htol)
+   return (umax <= utol && dhmax <= htol) ? 0 : 1
+end
+
+# Check that the bed change in every (.txt) result in directory testname is
+# at most tol in magnitude.
+function check_no_bed_change(testname, tol)
+   dbmax = 0.0
+   for f in readdir(testname)
+      if is_resultfile_txt(f)
+         col, _ = read_result_txt(joinpath(testname, f))
+         dbmax = max(dbmax, maximum(abs.(col("elevation_change"))))
+      end
+   end
+
+   @printf("Max bed change %.3e m (tolerance %.1e)\n", dbmax, tol)
+   return dbmax <= tol ? 0 : 1
 end
 
 # Check if two simulations with (.txt) result files in dirs testname1 and

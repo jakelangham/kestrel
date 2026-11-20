@@ -51,7 +51,7 @@ module morphodynamic_rhs_module
    use utilities_module, only: KahanSum, InVector
    use runsettings_module, only: RunSet
    use equations_module, only: ErosionDepositionTerms
-   use closures_module, only: GeometricCorrectionFactor_gradin
+   use closures_module, only: GeometricCorrectionFactor_gradin, FrontRamp
 
    implicit none
 
@@ -79,7 +79,7 @@ contains
       type(TileList), pointer :: activeTiles
 
       real(kind=wp) :: Ero, Depo
-      real(kind=wp) :: HnW, HnE, HnS, HnN, Hneps
+      real(kind=wp) :: HnW, HnE, HnS, HnN, Hneps, Hn, Hmax, Hmin, wetFactor
 
       integer :: tt, tID, ttW, ttE, ttS, ttN
       integer :: i, j, nd, bt, iHn
@@ -96,7 +96,8 @@ contains
       ! Tiles may be processed in parallel (if built with OpenMP). BtSourceTerm
       ! reads E - D from neighbouring tiles, so it relies on the barrier at the
       ! end of the loop below.
-      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Ero, Depo, HnW, HnE) &
+      !$omp parallel private(tID, ttW, ttE, ttS, ttN, i, j, Ero, Depo, HnW, HnE, &
+      !$omp                  Hn, Hmax, Hmin, wetFactor) &
       !$omp firstprivate(HnS, HnN)
       !$omp do schedule(runtime)
       do tt = 1, ActiveTiles%Size
@@ -131,19 +132,45 @@ contains
                   end if
                end if
 
-               ! If point is next to a dry cell (or is itself dry), no
-               ! morphodynamics. This is meant to defend against a numerical
+               ! Treatment of flow fronts. A cell that the front is crossing
+               ! is only partly covered, by flow about as deep as the deepest
+               ! of it and its neighbours (Hmax), so its mean depth Hn says
+               ! how much of it is wet, not how deep the flow on it is. So the
+               ! morphodynamic damping is evaluated at Hmax, and E - D is
+               ! scaled by the wet fraction (~ Hn / Hmax) through FrontRamp.
+               ! The second FrontRamp factor stops morphodynamics next to a
+               ! dry or filling cell. This defends against a numerical
                ! ratcheting phenomenon that can occur at flow fronts in some
                ! scenarios, where erosion at the front leads to bulking and in
                ! turn, erosion at a neighbouring (previously dry) cell.
-               if (tiles(tID)%u(iHn,i,j) < Hneps .or. HnW < Hneps .or. HnE < Hneps &
-                  .or. ((.not. RunParams%isOneD) .and. (HnS < Hneps .or. HnN < Hneps))) then
+               ! Both factors change over the time the front takes to cross a
+               ! cell, which is resolved by any stable time step, whereas the
+               ! damping alone switches on as Hn crosses a narrow range of
+               ! depths around the critical height, typically within one
+               ! step. They are 1 unless a neighbour has less than
+               ! frontRampWidth (see FrontRamp in Closures.f90) times the
+               ! depth of the deepest cell, so fully wet flow is unaffected.
+               Hn = tiles(tID)%u(iHn,i,j)
+               Hmax = max(Hn, HnW, HnE)
+               Hmin = min(HnW, HnE)
+               if (.not. RunParams%isOneD) then
+                  Hmax = max(Hmax, HnS, HnN)
+                  Hmin = min(Hmin, HnS, HnN)
+               end if
+               if (Hn < Hneps) then
                   tiles(tID)%ddtExplicit(1:nd,i,j) = 0.0_wp
                   tiles(tID)%EminusD(i,j) = 0.0_wp
                else
                   ! Compute E - D at each cell centre and save it.
-                  call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo)
-                  tiles(tID)%EminusD(i,j) = Ero - Depo
+                  call ErosionDepositionTerms(RunParams, tiles(tID)%u(:,i,j), Ero, Depo, Hmax)
+                  ! A neighbour shallower than Hneps counts as dry, as it did
+                  ! for the guard this replaces. Such a film is only present
+                  ! in active tiles (ghost tiles hold exactly zero), so using
+                  ! its depth would make the results depend on the tile
+                  ! layout.
+                  if (Hmin < Hneps) Hmin = 0.0_wp
+                  wetFactor = FrontRamp(Hn / Hmax) * FrontRamp(Hmin / Hmax)
+                  tiles(tID)%EminusD(i,j) = wetFactor * (Ero - Depo)
                end if
             end do
          end do

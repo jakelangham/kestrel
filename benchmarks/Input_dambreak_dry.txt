@@ -1,0 +1,38 @@
+%%ListType
+% Dam break onto a dry bed (Ritter 1892): a reservoir 10 m deep on
+% -1000 m < x < 0, released at t = 0 on a flat bed, without friction. The
+% initial condition is written by make_dambreak_ic in benchlib.jl, and must not
+% be replaced by a Cap block. The errors are measured where the far end of the
+% reservoir has no effect yet (see dambreak_errors).
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 40
+nYtiles = 1
+nXpertile = 10
+nYpertile = 1
+Xtilesize = 100
+Boundary Conditions = halt
+
+Parameters:
+Drag = None
+Erosion = Off
+Deposition = None
+Eddy Viscosity = 0
+
+Solver:
+T start = 0
+T end = 40
+Initial condition = dambreak_dry_ic/000000
+cfl = 0.5
+max dt = 1
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 4
+directory = dambreak_dry/
+
+Topog:
+Type = Function
+Topog function = flat
