@@ -38,6 +38,11 @@ tests/*
 !tests/*.txt
 !tests/*.sh
 !tests/*.jl
+benchmarks/*
+!benchmarks/*.txt
+!benchmarks/*.jl
+!benchmarks/*.md
+!benchmarks/*.sh
 
 # JOSS paper
 paper/paper.*

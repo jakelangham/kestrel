@@ -1,0 +1,40 @@
+%%ListType
+% Dam break onto a wet bed (Stoker 1957): a reservoir 10 m deep on
+% -1000 m < x < 0 and a layer 2 m deep on 0 < x < 800 m, released at t = 0 on a
+% flat bed, without friction: a rarefaction into the reservoir, and a shock
+% into the layer. The initial condition is written by make_dambreak_ic in
+% benchlib.jl, and must not be replaced by a Cap block. The errors are measured
+% where the far ends of the reservoir and the layer have no effect yet (see
+% dambreak_errors).
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 40
+nYtiles = 1
+nXpertile = 10
+nYpertile = 1
+Xtilesize = 100
+Boundary Conditions = halt
+
+Parameters:
+Drag = None
+Erosion = Off
+Deposition = None
+Eddy Viscosity = 0
+
+Solver:
+T start = 0
+T end = 40
+Initial condition = dambreak_wet_ic/000000
+cfl = 0.5
+max dt = 1
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 4
+directory = dambreak_wet/
+
+Topog:
+Type = Function
+Topog function = flat
