@@ -1,0 +1,44 @@
+%%ListType
+% Thacker (1981) radially symmetric oscillation in the paraboloid bowl
+% b = h0 (x^2 + y^2) / a^2 with h0 = 10 m and a = 3000 m, without friction.
+% The lake starts at rest with a curved free surface,
+% h0 (sqrt(1 - A^2) / (1 - A) - (r / a)^2 (1 + A) / (1 - A) + (r / a)^2), with
+% A = 0.5, and its shoreline oscillates between radii
+% a ((1 - A) / (1 + A))^(1/4) and a ((1 + A) / (1 - A))^(1/4) (2280 m and
+% 3948 m) with frequency w = sqrt(8 g h0) / a (period 672.9 s). The
+% initial condition is written by make_thacker_ic in benchlib.jl, and
+% must not be replaced by a Cube block. The run lasts two periods.
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 18
+nYtiles = 18
+nXpertile = 5
+nYpertile = 5
+Xtilesize = 1000
+Boundary Conditions = halt
+
+Parameters:
+Drag = None
+Erosion = Off
+Deposition = None
+Eddy Viscosity = 0
+Geometric factors = off
+
+Solver:
+T start = 0
+T end = 1350
+Initial condition = thacker_radial_2d_ic/000000
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 9
+directory = thacker_radial_2d/
+
+Topog:
+Type = Function
+Topog function = xyparab
+Topog params = (1.1111111111111111e-6, 1.1111111111111111e-6)

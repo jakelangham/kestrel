@@ -417,14 +417,16 @@ contains
    end function YMinWaveSpeeds
 
    ! Given a solution vector uvect, compute corresponding erosion and deposition
-   ! rates, returning in E and D respectively.
-   pure subroutine ErosionDepositionTerms(RunParams, uvect, E, D)
+   ! rates, returning in E and D respectively. If given, Hdamp is the depth at
+   ! which the morphodynamic damping is evaluated, instead of the flow depth.
+   pure subroutine ErosionDepositionTerms(RunParams, uvect, E, D, Hdamp)
       implicit none
 
       type(RunSet), intent(in) :: RunParams
       real(kind=wp), dimension(:), intent(in) :: uvect
       real(kind=wp), intent(out) :: E
       real(kind=wp), intent(out) :: D
+      real(kind=wp), intent(in), optional :: Hdamp
 
       real(kind=wp) :: Hn, Hncrit, damping
 
@@ -436,6 +438,7 @@ contains
       ! Damp morphodynamics at small length scales Hn ~ Hncrit (various
       ! different damping functions are given in Closures.f90).
       Hncrit = RunParams%EroCriticalHeight
+      if (present(Hdamp)) Hn = Hdamp
       damping = MorphoDamping(RunParams, Hn)
       E = E * damping
       D = D * damping

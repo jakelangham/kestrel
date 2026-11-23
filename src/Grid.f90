@@ -167,6 +167,12 @@ module grid_module
       ! when it completes a step.
       logical :: intermedInterfTopogSynced
 
+      ! Inactive tiles that flow reached during the current attempt at a time
+      ! step (see RequestTileActivation in TimeStepper.f90), indexed by tile,
+      ! and whether there are any. The step is repeated once they are active.
+      logical, dimension(:), allocatable :: activationRequested
+      logical :: activationPending
+
    end type GridType
 
 contains
@@ -210,6 +216,9 @@ contains
       ! Empty grid has nTiles which are all off by default 
       allocate(grid%tileContainer(grid%nTiles))
       grid%tileContainer(:)%TileOn = .false.
+      allocate(grid%activationRequested(grid%nTiles))
+      grid%activationRequested(:) = .false.
+      grid%activationPending = .false.
       grid%activeTiles%Size = 0
       grid%ghostTiles%Size = 0
 

@@ -24,6 +24,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgdal-dev libproj25 libproj-dev netcdf-bin libnetcdff-dev
 
+      - name: Install Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+
       - name: Build configure script
         run: autoreconf -fi
 

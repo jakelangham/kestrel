@@ -22,11 +22,23 @@ tests_2d = [
    ("flux_single_pt", 2)
 ]
 
+# Each entry is (name, check function, its arguments after the name).
 tests_noflow = [
-   ("lake_at_rest_hydro", 1)
-   ("lake_at_rest_morpho", 1)
-   ("lake_at_rest_hydro_2d", 2)
-   ("lake_at_rest_morpho_2d", 2)
+   ("lake_at_rest_hydro", test_no_flow, 1)
+   ("lake_at_rest_morpho", test_no_flow, 1)
+   ("lake_at_rest_hydro_2d", test_no_flow, 2)
+   ("lake_at_rest_morpho_2d", test_no_flow, 2)
+   # Lakes with wet/dry shorelines. In lake_shore_edge*, the lake is 1e-10 m
+   # below the bed at the cell edge where the shoreline lies, so the wet/dry
+   # correction must act, and must change the edge values only by about as
+   # much (the arguments are tolerances on flow speed and depth). In
+   # lake_shore_morpho*, the shoreline lies inside cells, where the scheme is
+   # not exactly well balanced; the resulting motion must not change the bed
+   # (the argument is a tolerance on the bed change).
+   ("lake_shore_edge", test_near_rest, 1, 1e-6, 1e-8)
+   ("lake_shore_edge_2d", test_near_rest, 2, 1e-6, 1e-8)
+   ("lake_shore_morpho", test_no_bed_change, 1, 1e-6)
+   ("lake_shore_morpho_2d", test_no_bed_change, 2, 1e-6)
 ]
 
 tests_identical = [
@@ -107,8 +119,8 @@ function run_noflow()
    numpassed = 0
    for i = 1:length(tests_noflow)
       testname = tests_noflow[i][1]
-      testfunc = test_no_flow
-      args = tests_noflow[i]
+      testfunc = tests_noflow[i][2]
+      args = (testname, tests_noflow[i][3:end]...)
       numpassed += run_test(i, testname, testfunc, args...)
    end
    return numpassed

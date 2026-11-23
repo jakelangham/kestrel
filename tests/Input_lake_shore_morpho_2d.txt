@@ -1,0 +1,59 @@
+%%ListType
+% Lake at rest in a parabolic bowl, b = 0.001 x^2 + 0.001 y^2, with the
+% shoreline inside a cell, here a circle of radius 44.7 m crossing cells at
+% every position. The scheme is not exactly well balanced there, but spurious
+% shoreline motion must not erode or deposit: the bed must not change.
+Domain:
+Lat = 0
+Lon = 0
+nXtiles = 16
+nYtiles = 16
+nXpertile = 10
+nYpertile = 10
+Xtilesize = 20
+Boundary Conditions = halt
+
+Cube:
+  cubeX = 0.0
+  cubeY = 0.0
+  cubeHeight = 2.0
+  cubeLength = 160
+  cubeWidth = 160
+  cubeShape = level
+  cubeU = 0
+  cubeV = 0
+  cubeConc = 0.0
+
+Parameters:
+Drag = Variable
+Chezy Co = 0.04
+Pouliquen Min = 0.1
+Pouliquen Max = 0.4
+Pouliquen beta = 0.126
+Voellmy Switch Rate = 3
+Voellmy Switch Value = 0.2
+Erosion = On
+Erosion Rate = 5e-3
+Granular Erosion Rate = 4
+Erosion Depth = 5
+Erosion Critical Height = 1e-2
+Solid Diameter = 5e-3
+Eddy Viscosity = 1e-2
+Geometric factors = on
+
+
+Solver:
+T end = 50.0
+cfl = 0.25
+max dt = 10
+Tile Buffer = 3
+Height threshold = 1e-6
+
+Output:
+N out = 10
+directory = lake_shore_morpho_2d/
+
+Topog:
+Type = Function
+Topog function = xyparab
+Topog params = (0.001, 0.001)
