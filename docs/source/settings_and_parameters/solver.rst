@@ -128,7 +128,7 @@ The **optional** settings of the solver block are:
 
     :code:`Tile buffer = 1`
 
-        Neighbouring tiles are activated if flow reaches :code:`tile buffer` cells from a tile edge.  The default value :code:`tile buffer = 1` should ensure that a neighbouring tile is added when needed.
+        Neighbouring tiles are activated before each time step if flow reaches :code:`tile buffer` cells from a tile edge.  Flow can spread further than this within a step, so if it reaches the edge of an inactive tile during a step, that tile is activated and the step is repeated.  The results therefore do not depend on :code:`tile buffer`, which only controls how often steps are repeated.  The default value :code:`tile buffer = 1` is usually the most efficient, since larger values activate tiles further ahead of the flow.
 
     :code:`CFL = 0.5` for 1D simulations; :code:`CFL = 0.25` for 2D simulations
 
