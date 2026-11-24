@@ -215,6 +215,11 @@ module runsettings_module
    ! -- Parameters. --
       ! Use geometrically corrected coordinates?
       logical :: geometric_factors
+      ! Include the centripetal (bed curvature) term? Only with geometric_factors.
+      logical :: curvature
+      ! Include the bed curvature in the normal stress of Coulomb-type drag?
+      ! Only with geometric_factors.
+      logical :: curvature_friction
       real(kind=wp) :: g ! gravity
       real(kind=wp) :: rhow ! Density of water
       real(kind=wp) :: rhos ! Density of solids

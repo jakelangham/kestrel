@@ -40,6 +40,41 @@ tests_identical = [
    # be identical.
    ("tile_indep_static", "tile_indep_static_100m", "tile_indep_static_50m", 0.0, 2)
    ("tile_indep_dynamic", "tile_indep_dynamic_100m", "tile_indep_dynamic_20m", 0.0, 2)
+   # As tile_indep_static, on a curved bed (a rotated Gaussian valley), which
+   # exercises the curvature terms across tile boundaries. It is also bitwise
+   # independent of the tile layout.
+   ("tile_indep_curved", "tile_indep_curved_100m", "tile_indep_curved_50m", 0.0, 2)
+]
+
+# Tests of the curvature of the bed ('Geometric factors' and 'Curvature
+# friction'). The flows are thin enough that each part of them should move
+# like a point mass sliding on the bed, so their reference values are those of
+# a point mass (see the test functions in testlib.jl).
+tests_curvature = [
+   # Frictionless run-up in the bowl b = x^2/(2R), R = 100 m, launched from
+   # the bottom with speed u0, u0^2/(gR) = 0.81. Maximum height: with the
+   # curvature force, u0^2/(2g) = 40.5 m; without it ('no curvature', the
+   # model of Langham et al. 2023), (R/2)(exp(u0^2/(gR)) - 1) = 62.395 m.
+   # (2nd arg: reference height, 3rd: relative tolerance, 4th: whether the
+   # energy must be conserved.)
+   ("curvature_bowl_on", test_curvature_runup, 40.5, 0.01, true)
+   ("curvature_bowl_nocurv", test_curvature_runup, 62.395, 0.01, false)
+   # As above, with Coulomb friction (mu = 0.2) and the centripetal term in
+   # the normal stress ('Curvature friction = On'): 21.692 m, against
+   # 26.061 m without the term.
+   ("curvature_bowl_friction_on", test_curvature_runup, 21.692, 0.01, false)
+   # Frictionless layer crossing a lateral bank that fades out along the flow,
+   # so that b_xy != 0: direction of the mean velocity (deg) and centroid (m)
+   # at the end, with tolerances. Without the curvature force the direction
+   # is 1.35 deg off and the centroid 15 mm.
+   ("curvature_bank_fade_on", test_curvature_bank, 10.852, 0.25, (0.38812, -0.02319), 0.003)
+   # Slump against a steep wall that the grid does not resolve: the time step
+   # must not collapse through runaway velocities in thin cells (2nd arg:
+   # largest speed allowed, m/s, in cells deeper than 0.1 mm; 3rd: whether the
+   # total volume must be conserved).
+   ("curvature_wall_on", test_curvature_wall, 10.0, false)
+   # As above, for a debris-like flow with drag on an erodible bed.
+   ("curvature_wall_morpho_on", test_curvature_wall, 10.0, true)
 ]
 
 # Check if NetCDF support enabled and define extra test if so.
@@ -126,6 +161,18 @@ function run_identical()
    return numpassed
 end
 
+function run_curvature()
+   println("\nCurvature tests...")
+   numpassed = 0
+   for i = 1:length(tests_curvature)
+      testname = tests_curvature[i][1]
+      testfunc = tests_curvature[i][2]
+      args = (testname, tests_curvature[i][3:end]...)
+      numpassed += run_test(i, testname, testfunc, args...)
+   end
+   return numpassed
+end
+
 function run_netcdf()
    println("\nNetCDF tests...")
    numpassed = 0
@@ -153,7 +200,8 @@ end
 function run_all()
 
    numtests = length(tests_1d) + length(tests_2d) + length(tests_noflow) +
-         length(tests_identical) + length(tests_netcdf) + length(tests_threads)
+         length(tests_identical) + length(tests_curvature) + length(tests_netcdf) +
+         length(tests_threads)
    numpassed = 0
 
    print("Running full test suite. Some tests (espcially 2D ones) may take a",
@@ -166,6 +214,8 @@ function run_all()
    numpassed += run_noflow()
 
    numpassed += run_identical()
+
+   numpassed += run_curvature()
 
    if with_netcdf
       numpassed += run_netcdf()
@@ -194,7 +244,7 @@ end
 
 # Print a list of available test categories.
 function print_options()
-   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'netcdf' and 'threads'.")
+   println("Options are 'all', '1d', '2d', 'noflow', 'identical', 'curvature', 'netcdf' and 'threads'.")
 end
 
 tests = (if isempty(ARGS); ["all"]; else ARGS; end)
@@ -220,6 +270,10 @@ else
    if "identical" in tests
       numtests += length(tests_identical)
       numpassed += run_identical()
+   end
+   if "curvature" in tests
+      numtests += length(tests_curvature)
+      numpassed += run_curvature()
    end
    if "netcdf" in tests
       if with_netcdf

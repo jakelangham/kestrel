@@ -113,6 +113,9 @@ module grid_module
       real(kind=wp), dimension(:,:,:), allocatable :: hXFlux, hYFlux
       real(kind=wp), dimension(:,:,:), allocatable :: gXFlux, gYFlux
       real(kind=wp), dimension(:,:,:), allocatable :: pXFlux, pYFlux
+      ! Numerical fluxes of vertical momentum rho*Hn*w, w = grad(b).u, used to
+      ! project the momentum onto the bed (see ConstructHydraulicRHS).
+      real(kind=wp), dimension(:,:), allocatable :: wXFlux, wYFlux
 
       ! Arrays for time stepping updates (RHS data) at each substep. 
       real(kind=wp), dimension(:,:,:), allocatable :: ddtExplicit

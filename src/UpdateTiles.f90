@@ -184,6 +184,14 @@ contains
          allocate (tileContainer(k)%hYFlux(d, nXpertile, nYpertile + 1))
          tileContainer(k)%hYFlux(:, :, :) = 0.0_wp
       end if
+      if (.not. allocated(tileContainer(k)%wXFlux)) then
+         allocate (tileContainer(k)%wXFlux(nXpertile + 1, nYpertile))
+         tileContainer(k)%wXFlux(:, :) = 0.0_wp
+      end if
+      if (.not. allocated(tileContainer(k)%wYFlux)) then
+         allocate (tileContainer(k)%wYFlux(nXpertile, nYpertile + 1))
+         tileContainer(k)%wYFlux(:, :) = 0.0_wp
+      end if
       if (.not. allocated(tileContainer(k)%gXFlux)) then
          allocate (tileContainer(k)%gXFlux(d, nXpertile + 1, nYpertile))
          tileContainer(k)%gXFlux(:, :, :) = 0.0_wp

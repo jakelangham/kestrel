@@ -381,6 +381,8 @@ contains
          write (101, fmt="(a,G0)") "Coulomb co = ", RunParams%CoulombCo
          write (101, fmt="(a,G0)") "Voellmy switch rate = ", RunParams%VoellmySwitchRate
          write (101, fmt="(a,G0)") "Voellmy switch value = ", RunParams%VoellmySwitchValue
+      case ("None")
+         write (101, fmt="(a)") "Drag = None"
       end select
       if ((RunParams%DragChoice%s=="Variable") .or. (RunParams%ErosionChoice%s=="Mixed")) then
          write (101, fmt="(a,a)") "Switch function = ", RunParams%fswitch%s
@@ -414,10 +416,17 @@ contains
       write (101, fmt="(a,G0)") "Eddy viscosity = ", RunParams%EddyViscosity
       write (101, fmt="(a,G0)") "Solid diameter = ", RunParams%SolidDiameter
       
-      if (RunParams%geometric_factors) then
+      if (RunParams%geometric_factors .and. RunParams%curvature) then
          write (101, fmt="(a)") "Geometric factors = On"
+      else if (RunParams%geometric_factors) then
+         write (101, fmt="(a)") "Geometric factors = No curvature"
       else
          write (101, fmt="(a)") "Geometric factors = Off"
+      end if
+      if (RunParams%curvature_friction) then
+         write (101, fmt="(a)") "Curvature friction = On"
+      else
+         write (101, fmt="(a)") "Curvature friction = Off"
       end if      
       write (101, *)
 
@@ -2054,10 +2063,17 @@ contains
          call put_nc_att(ncid, "central_northing", RunParams%centerUTM%second)
          call put_nc_att(ncid, "crs_epsg", 'epsg:'//Int2String(RunParams%utmEPSG))
       end if
-      if (RunParams%geometric_factors) then
+      if (RunParams%geometric_factors .and. RunParams%curvature) then
          call put_nc_att(ncid, "Geometric factors", 'On')
+      else if (RunParams%geometric_factors) then
+         call put_nc_att(ncid, "Geometric factors", 'No curvature')
       else
          call put_nc_att(ncid, "Geometric factors", 'Off')
+      end if
+      if (RunParams%curvature_friction) then
+         call put_nc_att(ncid, "Curvature friction", 'On')
+      else
+         call put_nc_att(ncid, "Curvature friction", 'Off')
       end if
       call put_nc_att(ncid, "g", RunParams%g)
       call put_nc_att(ncid, "water density", RunParams%rhow) ! Density of water
