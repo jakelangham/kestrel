@@ -340,6 +340,8 @@ contains
       write (101, fmt="(a,G0)") "rhow = ", RunParams%rhow
       write (101, fmt="(a,G0)") "rhos = ", RunParams%rhos
       select case (RunParams%DragChoice%s)
+      case ("None")
+         write (101, fmt="(a)") "Drag = None"
       case ("Chezy")
          write (101, fmt="(a)") "Drag = Chezy"
          write (101, fmt="(a,G0)") "Chezy co = ", RunParams%ChezyCo
