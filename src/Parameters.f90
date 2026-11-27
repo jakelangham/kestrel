@@ -275,6 +275,9 @@ contains
                set_drag=.TRUE.
                DragChoice = ParamValues(J)%to_lower()
                select case (DragChoice%s)
+                  case ('none')
+                     RunParams%DragChoice = varString('None')
+                     DragClosure => NoDrag
                   case ('chezy')
                      RunParams%DragChoice = varString('Chezy')
                      DragClosure => ChezyDrag
@@ -302,7 +305,7 @@ contains
                   case default
                      call FatalErrorMessage("In the 'Parameters' block in the input file " // trim(RunParams%InputFile%s) // new_line('A') &
                         // "The block value for the variable 'Drag' " // DragChoice%s // " is not recognized." // new_line('A') &
-                        // "Currently accepted 'Drag' values are 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning' and 'Variable'")
+                        // "Currently accepted 'Drag' values are 'None', 'Chezy', 'Coulomb', 'Power Law', 'Voellmy', 'Pouliquen', 'Edwards2019', 'Manning' and 'Variable'")
                end select
 
             case ('chezy co')

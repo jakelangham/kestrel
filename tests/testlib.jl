@@ -1,4 +1,5 @@
 using DelimitedFiles
+using Printf
 
 prog = "../src/kestrel"
 
@@ -423,6 +424,16 @@ function check_no_flow(testname, dim)
       println("Initial condition and subsequent depth fields agree")
    end
    return result
+end
+
+# Read a (.txt) result file. Returns a function giving the column of a named
+# field, and the cell keys (x, or (x, y) in 2D) of its rows.
+function read_result_txt(f)
+   data, hdr = readdlm(f, ',', Float64; header = true)
+   names = strip.(vec(hdr))
+   col(name) = data[:, findfirst(==(name), names)]
+   keys = ("y" in names) ? collect(zip(col("x"), col("y"))) : col("x")
+   return col, keys
 end
 
 # Check if two simulations with (.txt) result files in dirs testname1 and

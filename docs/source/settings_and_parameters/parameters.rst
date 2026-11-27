@@ -21,6 +21,13 @@ There are two **required** settings in the *Parameters* block:
     depend on the local flow variables and any conditionally optional parameters
     relevant to the selected drag law. Options are:
 
+        :code:`none`
+
+            No basal drag, :math:`\mathcal{F} = 0`, for frictionless flows
+            (e.g. Thacker's analytic solutions). Use this rather than a very
+            small drag coefficient: even :math:`C_d = 10^{-8}` damps thin films
+            noticeably, because the drag acts as :math:`\mathcal{F}/H`.
+
         :code:`chezy`
 
             Sets the Chézy drag law
