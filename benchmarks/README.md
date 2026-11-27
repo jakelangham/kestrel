@@ -86,8 +86,8 @@ file and the runner's output say so.
 
 Three frictionless oscillations in a paraboloid bowl
 `b = h0 (x^2 + y^2) / a^2` with `h0 = 10 m` and `a = 3000 m`, from the exact
-solutions of Thacker (1981, *J. Fluid Mech.* 107, 499–508). Each run lasts two
-periods, with wet/dry fronts moving throughout. They test smooth flow with
+solutions of Thacker (1981, *J. Fluid Mech.* 107, 499–508). Each run lasts
+just over two periods, with wet/dry fronts moving throughout. They test smooth flow with
 moving shorelines over curved topography.
 
 | Case | Dimensions | Solution | Grids |
@@ -106,7 +106,7 @@ on a slope. All are 1D, on grids of 10, 5, 2.5 and 1.25 m.
 |---|---|
 | `dambreak_dry` | Onto a dry flat bed, without friction (Ritter 1892): a rarefaction, and a front at speed `2 sqrt(g h)`. Run to 40 s. |
 | `dambreak_wet` | Onto a layer 2 m deep on `0 < x < 800 m`, flat and without friction (Stoker 1957): a rarefaction into the reservoir and a shock into the layer. Run to 40 s. |
-| `dambreak_coulomb_slope` | Onto the dry slope `b = -0.5 x`, with Coulomb friction coefficient 0.3, geometric factors on (Mangeney, Heinrich & Roche 2000, *Pure Appl. Geophys.* 157, 1081–1096), released from rest. Run to 30 s, by when the flow has moved 700 m downhill. |
+| `dambreak_coulomb_slope` | Onto the dry slope `b = -0.5 x`, with Coulomb friction coefficient 0.3, geometric factors on (Mangeney, Heinrich & Roche 2000, *Pure Appl. Geophys.* 157, 1081–1096), released from rest. Run to 30 s, by when the flow has moved 706 m downhill (horizontally; 790 m along the slope). |
 | `dambreak_coulomb_slope_moving` | The same, but with the reservoir already moving downhill at 10 m/s at t = 0. |
 
 On a uniform slope, Kestrel's 1D equations are the shallow water equations in
@@ -114,8 +114,9 @@ the horizontal coordinate, with gravity `g cos^3 θ` and a uniform acceleration
 `g (sin θ - μ cos θ) cos θ` where the flow moves downhill (the equations of
 Savage and Hutter, written in the horizontal coordinate). A frame moving with
 that acceleration removes it, leaving Ritter's solution (the derivation is in
-`benchlib.jl`, above `dambreak_constants`). This needs the slope to be steeper
-than the friction angle, so that the flow never moves uphill.
+`benchlib.jl`, above `dambreak_constants`). This needs the flow to move
+downhill wherever the exact solution holds, which it does if the slope is
+steeper than the friction angle and the bed ahead is dry.
 
 The two Coulomb cases differ in how the flow starts. Released from rest, the
 direction of the friction is undefined at first, and Kestrel's implicit drag,
@@ -132,7 +133,8 @@ cases the start from rest.
 
 The reservoir and the layer are finite, so disturbances come in from their far
 ends. The errors are measured only in the region they have not yet reached,
-at most the speed `|v| + sqrt(g h)` in the moving frame, less a further
+at most the speed `|v| + sqrt(G h)` in the moving frame (`G = g cos^3 θ`, or
+`g` on a flat bed), less a further
 100 m. In the dry cases this keeps the whole rarefaction and the front; in the
 wet case, also the shock.
 
@@ -158,11 +160,12 @@ suite, which `make check` and CI run.
 - **Errors.** At each output time, the depth error is
   `sum |h - h_exact| / sum h_exact` over cells (over the region above, for dam
   breaks). The discharge error is `sum |q - q_exact| / (U sum h_exact)`, where
-  `q` is the discharge vector and `U` a speed scale: the largest exact speed at
-  the shoreline for Thacker's solutions, and the front's speed at the end of
-  the run (behind the shock, for Stoker's) for dam breaks. The reported error
-  is the largest over the output times. Depths are the bed-normal depth `Hn`,
-  and velocities horizontal.
+  `q` is the discharge vector and `U` a speed scale: for Thacker's solutions,
+  the largest exact speed over a period at the furthest the shoreline reaches
+  (for the planar ones, whose velocity is uniform, the flow's largest speed),
+  and for dam breaks the front's speed at the end of the run (behind the
+  shock, for Stoker's). The reported error is the largest over the output
+  times. Depths are the bed-normal depth `Hn`, and velocities horizontal.
 
 ## Results
 

@@ -7,7 +7,7 @@
 % a ((1 - A) / (1 + A))^(1/4) and a ((1 + A) / (1 - A))^(1/4) (2280 m and
 % 3948 m) with frequency w = sqrt(8 g h0) / a (period 672.9 s). The
 % initial condition is written by make_thacker_ic in benchlib.jl, and
-% must not be replaced by a Cube block. The run lasts two periods.
+% must not be replaced by a Cube block. The run lasts just over two periods.
 Domain:
 Lat = 0
 Lon = 0

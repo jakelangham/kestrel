@@ -4,7 +4,7 @@
 % with a planar free surface, whose centre goes round a circle of radius
 % d = 500 m with frequency w = sqrt(2 g h0) / a (period 1345.7 s), without
 % friction. The initial condition is written by make_thacker_ic in benchlib.jl,
-% and must not be replaced by a Cube block. The run lasts two periods.
+% and must not be replaced by a Cube block. The run lasts just over two periods.
 Domain:
 Lat = 0
 Lon = 0

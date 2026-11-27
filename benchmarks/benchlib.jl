@@ -112,6 +112,22 @@ function input_setting(lines, key)
    return nothing
 end
 
+# Whether the input file's lines turn on geometric factors: Kestrel's default,
+# unless 'Geometric factors' (or its alias 'Iverson') is off.
+function geometric_factors(lines)
+   gf = something(input_setting(lines, "Geometric factors"), input_setting(lines, "Iverson"), "on")
+   return lowercase(gf) != "off"
+end
+
+# Whether the input file's lines make the flow frictionless: Drag = None, or
+# Chezy drag with Co <= 1e-8, which record_reference.sh substitutes for
+# commits without Drag = None.
+function frictionless(lines)
+   drag = lowercase(something(input_setting(lines, "Drag"), ""))
+   drag == "none" && return true
+   return drag == "chezy" && parse(Float64, something(input_setting(lines, "Chezy Co"), "1")) <= 1e-8
+end
+
 # Cell spacings of a result file's cells, from the distinct x (and y) values.
 function cell_spacing(v)
    u = sort(unique(v))
@@ -134,8 +150,7 @@ function write_exact_ic(testname, dim, tmplblock, exact)
    lines = readlines(infile)
    icdir = "$(testname)_ic"
    tmpl = "$(testname)_template"
-   gf = input_setting(lines, "Geometric factors")
-   geometric = (gf === nothing) || lowercase(gf) != "off"
+   geometric = geometric_factors(lines)
 
    tmplfile = test_inputfile(tmpl)
    open(tmplfile, "w") do io
@@ -299,7 +314,7 @@ end
 make_exact_ic(testname, dim, sol) =
    (sol.kind == :dambreak) ? make_dambreak_ic(testname, dim, sol) : make_thacker_ic(testname, dim, sol)
 exact_comparison(testname, dim, sol) =
-   (sol.kind == :dambreak) ? dambreak_comparison(testname, sol) : thacker_comparison(sol, dim)
+   (sol.kind == :dambreak) ? dambreak_comparison(testname, sol) : thacker_comparison(testname, dim, sol)
 function exact_errors(testname, dim, sol)
    c = exact_comparison(testname, dim, sol)
    return (c === nothing) ? (NaN, NaN) : window_errors(testname, dim, c...)
@@ -309,24 +324,30 @@ function exact_profile(file, testname, dim, sol)
    return (c === nothing) ? nothing : write_window_profile(file, testname, dim, c[1], c[2])
 end
 
+# Check the input file of a Thacker solution against sol: the bowl, g, no
+# drag and no geometric factors. Returns true if it matches.
+function thacker_check(testname, dim, sol)
+   infile = test_inputfile(testname)
+   lines = readlines(infile)
+   bad(msg) = (println("$infile: $msg"); false)
+   tf = lowercase(something(input_setting(lines, "Topog function"), ""))
+   bowl = (dim == 1) ? "xparab" : "xyparab"
+   tf == bowl || return bad("the topography must be $bowl.")
+   tp = input_setting(lines, "Topog params")
+   coeffs = parse.(Float64, split(strip(tp, ['(', ')', ' ']), ','))
+   all(abs.(coeffs[1:dim] .- sol.h0 / sol.a^2) .<= 1e-12 * sol.h0 / sol.a^2) ||
+      return bad("Topog params do not match the solution's bowl.")
+   g = input_setting(lines, "g")
+   (g === nothing || parse(Float64, g) == thacker_g) || return bad("g must be $thacker_g.")
+   frictionless(lines) || return bad("Drag must be None.")
+   geometric_factors(lines) && return bad("Geometric factors must be off.")
+   return true
+end
+
 # Write the exact initial condition of the Thacker solution sol (see
 # write_exact_ic). Returns true on error.
 function make_thacker_ic(testname, dim, sol)
-   infile = test_inputfile(testname)
-   lines = readlines(infile)
-
-   # Check the bowl in the input file against the solution.
-   tp = input_setting(lines, "Topog params")
-   coeffs = parse.(Float64, split(strip(tp, ['(', ')', ' ']), ','))
-   if any(abs.(coeffs[1:dim] .- sol.h0 / sol.a^2) .> 1e-12 * sol.h0 / sol.a^2)
-      println("Topog params in $infile do not match the solution's bowl.")
-      return true
-   end
-   g = input_setting(lines, "g")
-   if g !== nothing && parse(Float64, g) != thacker_g
-      println("g in $infile must be $thacker_g.")
-      return true
-   end
+   thacker_check(testname, dim, sol) || return true
 
    # Template: a level lake over the bowl, out to beyond the furthest
    # shoreline, so that the tiles it will reach are all active.
@@ -341,9 +362,12 @@ function make_thacker_ic(testname, dim, sol)
 end
 
 # The comparison with the Thacker solution sol: exact, inwindow and U for
-# window_errors, compared everywhere, with U the largest exact speed at the
-# shoreline over a period.
-function thacker_comparison(sol, dim)
+# window_errors, compared everywhere, with U the largest exact speed over a
+# period at (R, 0), R the furthest the shoreline reaches (for the planar
+# solutions, whose velocity is uniform, the flow's largest speed). Nothing if
+# the input file does not match sol.
+function thacker_comparison(testname, dim, sol)
+   thacker_check(testname, dim, sol) || return nothing
    ω = thacker_frequency(sol, dim)
    R = thacker_max_radius(sol)
    U = maximum(t -> hypot(thacker_velocity(sol, dim, R, 0.0, t)...),
@@ -385,11 +409,12 @@ end
 # A and u0 disappear (as in Mangeney, Heinrich & Roche 2000, Pure Appl.
 # Geophys. 157, 1081), leaving the dam break of Ritter (1892) for a dry bed,
 # and that of Stoker (1957) for a wet one: a rarefaction into the reservoir,
-# and a shock into the layer. With mu > 0 this needs u > 0 wherever there is
-# flow, which holds if A > 0 (the slope is steeper than the friction angle,
-# s > mu), u0 >= 0 and hr = 0 (the wet-bed case is frictionless here). The solution holds until disturbances from the
-# far ends of the reservoir (at -L) and the layer (at R) arrive, which travel
-# into the undisturbed states at the speed c = sqrt(G h) in the moving frame.
+# and a shock into the layer. With mu > 0 this needs u > 0 wherever the
+# solution holds, which it does if A > 0 (the slope is steeper than the
+# friction angle, s > mu), u0 >= 0 and hr = 0 (the wet-bed case is
+# frictionless here). The solution holds until disturbances from the far ends
+# of the reservoir (at -L) and the layer (at R) arrive, which travel into the
+# undisturbed states at the speed c = sqrt(G h) in the moving frame.
 # The errors are measured only where they have not yet arrived, less margin:
 # xi > -L + cl t + margin and, if hr > 0, xi < R - cr t - margin.
 const dambreak_g = 9.81
@@ -422,7 +447,8 @@ end
 dambreak_shift(sol, k, t) = sol.u0 * t + k.A * t^2 / 2
 function dambreak_state(sol, k, x, t)
    if t == 0
-      return (x < 0) ? (sol.hl, sol.u0) : (x < sol.R ? sol.hr : 0.0, 0.0)
+      -sol.L <= x < 0 && return sol.hl, sol.u0
+      return (0 <= x < sol.R) ? sol.hr : 0.0, 0.0
    end
    ξ = x - dambreak_shift(sol, k, t)
    r = ξ / t
@@ -442,7 +468,7 @@ end
 
 # Points where the exact solution or its derivative is discontinuous.
 function dambreak_breaks(sol, k, t)
-   t == 0 && return [0.0]
+   t == 0 && return (sol.hr > 0) ? [-sol.L, 0.0, sol.R] : [-sol.L, 0.0]
    r = (sol.hr == 0) ? [-k.cl, 2 * k.cl] : [-k.cl, k.um - k.cm, k.S]
    return r .* t .+ dambreak_shift(sol, k, t)
 end
@@ -481,19 +507,15 @@ function dambreak_check(testname, sol)
       p = parse(Float64, strip(input_setting(lines, "Topog params"), ['(', ')', ' ']))
       p == -sol.s || return bad("Topog params must be $(-sol.s).")
    end
-   drag = lowercase(something(input_setting(lines, "Drag"), ""))
    if sol.mu == 0
-      # Chezy drag with Co = 1e-8 is what record_reference.sh substitutes for
-      # commits without Drag = None.
-      chezy0 = drag == "chezy" && parse(Float64, something(input_setting(lines, "Chezy Co"), "1")) <= 1e-8
-      drag == "none" || chezy0 || return bad("Drag must be None.")
+      frictionless(lines) || return bad("Drag must be None.")
    else
-      drag == "coulomb" || return bad("Drag must be Coulomb.")
+      lowercase(something(input_setting(lines, "Drag"), "")) == "coulomb" ||
+         return bad("Drag must be Coulomb.")
       parse(Float64, input_setting(lines, "Coulomb Co")) == sol.mu ||
          return bad("Coulomb Co must be $(sol.mu).")
    end
-   gf = input_setting(lines, "Geometric factors")
-   k = dambreak_constants(sol; geometric = (gf === nothing) || lowercase(gf) != "off")
+   k = dambreak_constants(sol; geometric = geometric_factors(lines))
    if sol.mu > 0 && (k.A <= 0 || sol.hr > 0)
       return bad("Coulomb friction needs a slope steeper than the friction angle, and a dry bed.")
    end
